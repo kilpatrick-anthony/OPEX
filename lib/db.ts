@@ -1,8 +1,6 @@
-import path from 'path';
-import sqlite3 from 'sqlite3';
-import { open, Database } from 'sqlite';
+import { neon } from '@neondatabase/serverless';
 
-let cachedDb: Database | null = null;
+const sql = neon(process.env.DATABASE_URL!);
 
 export type Store = {
   id: number;
@@ -36,109 +34,55 @@ export type RequestRecord = {
   createdAt: string;
 };
 
-export async function getDb() {
-  if (cachedDb) return cachedDb;
-
-  const db = await open({
-    filename: path.join(process.cwd(), 'opex.db'),
-    driver: sqlite3.Database,
-  });
-
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      role TEXT NOT NULL,
-      storeId INTEGER,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS stores (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      budget REAL NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      storeId INTEGER NOT NULL,
-      userId INTEGER NOT NULL,
-      category TEXT NOT NULL,
-      amount REAL NOT NULL,
-      description TEXT,
-      receipt TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      queryComment TEXT,
-      actionComment TEXT,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(storeId) REFERENCES stores(id),
-      FOREIGN KEY(userId) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS approvals (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      requestId INTEGER NOT NULL,
-      userId INTEGER NOT NULL,
-      action TEXT NOT NULL,
-      comment TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(requestId) REFERENCES requests(id),
-      FOREIGN KEY(userId) REFERENCES users(id)
-    );
-  `);
-
-  const storeCount = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM stores');
-  if ((storeCount?.count ?? 0) === 0) {
-    await db.run('INSERT INTO stores (name, budget) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)',
-      'Dublin Grafton St', 15000,
-      'Cork Patrick St', 12000,
-      'Galway Shop St', 10000,
-      'Limerick', 9000,
-      'Waterford', 8000,
-      'Field Team', 11000
-    );
-  }
-
-  const userCount = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM users');
-  if ((userCount?.count ?? 0) === 0) {
-    await db.run('INSERT INTO users (name, email, password, role, storeId) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)',
-      'Director', 'director@oakberry.ie', 'Director123!', 'director', null,
-      'Grafton Manager', 'manager.dublin@oakberry.ie', 'Manager123!', 'manager', 1,
-      'Cork Employee', 'employee.cork@oakberry.ie', 'Employee123!', 'employee', 2,
-      'Field Employee', 'employee.field@oakberry.ie', 'Field123!', 'employee', 6
-    );
-  }
-
-  cachedDb = db;
-  return db;
-}
-
 export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  return db.get<User>('SELECT * FROM users WHERE email = ?', [email]);
+  // Create tables if not exist
+  await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, storeId INTEGER, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+
+  // Seed users if none exist
+  const userCount = await sql`SELECT COUNT(*) as count FROM users`;
+  if (userCount[0].count === 0) {
+    await sql`INSERT INTO users (name, email, password, role, storeId) VALUES 
+      ('Director', 'director@oakberry.ie', 'Director123!', 'director', null),
+      ('Grafton Manager', 'manager.dublin@oakberry.ie', 'Manager123!', 'manager', 1),
+      ('Cork Employee', 'employee.cork@oakberry.ie', 'Employee123!', 'employee', 2),
+      ('Field Employee', 'employee.field@oakberry.ie', 'Field123!', 'employee', 6)`;
+  }
+
+  const result = await sql`SELECT * FROM users WHERE email = ${email.toLowerCase()}`;
+  return result[0] as User | undefined;
 }
 
 export async function getUserById(id: number) {
-  const db = await getDb();
-  return db.get<User>('SELECT * FROM users WHERE id = ?', [id]);
+  const result = await sql`SELECT * FROM users WHERE id = ${id}`;
+  return result[0] as User | undefined;
 }
 
 export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director'; storeId: number | null }) {
-  const db = await getDb();
-  const result = await db.run(
-    'INSERT INTO users (name, email, password, role, storeId) VALUES (?, ?, ?, ?, ?)',
-    [data.name, data.email.toLowerCase(), data.password, data.role, data.storeId],
-  );
-  return getUserById(result.lastID as number);
+  const result = await sql`INSERT INTO users (name, email, password, role, storeId) VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.storeId}) RETURNING *`;
+  return result[0] as User;
 }
 
 export async function getStores() {
-  const db = await getDb();
-  return db.all<Store[]>('SELECT * FROM stores ORDER BY id');
+  // Create table if not exist
+  await sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+
+  // Seed stores if none exist
+  const storeCount = await sql`SELECT COUNT(*) as count FROM stores`;
+  if (storeCount[0].count === 0) {
+    await sql`INSERT INTO stores (name, budget) VALUES 
+      ('Dublin Grafton St', 15000),
+      ('Cork Patrick St', 12000),
+      ('Galway Shop St', 10000),
+      ('Limerick', 9000),
+      ('Waterford', 8000),
+      ('Field Team', 11000)`;
+  }
+
+  const result = await sql`SELECT * FROM stores ORDER BY id`;
+  return result as Store[];
 }
 
 export async function insertRequest(data: {
@@ -149,56 +93,48 @@ export async function insertRequest(data: {
   description: string;
   receipt?: string;
 }) {
-  const db = await getDb();
-  const result = await db.run(
-    `INSERT INTO requests (storeId, userId, category, amount, description, receipt, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-    [data.storeId, data.userId, data.category, data.amount, data.description, data.receipt || null],
-  );
-  return getRequestById(result.lastID as number);
+  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, 'pending') RETURNING *`;
+  return getRequestById(result[0].id);
 }
 
 export async function getRequestById(id: number) {
-  const db = await getDb();
-  return db.get<RequestRecord>(
-    `SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE r.id = ?`,
-    [id],
-  );
+  const result = await sql`SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE r.id = ${id}`;
+  return result[0] as RequestRecord | undefined;
 }
 
 export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null }): Promise<RequestRecord[]> {
-  const db = await getDb();
-  const params: Array<number | string> = [];
-  let where = 'WHERE 1=1';
+  let query = sql`SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE 1=1`;
+  const conditions: any[] = [];
 
   if (filters.role === 'employee') {
-    where += ' AND r.userId = ?';
-    params.push(filters.userId!);
+    conditions.push(sql`r.userId = ${filters.userId}`);
   }
 
   if (filters.role === 'manager') {
-    where += ' AND r.storeId = ?';
-    params.push(filters.userStoreId!);
+    conditions.push(sql`r.storeId = ${filters.userStoreId}`);
   }
 
   if (filters.storeId) {
-    where += ' AND r.storeId = ?';
-    params.push(filters.storeId);
+    conditions.push(sql`r.storeId = ${filters.storeId}`);
   }
 
   if (filters.status) {
-    where += ' AND r.status = ?';
-    params.push(filters.status);
+    conditions.push(sql`r.status = ${filters.status}`);
   }
 
-  return db.all(
-    `SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id ${where} ORDER BY r.createdAt DESC`,
-    params,
-  ) as Promise<RequestRecord[]>;
+  if (conditions.length > 0) {
+    query = sql`${query} AND ${sql.join(conditions, ' AND ')}`;
+  }
+
+  query = sql`${query} ORDER BY r.createdAt DESC`;
+
+  const result = await query;
+  return result as RequestRecord[];
 }
 
 export async function getStoreBudgets() {
-  const db = await getDb();
-  return db.all<Store[]>(`SELECT id, name, budget FROM stores ORDER BY id`);
+  const result = await sql`SELECT id, name, budget FROM stores ORDER BY id`;
+  return result as Store[];
 }
 
 export async function getStoreRemainingBudget(storeId: number) {

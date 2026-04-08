@@ -1,12 +1,6 @@
 {
-  "/login/page": "app/login/page.js",
-  "/api/auth/me/route": "app/api/auth/me/route.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/api/dashboard/route": "app/api/dashboard/route.js",
-  "/approval/page": "app/approval/page.js",
+  "/login/page": "app/login/page.js",
   "/requests/page": "app/requests/page.js",
-  "/api/stores/route": "app/api/stores/route.js",
-  "/api/requests/route": "app/api/requests/route.js",
-  "/page": "app/page.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js"
+  "/approval/page": "app/approval/page.js"
 }
