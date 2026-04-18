@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -105,6 +106,7 @@ export default function DashboardPage() {
   }, [dashboard]);
 
   const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
+  const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
 
   function exportCsv() {
     if (!dashboard) return;
@@ -190,11 +192,22 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-slate-500">Stores with tracked budgets</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Pending approvals</p>
-            <p className="mt-3 text-4xl font-semibold text-amber-600">{pendingCount}</p>
-            <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
-          </div>
+          {canOpenApprovals ? (
+            <Link
+              href="/approval"
+              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-md"
+            >
+              <p className="text-xs uppercase tracking-widest text-slate-500">Pending approvals</p>
+              <p className="mt-3 text-4xl font-semibold text-amber-600">{pendingCount}</p>
+              <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
+            </Link>
+          ) : (
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+              <p className="text-xs uppercase tracking-widest text-slate-500">Pending approvals</p>
+              <p className="mt-3 text-4xl font-semibold text-amber-600">{pendingCount}</p>
+              <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
