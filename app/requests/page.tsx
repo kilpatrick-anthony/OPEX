@@ -104,8 +104,11 @@ export default function RequestsPage() {
         const allStores = await loadStores();
 
         if (isStoreStaff) {
-          // Store accounts do not load request history; just lock form to their own store.
-          if (user.store) {
+          // Store accounts do not load request history; lock form to their assigned storeId.
+          if (user.storeId) {
+            setForm((prev) => ({ ...prev, storeId: String(user.storeId) }));
+            setStoreFilter(String(user.storeId));
+          } else if (user.store) {
             const ownStore = allStores.find((store) => store.name === user.store);
             if (ownStore) {
               setForm((prev) => ({ ...prev, storeId: String(ownStore.id) }));

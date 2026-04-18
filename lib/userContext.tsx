@@ -8,6 +8,7 @@ type CurrentUser = {
   name: string;
   role: 'super_admin' | 'director' | 'field_team' | 'store_staff';
   title: string | null;
+  storeId: number | null;
   store: string | null;
   employeeSlug: string | null;
 };
@@ -83,7 +84,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       name: session.user.name,
       role: appRole,
       title: session.user.title ?? null,
-      store: session.user.storeId ? (storeNameById[session.user.storeId] ?? null) : null,
+      storeId: session.user.storeId ?? null,
+      store:
+        appRole === 'store_staff'
+          ? (session.user.storeId ? (storeNameById[session.user.storeId] ?? session.user.name) : session.user.name)
+          : (session.user.storeId ? (storeNameById[session.user.storeId] ?? null) : null),
       employeeSlug,
     };
   }, [session, status, storeNameById]);
