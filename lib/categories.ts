@@ -7,6 +7,10 @@ export const REQUEST_CATEGORIES = [
   'Equipment',
   'Lunch and Dinner',
   'Subscriptions',
+  'Software Licenses',
+  'Repairs',
+  'Courier and Delivery',
+  'Events',
   'Training',
   'Professional Services',
 ] as const;
