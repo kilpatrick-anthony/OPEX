@@ -216,9 +216,6 @@ export default function RequestsPage() {
                   disabled
                   className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3"
                 />
-                {isStoreStaff ? (
-                  <p className="text-xs text-slate-500">Submitting for: <span className="font-medium text-slate-700">{user.store}</span></p>
-                ) : null}
               </label>
 
               {isStoreStaff ? (
