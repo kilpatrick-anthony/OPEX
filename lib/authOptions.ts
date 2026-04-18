@@ -2,8 +2,13 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { getUserByEmail } from '@/lib/db';
 import { verifyPassword } from '@/lib/password';
 
+const resolvedAuthSecret =
+  process.env.NEXTAUTH_SECRET ||
+  process.env.JWT_SECRET ||
+  'temporary-auth-secret-change-me-in-vercel';
+
 export const authOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: resolvedAuthSecret,
   providers: [
     CredentialsProvider({
       name: 'Email and Password',
