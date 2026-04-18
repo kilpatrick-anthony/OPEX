@@ -39,7 +39,7 @@ const STATUS_STYLES: Record<RequestStatus, string> = {
   queried: 'bg-sky-50 text-sky-700',
 };
 
-const CATEGORIES = [...REQUEST_CATEGORIES];
+const CATEGORIES = [...REQUEST_CATEGORIES].sort((a, b) => a.localeCompare(b));
 
 export default function RequestsPage() {
   const { user, isLoading } = useCurrentUser();
