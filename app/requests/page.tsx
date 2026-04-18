@@ -216,30 +216,12 @@ export default function RequestsPage() {
                   disabled
                   className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3"
                 />
+                {isStoreStaff ? (
+                  <p className="text-xs text-slate-500">Submitting for: <span className="font-medium text-slate-700">{user.store}</span></p>
+                ) : null}
               </label>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-sm text-slate-700">
-                  Store / Team
-                  {isStoreStaff ? (
-                    <div className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-700 font-medium">
-                      {user.store}
-                    </div>
-                  ) : (
-                    <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                      value={form.storeId}
-                      onChange={(e) => setForm({ ...form, storeId: e.target.value })}
-                      required
-                    >
-                      <option value="">Choose a location</option>
-                      {stores.map((store) => (
-                        <option key={store.id} value={store.id}>{store.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </label>
-
+              {isStoreStaff ? (
                 <label className="space-y-2 text-sm text-slate-700">
                   Category
                   <select
@@ -251,7 +233,36 @@ export default function RequestsPage() {
                     {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
                   </select>
                 </label>
-              </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Store / Team
+                    <select
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      value={form.storeId}
+                      onChange={(e) => setForm({ ...form, storeId: e.target.value })}
+                      required
+                    >
+                      <option value="">Choose a location</option>
+                      {stores.map((store) => (
+                        <option key={store.id} value={store.id}>{store.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Category
+                    <select
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      required
+                    >
+                      {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
+                    </select>
+                  </label>
+                </div>
+              )}
 
               <label className="space-y-2 text-sm text-slate-700">
                 Amount (€)
