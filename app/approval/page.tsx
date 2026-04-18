@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { Dialog } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
 
@@ -47,8 +47,8 @@ export default function ApprovalPage() {
   async function loadStores() {
     const response = await fetch('/api/stores', { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to load stores');
-    const data = await response.json();
-    setStores(data);
+    const data = await readJsonSafely(response);
+    setStores(Array.isArray(data) ? (data as Array<{ id: number; name: string }>) : []);
   }
 
   async function loadRequests() {
@@ -58,9 +58,9 @@ export default function ApprovalPage() {
 
     const url = params.toString() ? `/api/requests?${params.toString()}` : '/api/requests';
     const response = await fetch(url, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Failed to load requests');
-    setRequests(payload.requests);
+    const payload = await readJsonSafely(response);
+    if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to load requests'));
+    setRequests(Array.isArray((payload as any)?.requests) ? (payload as any).requests : []);
   }
 
   useEffect(() => {
@@ -132,8 +132,8 @@ export default function ApprovalPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, comment: comment || '' }),
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Failed to apply action');
+    const payload = await readJsonSafely(response);
+    if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to apply action'));
   }
 
   async function handleAction(id: number, action: 'approved' | 'rejected') {

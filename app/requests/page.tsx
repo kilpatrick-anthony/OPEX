@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { Dialog } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/userContext';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
@@ -71,9 +71,10 @@ export default function RequestsPage() {
   async function loadStores() {
     const response = await fetch('/api/stores', { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to load stores');
-    const data = (await response.json()) as Store[];
-    setStores(data);
-    return data;
+    const data = (await readJsonSafely(response)) as Store[] | null;
+    const safeStores = Array.isArray(data) ? data : [];
+    setStores(safeStores);
+    return safeStores;
   }
 
   async function loadRequests(filters?: { status?: string; storeId?: string }) {
@@ -86,8 +87,8 @@ export default function RequestsPage() {
     const url = params.toString() ? `/api/requests?${params.toString()}` : '/api/requests';
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to load requests');
-    const data = (await response.json()) as { requests: RequestRecord[] };
-    setRequests(data.requests);
+    const data = (await readJsonSafely(response)) as { requests?: RequestRecord[] } | null;
+    setRequests(Array.isArray(data?.requests) ? data.requests : []);
   }
 
   useEffect(() => {
@@ -161,9 +162,9 @@ export default function RequestsPage() {
         }),
       });
 
-      const payload = await response.json();
+      const payload = await readJsonSafely(response);
       if (!response.ok) {
-        throw new Error(payload.error || 'Failed to submit request');
+        throw new Error(getApiErrorMessage(response, payload, 'Failed to submit request'));
       }
 
       setSuccess('Request submitted successfully and is pending approval.');

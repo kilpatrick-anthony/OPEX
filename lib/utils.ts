@@ -14,3 +14,25 @@ export function parseCookie(cookieHeader: string): Record<string, string> {
     return acc;
   }, {} as Record<string, string>);
 }
+
+export async function readJsonSafely(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+export function getApiErrorMessage(response: Response, payload: unknown, fallback: string): string {
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    const error = (payload as { error?: unknown }).error;
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error;
+    }
+  }
+
+  return `${fallback} (HTTP ${response.status})`;
+}

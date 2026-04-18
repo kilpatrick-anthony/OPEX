@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 
 const PERIOD_OPTIONS = [
   { label: 'Week', value: 'week' },
@@ -89,14 +89,22 @@ export default function ReportsPage() {
         fetch('/api/requests', { cache: 'no-store' }),
       ]);
 
-      const dashPayload = await dashRes.json();
-      const reqPayload = await reqRes.json();
+      const dashPayload = await readJsonSafely(dashRes);
+      const reqPayload = await readJsonSafely(reqRes);
 
-      if (!dashRes.ok) throw new Error(dashPayload.error || 'Failed to load dashboard report data');
-      if (!reqRes.ok) throw new Error(reqPayload.error || 'Failed to load requests report data');
+      if (!dashRes.ok) {
+        throw new Error(getApiErrorMessage(dashRes, dashPayload, 'Failed to load dashboard report data'));
+      }
+      if (!reqRes.ok) {
+        throw new Error(getApiErrorMessage(reqRes, reqPayload, 'Failed to load requests report data'));
+      }
+
+      if (!dashPayload || typeof dashPayload !== 'object') {
+        throw new Error('Report service returned an empty response. Please try again.');
+      }
 
       setDashboard(dashPayload as DashboardPayload);
-      setRequests((reqPayload.requests || []) as RequestRow[]);
+      setRequests(Array.isArray((reqPayload as any)?.requests) ? ((reqPayload as any).requests as RequestRow[]) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report data');
     } finally {

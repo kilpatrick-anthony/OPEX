@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 
 type DashboardPeriod = 'month' | 'last-month' | 'quarter';
 
@@ -50,14 +50,22 @@ export default function DashboardPage() {
         fetch('/api/requests?status=pending', { cache: 'no-store' }),
       ]);
 
-      const dashboardPayload = await dashboardRes.json();
-      const pendingPayload = await pendingRes.json();
+      const dashboardPayload = await readJsonSafely(dashboardRes);
+      const pendingPayload = await readJsonSafely(pendingRes);
 
-      if (!dashboardRes.ok) throw new Error(dashboardPayload.error || 'Failed to load dashboard');
-      if (!pendingRes.ok) throw new Error(pendingPayload.error || 'Failed to load pending count');
+      if (!dashboardRes.ok) {
+        throw new Error(getApiErrorMessage(dashboardRes, dashboardPayload, 'Failed to load dashboard'));
+      }
+      if (!pendingRes.ok) {
+        throw new Error(getApiErrorMessage(pendingRes, pendingPayload, 'Failed to load pending count'));
+      }
+
+      if (!dashboardPayload || typeof dashboardPayload !== 'object') {
+        throw new Error('Dashboard returned an empty response. Please try again.');
+      }
 
       setDashboard(dashboardPayload as DashboardResponse);
-      setPendingCount((pendingPayload.requests || []).length);
+      setPendingCount(Array.isArray((pendingPayload as any)?.requests) ? (pendingPayload as any).requests.length : 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
