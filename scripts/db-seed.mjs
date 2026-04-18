@@ -80,6 +80,12 @@ const legacyEmails = [
 async function main() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`;
 
+  // Remove legacy Nutgrove data so it cannot appear in dashboard store aggregates.
+  await sql`DELETE FROM requests WHERE storeId IN (SELECT id FROM stores WHERE LOWER(name) = 'nutgrove')`;
+  await sql`DELETE FROM users WHERE storeId IN (SELECT id FROM stores WHERE LOWER(name) = 'nutgrove')`;
+  await sql`DELETE FROM users WHERE LOWER(email) = 'nutgrove@oakberry.ie' OR LOWER(email) = 'manager.nutgrove@oakberry.ie'`;
+  await sql`DELETE FROM stores WHERE LOWER(name) = 'nutgrove'`;
+
   for (const email of legacyEmails) {
     await sql`DELETE FROM users WHERE email = ${email}`;
   }
