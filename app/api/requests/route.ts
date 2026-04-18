@@ -23,10 +23,15 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const requestedStoreId = url.searchParams.get('storeId') || undefined;
+    const team = url.searchParams.get('team') || undefined;
     const status = url.searchParams.get('status') || undefined;
+    const parsedStoreId = requestedStoreId && /^\d+$/.test(requestedStoreId)
+      ? Number(requestedStoreId)
+      : undefined;
     const effectiveStoreId = normalizedRole === 'manager'
       ? Number(session.user.storeId)
-      : (requestedStoreId ? Number(requestedStoreId) : undefined);
+      : parsedStoreId;
+    const requesterRole = team === 'field-team' ? 'employee' : undefined;
 
     const filters = {
       storeId: effectiveStoreId,
@@ -34,6 +39,7 @@ export async function GET(request: Request) {
       userId: session.user.id,
       role: normalizedRole,
       userStoreId: session.user.storeId,
+      requesterRole,
     };
     const requests = await queryRequests(filters);
     const stores = await getStores();

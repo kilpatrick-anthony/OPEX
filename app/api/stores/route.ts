@@ -5,5 +5,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const stores = await getStores();
-  return NextResponse.json(stores);
+  const visibleStores = stores
+    .filter((store) => store.name.trim().toLowerCase() !== 'nutgrove')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return NextResponse.json(visibleStores);
 }

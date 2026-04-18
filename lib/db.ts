@@ -32,6 +32,7 @@ export type RequestRecord = {
   storeName: string;
   userId: number;
   requesterName: string;
+  requesterRole?: string;
   category: string;
   amount: number;
   description: string;
@@ -112,26 +113,28 @@ export async function insertRequest(data: {
 export async function getRequestById(id: number) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE r.id = ${id}`;
+  const result = await sql`SELECT r.*, s.name as storeName, u.name as requesterName, u.role as requesterRole FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE r.id = ${id}`;
   return result[0] as RequestRecord | undefined;
 }
 
-export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null }): Promise<RequestRecord[]> {
+export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null; requesterRole?: string }): Promise<RequestRecord[]> {
   await ensureSchemaOnce();
   const sql = getSql();
   const isManager = filters.role === 'manager';
   const userStoreId = filters.userStoreId ?? null;
   const storeId = filters.storeId ?? null;
   const status = filters.status ?? null;
+  const requesterRole = filters.requesterRole ?? null;
 
   const result = await sql`
-    SELECT r.*, s.name as storeName, u.name as requesterName
+    SELECT r.*, s.name as storeName, u.name as requesterName, u.role as requesterRole
     FROM requests r
     JOIN stores s ON r.storeId = s.id
     JOIN users u ON r.userId = u.id
     WHERE (${isManager} = false OR r.storeId = ${userStoreId})
       AND (${storeId}::int IS NULL OR r.storeId = ${storeId})
       AND (${status}::text IS NULL OR r.status = ${status})
+      AND (${requesterRole}::text IS NULL OR u.role = ${requesterRole})
     ORDER BY r.createdAt DESC
   `;
   return result as RequestRecord[];

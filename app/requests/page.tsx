@@ -74,7 +74,8 @@ export default function RequestsPage() {
     const response = await fetch('/api/stores', { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to load stores');
     const data = (await readJsonSafely(response)) as Store[] | null;
-    const safeStores = Array.isArray(data) ? data : [];
+    const safeStores = (Array.isArray(data) ? data : [])
+      .filter((store) => store.name.trim().toLowerCase() !== 'nutgrove');
     setStores(safeStores);
     return safeStores;
   }
@@ -84,7 +85,8 @@ export default function RequestsPage() {
     const nextStatus = filters?.status ?? statusFilter;
     const nextStoreId = filters?.storeId ?? storeFilter;
     if (nextStatus) params.set('status', nextStatus);
-    if (nextStoreId) params.set('storeId', nextStoreId);
+    if (nextStoreId === 'field-team') params.set('team', 'field-team');
+    else if (nextStoreId) params.set('storeId', nextStoreId);
 
     const url = params.toString() ? `/api/requests?${params.toString()}` : '/api/requests';
     const response = await fetch(url, { cache: 'no-store' });
@@ -312,6 +314,7 @@ export default function RequestsPage() {
                       onChange={(e) => setStoreFilter(e.target.value)}
                     >
                       <option value="">All locations</option>
+                      <option value="field-team">Field Based Team</option>
                       {stores.map((store) => (
                         <option key={store.id} value={store.id}>{store.name}</option>
                       ))}
