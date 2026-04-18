@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
 import { formatCurrency } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/userContext';
+import { useRouter } from 'next/navigation';
 
 type RequestRow = {
   id: number;
@@ -77,10 +79,25 @@ function buildMonthlyTrend(approvedRequests: RequestRow[], pendingRequests: Requ
 }
 
 export default function ForecastPage() {
+  const { user, isLoading: userLoading } = useCurrentUser();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const canAccessForecast = user?.role === 'director' || user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (userLoading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    if (!canAccessForecast) {
+      router.replace('/dashboard');
+    }
+  }, [user, userLoading, canAccessForecast, router]);
 
   async function loadData() {
     setLoading(true);
@@ -108,8 +125,18 @@ export default function ForecastPage() {
   }
 
   useEffect(() => {
+    if (userLoading || !canAccessForecast) return;
     loadData();
-  }, []);
+  }, [userLoading, canAccessForecast]);
+
+  if (userLoading || !canAccessForecast) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <main className="container py-10 text-sm text-slate-500">Loading forecast data...</main>
+      </div>
+    );
+  }
 
   const approvedRequests = useMemo(() => requests.filter((r) => r.status === 'approved'), [requests]);
   const pendingRequests = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
