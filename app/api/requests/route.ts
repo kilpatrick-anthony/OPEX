@@ -16,11 +16,19 @@ export async function GET(request: Request) {
       ? session.user.role
       : 'employee';
 
+    if (normalizedRole === 'manager' && !session.user.storeId) {
+      return NextResponse.json({ error: 'Store account is missing a store assignment.' }, { status: 403 });
+    }
+
     const url = new URL(request.url);
-    const storeId = url.searchParams.get('storeId') || undefined;
+    const requestedStoreId = url.searchParams.get('storeId') || undefined;
     const status = url.searchParams.get('status') || undefined;
+    const effectiveStoreId = normalizedRole === 'manager'
+      ? Number(session.user.storeId)
+      : (requestedStoreId ? Number(requestedStoreId) : undefined);
+
     const filters = {
-      storeId: storeId ? Number(storeId) : undefined,
+      storeId: effectiveStoreId,
       status,
       userId: session.user.id,
       role: normalizedRole,
@@ -53,8 +61,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const normalizedRole = ['employee', 'manager', 'director', 'super_admin'].includes(session.user.role)
+    ? session.user.role
+    : 'employee';
+
+  if (normalizedRole === 'manager' && !session.user.storeId) {
+    return NextResponse.json({ error: 'Store account is missing a store assignment.' }, { status: 403 });
+  }
+
   const body = await request.json();
-  const storeId = Number(body.storeId);
+  const requestedStoreId = Number(body.storeId);
+  const storeId = normalizedRole === 'manager' ? Number(session.user.storeId) : requestedStoreId;
   const category = body.category?.trim();
   const amount = Number(body.amount);
   const description = body.description?.trim();
