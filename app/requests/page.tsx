@@ -104,9 +104,6 @@ export default function RequestsPage() {
           if (ownStore) {
             setForm((prev) => ({ ...prev, storeId: String(ownStore.id) }));
             setStoreFilter(String(ownStore.id));
-            await loadRequests({ storeId: String(ownStore.id) });
-          } else {
-            await loadRequests();
           }
         } else {
           await loadRequests();
@@ -127,9 +124,9 @@ export default function RequestsPage() {
   }, [user, isStoreStaff]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isStoreStaff) return;
     loadRequests().catch(() => setError('Failed to refresh requests'));
-  }, [statusFilter, storeFilter]);
+  }, [statusFilter, storeFilter, user, isStoreStaff]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -341,56 +338,58 @@ export default function RequestsPage() {
           </div>
         </div>
 
-        <section className="mt-8">
-          <Card title="Request history" description="All requests you can access." className="space-y-4">
-            {loadingData ? <p className="text-sm text-slate-500">Loading requests…</p> : null}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <tr>
-                    <th className="px-4 py-3 text-left">Store</th>
-                    <th className="px-4 py-3 text-left">Requester</th>
-                    <th className="px-4 py-3 text-left">Category</th>
-                    <th className="px-4 py-3 text-left">Amount</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Date</th>
-                    <th className="px-4 py-3 text-left">Budget left</th>
-                    <th className="px-4 py-3 text-left"></th>
-                  </tr>
-                </TableHeader>
-                <tbody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell className="font-medium text-slate-800">{request.storeName}</TableCell>
-                      <TableCell>{request.requesterName}</TableCell>
-                      <TableCell>
-                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
-                      <TableCell>
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[request.status]}`}>{request.status}</span>
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-500">
-                        {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">{formatCurrency(request.storeRemainingBudget)}</TableCell>
-                      <TableCell>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRequest(request)}
-                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition-colors"
-                        >
-                          View
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
-              {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
-            </div>
-          </Card>
-        </section>
+        {!isStoreStaff ? (
+          <section className="mt-8">
+            <Card title="Request history" description="All requests you can access." className="space-y-4">
+              {loadingData ? <p className="text-sm text-slate-500">Loading requests…</p> : null}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <tr>
+                      <th className="px-4 py-3 text-left">Store</th>
+                      <th className="px-4 py-3 text-left">Requester</th>
+                      <th className="px-4 py-3 text-left">Category</th>
+                      <th className="px-4 py-3 text-left">Amount</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Budget left</th>
+                      <th className="px-4 py-3 text-left"></th>
+                    </tr>
+                  </TableHeader>
+                  <tbody>
+                    {requests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="font-medium text-slate-800">{request.storeName}</TableCell>
+                        <TableCell>{request.requesterName}</TableCell>
+                        <TableCell>
+                          <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
+                        </TableCell>
+                        <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
+                        <TableCell>
+                          <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[request.status]}`}>{request.status}</span>
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500">
+                          {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-600">{formatCurrency(request.storeRemainingBudget)}</TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRequest(request)}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition-colors"
+                          >
+                            View
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+                {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
+              </div>
+            </Card>
+          </section>
+        ) : null}
       </main>
 
       {selectedRequest ? (
