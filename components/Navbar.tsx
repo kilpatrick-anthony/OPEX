@@ -76,7 +76,7 @@ export function Navbar() {
                 </span>
                 <span className="hidden sm:inline">{user.name}</span>
                 <span className="hidden sm:inline" style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
-                <span style={{ color: 'rgba(255,255,255,0.65)' }}>{ROLE_LABELS[user.role]}</span>
+                <span style={{ color: 'rgba(255,255,255,0.65)' }}>{user.title || ROLE_LABELS[user.role]}</span>
               </div>
               <button onClick={handleLogout}
                 className="rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/10"

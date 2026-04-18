@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
-// Google Workspace auth removed — credentials-only
 import { useEffect } from 'react';
 
 export default function LoginPage() {
@@ -96,13 +95,9 @@ export default function LoginPage() {
               className="w-full rounded-full px-7 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg, #4a1f60, #6d2f8e)' }}
             >
-              {submitting ? 'Signing in...' : 'Sign in with Email'}
+              {submitting ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-
-          <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            Director users can access approvals and dashboard views. Store and field users are redirected to their permitted screens.
-          </div>
         </div>
       </div>
     </div>

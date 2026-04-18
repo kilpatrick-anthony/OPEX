@@ -22,6 +22,7 @@ export type User = {
   email: string;
   password: string;
   role: 'employee' | 'manager' | 'director' | 'super_admin';
+  title: string | null;
   storeId: number | null;
 };
 
@@ -44,7 +45,8 @@ export type RequestRecord = {
 
 export async function ensureSchema() {
   const sql = getSql();
-  await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, storeId INTEGER, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`;
   await sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
@@ -78,10 +80,10 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   await sql`UPDATE users SET password = ${passwordHash} WHERE id = ${userId}`;
 }
 
-export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director' | 'super_admin'; storeId: number | null }) {
+export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director' | 'super_admin'; title?: string | null; storeId: number | null }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO users (name, email, password, role, storeId) VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.storeId}) RETURNING *`;
+  const result = await sql`INSERT INTO users (name, email, password, role, title, storeId) VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.title ?? null}, ${data.storeId}) RETURNING *`;
   return result[0] as User;
 }
 

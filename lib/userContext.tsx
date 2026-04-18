@@ -7,6 +7,7 @@ type CurrentUser = {
   id: string;
   name: string;
   role: 'super_admin' | 'director' | 'field_team' | 'store_staff';
+  title: string | null;
   store: string | null;
   employeeSlug: string | null;
 };
@@ -79,6 +80,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       id: String(session.user.id),
       name: session.user.name,
       role: appRole,
+      title: session.user.title ?? null,
       store: session.user.storeId ? (storeNameById[session.user.storeId] ?? null) : null,
       employeeSlug,
     };

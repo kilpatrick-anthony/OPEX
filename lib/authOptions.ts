@@ -29,6 +29,7 @@ export const authOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          title: user.title ?? null,
           storeId: user.storeId,
         } as any;
       },
@@ -47,15 +48,17 @@ export const authOptions = {
       if (user) {
         token.id = (user as any).id;
         token.role = (user as any).role;
+        token.title = (user as any).title ?? null;
         token.storeId = (user as any).storeId ?? null;
       }
 
       // Backfill stale tokens (e.g. sessions created before role/store fields existed).
-      if ((!token.role || token.storeId === undefined || !token.id) && token.email) {
+      if ((!token.role || token.storeId === undefined || !token.id || token.title === undefined) && token.email) {
         const existing = await getUserByEmail(String(token.email).toLowerCase());
         if (existing) {
           token.id = existing.id;
           token.role = existing.role;
+          token.title = existing.title ?? null;
           token.storeId = existing.storeId ?? null;
         }
       }
@@ -66,6 +69,7 @@ export const authOptions = {
       if (session.user) {
         session.user.id = token.id as number;
         session.user.role = token.role as string;
+        session.user.title = (token.title as string | null) ?? null;
         session.user.storeId = token.storeId as number | null;
       }
       return session;
