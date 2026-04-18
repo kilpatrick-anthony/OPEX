@@ -16,15 +16,15 @@ export default function LoginPage() {
   async function resolveHomeRoute() {
     try {
       const response = await fetch('/api/auth/me', { cache: 'no-store' });
-      if (!response.ok) return '/requests';
+      if (!response.ok) return '/dashboard';
       const payload = await response.json();
       const role = payload?.user?.role;
       if (role === 'director' || role === 'super_admin') {
         return '/dashboard';
       }
-      return '/requests';
+      return '/dashboard';
     } catch {
-      return '/requests';
+      return '/dashboard';
     }
   }
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: false,
-      callbackUrl: '/requests',
+      callbackUrl: '/dashboard',
     });
 
     setSubmitting(false);

@@ -126,7 +126,7 @@ export default function DashboardPage() {
       <main className="container py-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-widest text-sky-600">Director dashboard</p>
+            <p className="text-sm uppercase tracking-widest text-sky-600">Dashboard</p>
             <h1 className="mt-1 text-3xl font-semibold text-slate-900">OPEX Performance</h1>
             <p className="mt-1 text-sm text-slate-500">Live data from approved requests and budgets.</p>
           </div>
