@@ -113,9 +113,10 @@ export default function RequestsPage() {
             }
           }
         } else if (user.role === 'field_team') {
-          // Field team uses a hidden, preselected store value.
-          if (!form.storeId && allStores.length > 0) {
-            setForm((prev) => ({ ...prev, storeId: String(allStores[0].id) }));
+          // Field team submits against the dedicated Field bucket.
+          const fieldStore = allStores.find((store) => store.name === 'Field');
+          if (fieldStore) {
+            setForm((prev) => ({ ...prev, storeId: String(fieldStore.id) }));
           }
         } else {
           await loadRequests();
@@ -251,7 +252,7 @@ export default function RequestsPage() {
                     >
                       <option value="">Choose a location</option>
                       {stores.map((store) => (
-                        <option key={store.id} value={store.id}>{store.name}</option>
+                        <option key={store.id} value={store.id}>{store.name === 'Field' ? 'Field Based Team' : store.name}</option>
                       ))}
                     </select>
                   </label>
@@ -314,9 +315,8 @@ export default function RequestsPage() {
                       onChange={(e) => setStoreFilter(e.target.value)}
                     >
                       <option value="">All locations</option>
-                      <option value="field-team">Field Based Team</option>
                       {stores.map((store) => (
-                        <option key={store.id} value={store.id}>{store.name}</option>
+                        <option key={store.id} value={store.id}>{store.name === 'Field' ? 'Field Based Team' : store.name}</option>
                       ))}
                     </select>
                   </label>

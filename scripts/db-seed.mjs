@@ -11,6 +11,7 @@ const stores = [
   'Anne Street',
   'Arnotts',
   'Blackrock',
+  'Field',
   'Cork',
   'Dun Laoghaire',
   'Dundalk',
@@ -92,6 +93,15 @@ async function main() {
 
   for (const name of stores) {
     await sql`INSERT INTO stores (name, budget) VALUES (${name}, 10000) ON CONFLICT (name) DO NOTHING`;
+  }
+
+  const fieldStore = await sql`SELECT id FROM stores WHERE name = 'Field' LIMIT 1`;
+  if (fieldStore[0]?.id) {
+    await sql`
+      UPDATE requests
+      SET storeId = ${fieldStore[0].id}
+      WHERE userId IN (SELECT id FROM users WHERE role = 'employee')
+    `;
   }
 
   for (const user of directors) {

@@ -44,6 +44,21 @@ export type RequestRecord = {
   createdAt: string;
 };
 
+const REQUEST_SELECT = `
+  r.id,
+  r.storeid as "storeId",
+  r.userid as "userId",
+  r.category,
+  r.amount,
+  r.description,
+  r.receipt,
+  r.status,
+  r.querycomment as "queryComment",
+  r.actioncomment as "actionComment",
+  r.updatedat as "updatedAt",
+  r.createdat as "createdAt"
+`;
+
 export async function ensureSchema() {
   const sql = getSql();
   await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
@@ -113,7 +128,14 @@ export async function insertRequest(data: {
 export async function getRequestById(id: number) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`SELECT r.*, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole" FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE r.id = ${id}`;
+  const result = await sql.query(
+    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole"
+     FROM requests r
+    JOIN stores s ON r.storeid = s.id
+    JOIN users u ON r.userid = u.id
+     WHERE r.id = $1`,
+    [id],
+  );
   return result[0] as RequestRecord | undefined;
 }
 
@@ -126,17 +148,18 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   const status = filters.status ?? null;
   const requesterRole = filters.requesterRole ?? null;
 
-  const result = await sql`
-    SELECT r.*, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole"
-    FROM requests r
-    JOIN stores s ON r.storeId = s.id
-    JOIN users u ON r.userId = u.id
-    WHERE (${isManager} = false OR r.storeId = ${userStoreId})
-      AND (${storeId}::int IS NULL OR r.storeId = ${storeId})
-      AND (${status}::text IS NULL OR r.status = ${status})
-      AND (${requesterRole}::text IS NULL OR u.role = ${requesterRole})
-    ORDER BY r.createdAt DESC
-  `;
+  const result = await sql.query(
+    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole"
+     FROM requests r
+     JOIN stores s ON r.storeid = s.id
+     JOIN users u ON r.userid = u.id
+     WHERE ($1 = false OR r.storeid = $2)
+       AND ($3::int IS NULL OR r.storeid = $3)
+       AND ($4::text IS NULL OR r.status = $4)
+       AND ($5::text IS NULL OR u.role = $5)
+     ORDER BY r.createdat DESC`,
+    [isManager, userStoreId, storeId, status, requesterRole],
+  );
   return result as RequestRecord[];
 }
 
@@ -200,17 +223,18 @@ export async function getDashboardData(period: 'month' | 'last-month' | 'quarter
     GROUP BY category
     ORDER BY total DESC
   `;
-  const topExpenses = await sql`
-    SELECT r.*, s.name as "storeName", u.name as "requesterName"
-    FROM requests r
-    JOIN stores s ON r.storeId = s.id
-    JOIN users u ON r.userId = u.id
-    WHERE r.status = 'approved'
-      AND r.createdAt >= (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval))
-      AND r.createdAt < (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval) + (${periodInterval}::interval))
-    ORDER BY r.amount DESC
-    LIMIT 5
-  `;
+  const topExpenses = await sql.query(
+    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName"
+     FROM requests r
+     JOIN stores s ON r.storeid = s.id
+     JOIN users u ON r.userid = u.id
+     WHERE r.status = 'approved'
+       AND r.createdat >= (DATE_TRUNC('month', CURRENT_DATE) - ($1::interval))
+       AND r.createdat < (DATE_TRUNC('month', CURRENT_DATE) - ($1::interval) + ($2::interval))
+     ORDER BY r.amount DESC
+     LIMIT 5`,
+    [periodEndOffset, periodInterval],
+  );
 
   const budgetTotal = Number(totalBudget[0]?.total ?? 0);
   const spentTotal = Number(totalSpent[0]?.total ?? 0);
