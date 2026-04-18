@@ -99,11 +99,14 @@ export default function RequestsPage() {
       try {
         const allStores = await loadStores();
 
-        if (isStoreStaff && user.store) {
-          const ownStore = allStores.find((store) => store.name === user.store);
-          if (ownStore) {
-            setForm((prev) => ({ ...prev, storeId: String(ownStore.id) }));
-            setStoreFilter(String(ownStore.id));
+        if (isStoreStaff) {
+          // Store accounts do not load request history; just lock form to their own store.
+          if (user.store) {
+            const ownStore = allStores.find((store) => store.name === user.store);
+            if (ownStore) {
+              setForm((prev) => ({ ...prev, storeId: String(ownStore.id) }));
+              setStoreFilter(String(ownStore.id));
+            }
           }
         } else {
           await loadRequests();
