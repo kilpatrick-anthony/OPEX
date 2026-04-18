@@ -12,6 +12,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const normalizedRole = ['employee', 'manager', 'director', 'super_admin'].includes(session.user.role)
+      ? session.user.role
+      : 'employee';
+
     const url = new URL(request.url);
     const storeId = url.searchParams.get('storeId') || undefined;
     const status = url.searchParams.get('status') || undefined;
@@ -19,7 +23,7 @@ export async function GET(request: Request) {
       storeId: storeId ? Number(storeId) : undefined,
       status,
       userId: session.user.id,
-      role: session.user.role,
+      role: normalizedRole,
       userStoreId: session.user.storeId,
     };
     const requests = await queryRequests(filters);

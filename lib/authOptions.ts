@@ -49,6 +49,17 @@ export const authOptions = {
         token.role = (user as any).role;
         token.storeId = (user as any).storeId ?? null;
       }
+
+      // Backfill stale tokens (e.g. sessions created before role/store fields existed).
+      if ((!token.role || token.storeId === undefined || !token.id) && token.email) {
+        const existing = await getUserByEmail(String(token.email).toLowerCase());
+        if (existing) {
+          token.id = existing.id;
+          token.role = existing.role;
+          token.storeId = existing.storeId ?? null;
+        }
+      }
+
       return token;
     },
     async session({ session, token }: { session: any; token: any }) {
