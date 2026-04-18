@@ -63,6 +63,7 @@ export default function RequestsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const isStoreStaff = user?.role === 'store_staff';
+  const hideStoreSelector = user?.role === 'store_staff' || user?.role === 'field_team';
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login');
@@ -108,6 +109,11 @@ export default function RequestsPage() {
               setStoreFilter(String(ownStore.id));
             }
           }
+        } else if (user.role === 'field_team') {
+          // Field team uses a hidden, preselected store value.
+          if (!form.storeId && allStores.length > 0) {
+            setForm((prev) => ({ ...prev, storeId: String(allStores[0].id) }));
+          }
         } else {
           await loadRequests();
         }
@@ -137,7 +143,7 @@ export default function RequestsPage() {
     setSuccess('');
 
     if (!form.storeId) {
-      setError('Please select a store.');
+      setError('Store is not configured yet. Please contact an admin.');
       return;
     }
     if (!form.amount || Number(form.amount) <= 0) {
@@ -173,7 +179,7 @@ export default function RequestsPage() {
         category: 'Supplies',
         amount: '',
         description: '',
-        storeId: isStoreStaff ? prev.storeId : '',
+        storeId: hideStoreSelector ? prev.storeId : '',
       }));
       await loadRequests();
     } catch (err) {
@@ -218,7 +224,7 @@ export default function RequestsPage() {
                 />
               </label>
 
-              {isStoreStaff ? (
+              {hideStoreSelector ? (
                 <label className="space-y-2 text-sm text-slate-700">
                   Category
                   <select
