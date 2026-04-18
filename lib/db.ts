@@ -1,15 +1,11 @@
 import { neon } from '@neondatabase/serverless';
 
-let sqlClient: ReturnType<typeof neon> | null = null;
-
 function getSql() {
-  if (sqlClient) return sqlClient;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL is required to use database operations.');
   }
-  sqlClient = neon(connectionString);
-  return sqlClient;
+  return neon(connectionString);
 }
 
 let schemaReady: Promise<void> | null = null;
