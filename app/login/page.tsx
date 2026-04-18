@@ -19,6 +19,9 @@ export default function LoginPage() {
       if (!response.ok) return '/dashboard';
       const payload = await response.json();
       const role = payload?.user?.role;
+      if (role === 'manager') {
+        return '/requests';
+      }
       if (role === 'director' || role === 'super_admin') {
         return '/dashboard';
       }
@@ -44,7 +47,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: false,
-      callbackUrl: '/dashboard',
+      callbackUrl: '/requests',
     });
 
     setSubmitting(false);

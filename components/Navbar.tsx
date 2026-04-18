@@ -22,7 +22,7 @@ export function Navbar() {
     { href: '/dashboard',          label: 'Dashboard', show: user ? canAccess(user.role, 'dashboard') : true },
     { href: '/approval',           label: 'Approvals', show: user ? canAccess(user.role, 'approval')  : false },
     { href: '/requests',           label: 'Requests',  show: true },
-    { href: '/reports',            label: 'Reports',   show: true },
+    { href: '/reports',            label: 'Reports',   show: user ? user.role !== 'store_staff' : true },
     { href: '/forecast',           label: 'Forecast',  show: canViewForecast },
     { href: '/dashboard/compare',  label: 'Compare',   show: canViewAnalytics },
     { href: '/account',            label: 'Account',   show: Boolean(user) },
