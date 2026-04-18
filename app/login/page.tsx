@@ -61,7 +61,6 @@ export default function LoginPage() {
       <div className="flex-1 flex items-start justify-center pb-14 px-4">
         <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl">
           <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
-          <p className="mt-1 text-sm text-slate-500">Use your OAKBERRY account credentials to sign in.</p>
 
           <form className="mt-6 space-y-4" onSubmit={handleCredentialsSignIn}>
             <label className="block space-y-2 text-sm text-slate-700">
