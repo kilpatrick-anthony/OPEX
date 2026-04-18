@@ -3,6 +3,7 @@ import { getUserByEmail } from '@/lib/db';
 import { verifyPassword } from '@/lib/password';
 
 export const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Email and Password',
@@ -31,9 +32,8 @@ export const authOptions = {
   session: {
     strategy: 'jwt' as const,
   },
-  jwt: {
-    secret: process.env.NEXTAUTH_SECRET,
-  },
+  // Helps behind proxy deployments (e.g. Vercel) when deriving callback URLs.
+  trustHost: true,
   callbacks: {
     async signIn() {
       return true;
