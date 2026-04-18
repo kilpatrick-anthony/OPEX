@@ -1,16 +1,9 @@
-import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { getUserByEmail, createUser } from '@/lib/db';
+import { getUserByEmail } from '@/lib/db';
 import { verifyPassword } from '@/lib/password';
-
-const allowedDomain = process.env.GOOGLE_ALLOWED_DOMAIN || 'oakberry.ie';
 
 export const authOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
     CredentialsProvider({
       name: 'Email and Password',
       credentials: {
@@ -42,28 +35,7 @@ export const authOptions = {
     secret: process.env.NEXTAUTH_SECRET,
   },
   callbacks: {
-    async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
-      if (account?.provider === 'google') {
-        const email = user.email?.toLowerCase() || profile?.email?.toLowerCase() || '';
-        if (!email.endsWith(`@${allowedDomain}`)) {
-          return false;
-        }
-
-        let existing = await getUserByEmail(email);
-        if (!existing) {
-          existing = await createUser({
-            name: user.name || (profile?.name ?? email.split('@')[0]),
-            email,
-            password: '',
-            role: 'employee',
-            storeId: null,
-          });
-        }
-
-        user.id = existing!.id as any;
-        user.role = existing!.role as any;
-        user.storeId = existing!.storeId as any;
-      }
+    async signIn() {
       return true;
     },
     async jwt({ token, user }: { token: any; user?: any }) {

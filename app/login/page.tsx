@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
+// Google Workspace auth removed — credentials-only
 import { useEffect } from 'react';
 
 export default function LoginPage() {
@@ -61,7 +62,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-start justify-center pb-14 px-4">
         <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl">
           <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
-          <p className="mt-1 text-sm text-slate-500">Use your OAKBERRY account credentials or Google Workspace login.</p>
+          <p className="mt-1 text-sm text-slate-500">Use your OAKBERRY account credentials to sign in.</p>
 
           <form className="mt-6 space-y-4" onSubmit={handleCredentialsSignIn}>
             <label className="block space-y-2 text-sm text-slate-700">
@@ -98,20 +99,6 @@ export default function LoginPage() {
               {submitting ? 'Signing in...' : 'Sign in with Email'}
             </button>
           </form>
-
-          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span>or</span>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-            className="w-full rounded-full border border-slate-200 bg-white px-7 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
-          >
-            Continue with Google Workspace
-          </button>
 
           <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
             Director users can access approvals and dashboard views. Store and field users are redirected to their permitted screens.
