@@ -62,7 +62,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     const appRole: CurrentUser['role'] =
-      session.user.role === 'director'
+      session.user.role === 'super_admin'
+        ? 'super_admin'
+        : session.user.role === 'director'
         ? 'director'
         : session.user.storeId
           ? 'store_staff'

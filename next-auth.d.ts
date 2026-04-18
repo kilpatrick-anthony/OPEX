@@ -7,7 +7,7 @@ declare module 'next-auth' {
       id: number;
       name?: string | null;
       email?: string | null;
-      role: 'employee' | 'manager' | 'director';
+      role: 'employee' | 'manager' | 'director' | 'super_admin';
       storeId: number | null;
     };
   }
@@ -16,7 +16,7 @@ declare module 'next-auth' {
     id: number;
     name?: string | null;
     email?: string | null;
-    role: 'employee' | 'manager' | 'director';
+    role: 'employee' | 'manager' | 'director' | 'super_admin';
     storeId: number | null;
   }
 }
@@ -24,7 +24,7 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     id: number;
-    role: 'employee' | 'manager' | 'director';
+    role: 'employee' | 'manager' | 'director' | 'super_admin';
     storeId: number | null;
   }
 }

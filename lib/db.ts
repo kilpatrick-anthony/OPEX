@@ -21,7 +21,7 @@ export type User = {
   name: string;
   email: string;
   password: string;
-  role: 'employee' | 'manager' | 'director';
+  role: 'employee' | 'manager' | 'director' | 'super_admin';
   storeId: number | null;
 };
 
@@ -72,7 +72,7 @@ export async function getUserById(id: number) {
   return result[0] as User | undefined;
 }
 
-export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director'; storeId: number | null }) {
+export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director' | 'super_admin'; storeId: number | null }) {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`INSERT INTO users (name, email, password, role, storeId) VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.storeId}) RETURNING *`;
