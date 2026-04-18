@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/userContext';
 
 type DashboardPeriod = 'month' | 'last-month' | 'quarter';
 
@@ -34,6 +36,8 @@ const PERIOD_OPTIONS: Array<{ label: string; value: DashboardPeriod }> = [
 const COLORS = ['#0ea5e9', '#0284c7', '#10b981', '#f59e0b', '#ef4444', '#7c3aed'];
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, isLoading: userLoading } = useCurrentUser();
   const [period, setPeriod] = useState<DashboardPeriod>('month');
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
@@ -74,8 +78,26 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    if (userLoading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    if (user.role === 'store_staff') {
+      router.replace('/requests');
+      return;
+    }
     loadDashboard();
-  }, [period]);
+  }, [period, user, userLoading, router]);
+
+  if (userLoading || (user && user.role === 'store_staff')) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <main className="container py-10 text-sm text-slate-500">Loading dashboard...</main>
+      </div>
+    );
+  }
 
   const gaugeValue = useMemo(() => {
     if (!dashboard || dashboard.totalBudget <= 0) return 0;

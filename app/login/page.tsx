@@ -16,18 +16,19 @@ export default function LoginPage() {
   async function resolveHomeRoute() {
     try {
       const response = await fetch('/api/auth/me', { cache: 'no-store' });
-      if (!response.ok) return '/dashboard';
+      if (!response.ok) return '/requests';
       const payload = await response.json();
       const role = payload?.user?.role;
-      if (role === 'manager') {
+      const storeId = payload?.user?.storeId;
+      if (role === 'manager' || storeId) {
         return '/requests';
       }
       if (role === 'director' || role === 'super_admin') {
         return '/dashboard';
       }
-      return '/dashboard';
+      return '/requests';
     } catch {
-      return '/dashboard';
+      return '/requests';
     }
   }
 
