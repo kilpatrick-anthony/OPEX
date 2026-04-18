@@ -28,6 +28,7 @@ type RequestRecord = {
   amount: number;
   description: string;
   status: RequestStatus;
+  queryComment?: string | null;
   createdAt: string;
   storeRemainingBudget: number;
 };
@@ -108,11 +109,13 @@ export default function RequestsPage() {
           if (user.storeId) {
             setForm((prev) => ({ ...prev, storeId: String(user.storeId) }));
             setStoreFilter(String(user.storeId));
+            await loadRequests({ status: 'queried', storeId: String(user.storeId) });
           } else if (user.store) {
             const ownStore = allStores.find((store) => store.name === user.store);
             if (ownStore) {
               setForm((prev) => ({ ...prev, storeId: String(ownStore.id) }));
               setStoreFilter(String(ownStore.id));
+              await loadRequests({ status: 'queried', storeId: String(ownStore.id) });
             }
           }
         } else if (user.role === 'field_team') {
@@ -188,12 +191,29 @@ export default function RequestsPage() {
         description: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
-      await loadRequests();
+      if (isStoreStaff) {
+        await loadRequests({ status: 'queried', storeId: form.storeId });
+      } else {
+        await loadRequests();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit request');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function reissueFromRequest(request: RequestRecord) {
+    setError('');
+    setSuccess('Queried request loaded. Update details if needed, then submit to reissue.');
+    setForm((prev) => ({
+      ...prev,
+      storeId: String(request.storeId),
+      category: request.category,
+      amount: String(request.amount),
+      description: request.description,
+    }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const summary = useMemo(() => {
@@ -402,7 +422,44 @@ export default function RequestsPage() {
               </div>
             </Card>
           </section>
-        ) : null}
+        ) : (
+          <section className="mt-8">
+            <Card title="Queried requests" description="Requests needing updates before resubmission." className="space-y-4">
+              {loadingData ? <p className="text-sm text-slate-500">Loading queried requests…</p> : null}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <tr>
+                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Category</th>
+                      <th className="px-4 py-3 text-left">Amount</th>
+                      <th className="px-4 py-3 text-left">Query note</th>
+                      <th className="px-4 py-3 text-left"></th>
+                    </tr>
+                  </TableHeader>
+                  <tbody>
+                    {requests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="text-sm text-slate-500">
+                          {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell>{request.category}</TableCell>
+                        <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
+                        <TableCell className="text-sm text-slate-600">{request.queryComment || 'No note provided.'}</TableCell>
+                        <TableCell>
+                          <Button type="button" variant="secondary" onClick={() => reissueFromRequest(request)}>
+                            Reissue
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+                {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No queried requests right now.</p> : null}
+              </div>
+            </Card>
+          </section>
+        )}
       </main>
 
       {selectedRequest ? (
