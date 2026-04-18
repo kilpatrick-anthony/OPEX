@@ -15,15 +15,15 @@ export function Navbar() {
     router.push('/login');
   }
 
-  const isDirectorOrAdmin = user?.role === 'director' || user?.role === 'super_admin';
+  const canViewAnalytics = Boolean(user && user.role !== 'store_staff');
 
   const allNavItems = [
     { href: '/dashboard',          label: 'Dashboard', show: user ? canAccess(user.role, 'dashboard') : true },
     { href: '/approval',           label: 'Approvals', show: user ? canAccess(user.role, 'approval')  : false },
     { href: '/requests',           label: 'Requests',  show: true },
     { href: '/reports',            label: 'Reports',   show: true },
-    { href: '/forecast',           label: 'Forecast',  show: isDirectorOrAdmin },
-    { href: '/dashboard/compare',  label: 'Compare',   show: isDirectorOrAdmin },
+    { href: '/forecast',           label: 'Forecast',  show: canViewAnalytics },
+    { href: '/dashboard/compare',  label: 'Compare',   show: canViewAnalytics },
     { href: '/account',            label: 'Account',   show: Boolean(user) },
   ];
   const navItems = allNavItems.filter((i) => i.show);

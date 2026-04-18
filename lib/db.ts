@@ -119,9 +119,7 @@ export async function getRequestById(id: number) {
 export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null }): Promise<RequestRecord[]> {
   await ensureSchemaOnce();
   const sql = getSql();
-  const isEmployee = filters.role === 'employee';
   const isManager = filters.role === 'manager';
-  const userId = filters.userId ?? null;
   const userStoreId = filters.userStoreId ?? null;
   const storeId = filters.storeId ?? null;
   const status = filters.status ?? null;
@@ -131,8 +129,7 @@ export async function queryRequests(filters: { storeId?: number; status?: string
     FROM requests r
     JOIN stores s ON r.storeId = s.id
     JOIN users u ON r.userId = u.id
-    WHERE (${isEmployee} = false OR r.userId = ${userId})
-      AND (${isManager} = false OR r.storeId = ${userStoreId})
+    WHERE (${isManager} = false OR r.storeId = ${userStoreId})
       AND (${storeId}::int IS NULL OR r.storeId = ${storeId})
       AND (${status}::text IS NULL OR r.status = ${status})
     ORDER BY r.createdAt DESC
