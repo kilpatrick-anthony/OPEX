@@ -111,32 +111,24 @@ export async function getRequestById(id: number) {
 export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null }): Promise<RequestRecord[]> {
   await ensureSchemaOnce();
   const sql = getSql();
-  let query = sql`SELECT r.*, s.name as storeName, u.name as requesterName FROM requests r JOIN stores s ON r.storeId = s.id JOIN users u ON r.userId = u.id WHERE 1=1`;
-  const conditions: any[] = [];
+  const isEmployee = filters.role === 'employee';
+  const isManager = filters.role === 'manager';
+  const userId = filters.userId ?? null;
+  const userStoreId = filters.userStoreId ?? null;
+  const storeId = filters.storeId ?? null;
+  const status = filters.status ?? null;
 
-  if (filters.role === 'employee') {
-    conditions.push(sql`r.userId = ${filters.userId}`);
-  }
-
-  if (filters.role === 'manager') {
-    conditions.push(sql`r.storeId = ${filters.userStoreId}`);
-  }
-
-  if (filters.storeId) {
-    conditions.push(sql`r.storeId = ${filters.storeId}`);
-  }
-
-  if (filters.status) {
-    conditions.push(sql`r.status = ${filters.status}`);
-  }
-
-  if (conditions.length > 0) {
-    query = sql`${query} AND ${sql.join(conditions, ' AND ')}`;
-  }
-
-  query = sql`${query} ORDER BY r.createdAt DESC`;
-
-  const result = await query;
+  const result = await sql`
+    SELECT r.*, s.name as storeName, u.name as requesterName
+    FROM requests r
+    JOIN stores s ON r.storeId = s.id
+    JOIN users u ON r.userId = u.id
+    WHERE (${isEmployee} = false OR r.userId = ${userId})
+      AND (${isManager} = false OR r.storeId = ${userStoreId})
+      AND (${storeId}::int IS NULL OR r.storeId = ${storeId})
+      AND (${status}::text IS NULL OR r.status = ${status})
+    ORDER BY r.createdAt DESC
+  `;
   return result as RequestRecord[];
 }
 
