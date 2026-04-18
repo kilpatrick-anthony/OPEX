@@ -9,6 +9,7 @@ import { Navbar } from '@/components/Navbar';
 import { Dialog } from '@/components/ui/dialog';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/userContext';
+import { REQUEST_CATEGORIES } from '@/lib/categories';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
 
@@ -38,7 +39,7 @@ const STATUS_STYLES: Record<RequestStatus, string> = {
   queried: 'bg-sky-50 text-sky-700',
 };
 
-const CATEGORIES = ['Supplies', 'Marketing', 'Maintenance', 'Travel', 'Utilities', 'Equipment'];
+const CATEGORIES = [...REQUEST_CATEGORIES];
 
 export default function RequestsPage() {
   const { user, isLoading } = useCurrentUser();

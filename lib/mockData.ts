@@ -1,5 +1,7 @@
 // ─── Shared types ────────────────────────────────────────────────────────────
 
+import { REQUEST_CATEGORIES } from './categories';
+
 export type Period = 'month' | 'last-month' | 'quarter';
 export type EntityType = 'store' | 'employee';
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
@@ -74,9 +76,7 @@ export const ALL_EMPLOYEES: { name: string; slug: string; role: string }[] = [
   { name: 'Anthony Kilpatrick',           slug: 'anthony-kilpatrick',           role: 'Head of Compliance' },
 ];
 
-export const ALL_CATEGORIES = [
-  'Equipment', 'Maintenance', 'Marketing', 'Supplies', 'Travel', 'Utilities',
-];
+export const ALL_CATEGORIES = [...REQUEST_CATEGORIES];
 
 export function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -740,6 +740,10 @@ const CATEGORY_TRENDS: Record<string, TrendPoint[]> = {
   travel:      [{ month: 'Nov', total: 6200 }, { month: 'Dec', total: 8500 }, { month: 'Jan', total: 5800 }, { month: 'Feb', total: 7100 }, { month: 'Mar', total: 9600 }, { month: 'Apr', total: 8300 }],
   utilities:   [{ month: 'Nov', total: 4800 }, { month: 'Dec', total: 6600 }, { month: 'Jan', total: 4400 }, { month: 'Feb', total: 5200 }, { month: 'Mar', total: 7100 }, { month: 'Apr', total: 6400 }],
   equipment:   [{ month: 'Nov', total: 1200 }, { month: 'Dec', total: 2400 }, { month: 'Jan', total: 1100 }, { month: 'Feb', total: 1800 }, { month: 'Mar', total: 3200 }, { month: 'Apr', total: 2200 }],
+  'lunch-and-dinner': [{ month: 'Nov', total: 700 }, { month: 'Dec', total: 900 }, { month: 'Jan', total: 650 }, { month: 'Feb', total: 780 }, { month: 'Mar', total: 980 }, { month: 'Apr', total: 860 }],
+  subscriptions: [{ month: 'Nov', total: 1300 }, { month: 'Dec', total: 1400 }, { month: 'Jan', total: 1250 }, { month: 'Feb', total: 1320 }, { month: 'Mar', total: 1490 }, { month: 'Apr', total: 1510 }],
+  training: [{ month: 'Nov', total: 900 }, { month: 'Dec', total: 1200 }, { month: 'Jan', total: 880 }, { month: 'Feb', total: 990 }, { month: 'Mar', total: 1250 }, { month: 'Apr', total: 1140 }],
+  'professional-services': [{ month: 'Nov', total: 1050 }, { month: 'Dec', total: 1180 }, { month: 'Jan', total: 940 }, { month: 'Feb', total: 1010 }, { month: 'Mar', total: 1360 }, { month: 'Apr', total: 1220 }],
 };
 
 export function getCategoryDetail(slug: string): CategoryDetail | null {
@@ -801,6 +805,10 @@ export const DASHBOARD_MOCK: Record<string, any> = {
       { category: 'Maintenance', slug: 'maintenance',  total: 12600 },
       { category: 'Travel',      slug: 'travel',      total: 8300 },
       { category: 'Utilities',   slug: 'utilities',   total: 6400 },
+      { category: 'Subscriptions', slug: 'subscriptions', total: 1510 },
+      { category: 'Training', slug: 'training', total: 1140 },
+      { category: 'Lunch and Dinner', slug: 'lunch-and-dinner', total: 860 },
+      { category: 'Professional Services', slug: 'professional-services', total: 1220 },
     ],
     topExpenses: [
       { id: 1001, amount: 4500, storeName: 'Anne Street',       category: 'Marketing', requesterName: 'Conor Walsh' },
@@ -832,6 +840,10 @@ export const DASHBOARD_MOCK: Record<string, any> = {
       { category: 'Maintenance', slug: 'maintenance',  total: 14800 },
       { category: 'Travel',      slug: 'travel',      total: 8500 },
       { category: 'Utilities',   slug: 'utilities',   total: 5100 },
+      { category: 'Subscriptions', slug: 'subscriptions', total: 1400 },
+      { category: 'Training', slug: 'training', total: 1200 },
+      { category: 'Lunch and Dinner', slug: 'lunch-and-dinner', total: 900 },
+      { category: 'Professional Services', slug: 'professional-services', total: 1180 },
     ],
     topExpenses: [
       { id: 2001, amount: 5800, storeName: 'Anne Street',       category: 'Marketing', requesterName: 'Fionnuala O\'Connell' },
@@ -863,6 +875,10 @@ export const DASHBOARD_MOCK: Record<string, any> = {
       { category: 'Maintenance', slug: 'maintenance',  total: 40100 },
       { category: 'Travel',      slug: 'travel',      total: 24800 },
       { category: 'Utilities',   slug: 'utilities',   total: 16700 },
+      { category: 'Subscriptions', slug: 'subscriptions', total: 4200 },
+      { category: 'Training', slug: 'training', total: 3100 },
+      { category: 'Lunch and Dinner', slug: 'lunch-and-dinner', total: 2540 },
+      { category: 'Professional Services', slug: 'professional-services', total: 3550 },
     ],
     topExpenses: [
       { id: 3001, amount: 9200, storeName: 'Anne Street',       category: 'Marketing', requesterName: 'Conor Walsh' },

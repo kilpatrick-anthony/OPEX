@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { insertRequest, queryRequests, getStoreRemainingBudget, getStores } from '@/lib/db';
+import { REQUEST_CATEGORIES } from '@/lib/categories';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,15 @@ export async function POST(request: Request) {
 
   if (!storeId || !category || !amount || amount <= 0 || !description) {
     return NextResponse.json({ error: 'storeId, category, amount and description are required.' }, { status: 400 });
+  }
+
+  if (!REQUEST_CATEGORIES.includes(category)) {
+    return NextResponse.json(
+      {
+        error: `Invalid category. Allowed categories: ${REQUEST_CATEGORIES.join(', ')}`,
+      },
+      { status: 400 },
+    );
   }
 
   const requestRecord = await insertRequest({

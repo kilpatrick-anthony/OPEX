@@ -61,6 +61,10 @@ export const YEAR_DASHBOARD = {
     { category: 'Travel',      slug: 'travel',      total: 100700, budget: 140000 },
     { category: 'Utilities',   slug: 'utilities',   total:  70200, budget: 100000 },
     { category: 'Equipment',   slug: 'equipment',   total:  32300, budget:  90000 },
+    { category: 'Subscriptions', slug: 'subscriptions', total: 26200, budget: 70000 },
+    { category: 'Training', slug: 'training', total: 19800, budget: 55000 },
+    { category: 'Lunch and Dinner', slug: 'lunch-and-dinner', total: 15200, budget: 40000 },
+    { category: 'Professional Services', slug: 'professional-services', total: 27400, budget: 80000 },
   ],
   topExpenses: [
     { id: 3001, amount: 35800, storeName: 'Anne Street',      category: 'Marketing',    requesterName: 'Conor Walsh' },
@@ -105,6 +109,10 @@ export const WEEK_DASHBOARD = {
     { category: 'Travel',      slug: 'travel',      total:  2000, budget:  2600 },
     { category: 'Utilities',   slug: 'utilities',   total:  1600, budget:  2100 },
     { category: 'Equipment',   slug: 'equipment',   total:   400, budget:  1500 },
+    { category: 'Subscriptions', slug: 'subscriptions', total:   700, budget:  1300 },
+    { category: 'Training', slug: 'training', total:   500, budget:  1100 },
+    { category: 'Lunch and Dinner', slug: 'lunch-and-dinner', total:   420, budget:   900 },
+    { category: 'Professional Services', slug: 'professional-services', total:   780, budget:  1400 },
   ],
   topExpenses: [
     { id: 101,  amount: 2350, storeName: 'Anne Street',      category: 'Marketing',   requesterName: 'Conor Walsh' },
@@ -132,6 +140,10 @@ export const APPROVAL_VELOCITY = [
   { category: 'Supplies',    avgDays: 1.1 },
   { category: 'Travel',      avgDays: 1.8 },
   { category: 'Utilities',   avgDays: 2.4 },
+  { category: 'Subscriptions', avgDays: 2.0 },
+  { category: 'Training', avgDays: 2.3 },
+  { category: 'Lunch and Dinner', avgDays: 1.2 },
+  { category: 'Professional Services', avgDays: 3.5 },
 ];
 
 // ─── Budget forecast helper ───────────────────────────────────────────────────
