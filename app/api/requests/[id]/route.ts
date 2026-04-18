@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { performRequestAction } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {

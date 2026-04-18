@@ -9,14 +9,15 @@ interface DialogProps {
   description?: string;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function Dialog({ open, title, description, onClose, children }: DialogProps) {
+export function Dialog({ open, title, description, onClose, children, className }: DialogProps) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-card">
+      <div className={clsx('w-full rounded-3xl bg-white p-6 shadow-card', className ?? 'max-w-xl')}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold text-slate-900">{title}</h3>

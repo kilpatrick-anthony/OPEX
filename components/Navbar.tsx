@@ -1,81 +1,92 @@
 'use client';
 
 import Link from 'next/link';
-import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Button } from './ui/button';
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-  role: 'employee' | 'manager' | 'director';
-  storeId: number | null;
-};
+import { usePathname, useRouter } from 'next/navigation';
+import { useCurrentUser } from '@/lib/userContext';
+import { canAccess, ROLE_LABELS } from '@/lib/mockUsers';
 
 export function Navbar() {
-  const [user, setUser] = useState<User | null>(null);
+  const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useCurrentUser();
 
-  useEffect(() => {
-    fetch('/api/auth/me').then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    });
-  }, []);
-
-  async function handleLogout() {
-    await signOut({ callbackUrl: '/login' });
+  function handleLogout() {
+    logout();
     router.push('/login');
   }
 
+  const isDirectorOrAdmin = user?.role === 'director' || user?.role === 'super_admin';
+
+  const allNavItems = [
+    { href: '/dashboard',          label: 'Dashboard', show: user ? canAccess(user.role, 'dashboard') : true },
+    { href: '/approval',           label: 'Approvals', show: user ? canAccess(user.role, 'approval')  : false },
+    { href: '/requests',           label: 'Requests',  show: true },
+    { href: '/reports',            label: 'Reports',   show: true },
+    { href: '/forecast',           label: 'Forecast',  show: isDirectorOrAdmin },
+    { href: '/dashboard/compare',  label: 'Compare',   show: isDirectorOrAdmin },
+  ];
+  const navItems = allNavItems.filter((i) => i.show);
+
+  const homeHref = user && !canAccess(user.role, 'dashboard') ? '/requests' : '/dashboard';
+
   return (
-    <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 50%, #3a1750 100%)' }}>
+      <div className="h-[2px] w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }} />
       <div className="container flex flex-wrap items-center justify-between gap-4 py-4">
         <div>
-          <Link href="/requests" className="text-lg font-semibold text-slate-900">
-            OAKBERRY OPEX
+          <Link href={homeHref} className="flex items-center gap-2">
+            <span className="text-lg font-bold tracking-tight text-white drop-shadow">OAKBERRY</span>
+            <span className="rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-widest"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}>
+              OPEX
+            </span>
           </Link>
-          <p className="text-sm text-slate-500">Ireland request & approval dashboard</p>
+          <p className="mt-0.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>Operational Expenditure Portal</p>
         </div>
 
-        {user ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <nav className="flex flex-wrap gap-2 text-sm text-slate-600">
-              <Link href="/requests" className="rounded-full px-3 py-2 hover:bg-slate-100">
-                Requests
+        <div className="flex flex-wrap items-center gap-3">
+          <nav className="flex flex-wrap gap-1 text-sm">
+            {navItems.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <Link key={item.href} href={item.href}
+                  className={`rounded-full px-4 py-1.5 font-medium transition-all ${active ? 'text-[#4a1f60] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                  style={active ? { background: 'rgba(255,255,255,0.95)' } : {}}>
+                  {item.label}
+                </Link>
+              );
+            })}
+            {user && canAccess(user.role, 'admin') && (
+              <Link href="/admin"
+                className={`rounded-full px-4 py-1.5 font-medium transition-all ${pathname === '/admin' ? 'text-[#4a1f60] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                style={pathname === '/admin' ? { background: 'rgba(255,255,255,0.95)' } : {}}>
+                Admin
               </Link>
-              {(user.role === 'director' || user.role === 'manager') && (
-                <Link href="/approval" className="rounded-full px-3 py-2 hover:bg-slate-100">
-                  Approvals
-                </Link>
-              )}
-              {user.role === 'director' && (
-                <Link href="/dashboard" className="rounded-full px-3 py-2 hover:bg-slate-100">
-                  Dashboard
-                </Link>
-              )}
-            </nav>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
-              {user.name} · {user.role}
+            )}
+          </nav>
+
+          {user && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-white"
+                style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{ background: 'rgba(255,255,255,0.25)' }}>
+                  {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                </span>
+                <span className="hidden sm:inline">{user.name}</span>
+                <span className="hidden sm:inline" style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
+                <span style={{ color: 'rgba(255,255,255,0.65)' }}>{ROLE_LABELS[user.role]}</span>
+              </div>
+              <button onClick={handleLogout}
+                className="rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/10"
+                style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Sign out
+              </button>
             </div>
-            <Button variant="ghost" type="button" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="text-sm text-slate-700 hover:text-slate-900">
-              Login
-            </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+      <div className="h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
     </header>
   );
 }

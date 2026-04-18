@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
@@ -9,96 +8,182 @@ import { Navbar } from '@/components/Navbar';
 import { Dialog } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
 
-const statusOptions = [
-  { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Queried', value: 'queried' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
-];
+type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
+
+type ApprovalRequest = {
+  id: number;
+  storeId: number;
+  storeName: string;
+  requesterName: string;
+  amount: number;
+  category: string;
+  description: string;
+  createdAt: string;
+  storeRemainingBudget: number;
+  status: RequestStatus;
+  queryComment?: string;
+};
+
+const STATUS_STYLES: Record<RequestStatus, string> = {
+  pending: 'bg-amber-50 text-amber-700',
+  approved: 'bg-emerald-50 text-emerald-700',
+  rejected: 'bg-rose-50 text-rose-700',
+  queried: 'bg-sky-50 text-sky-700',
+};
 
 export default function ApprovalPage() {
-  const [user, setUser] = useState<any>(null);
-  const [stores, setStores] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeFilter, setStoreFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [queryId, setQueryId] = useState<number | null>(null);
   const [queryReason, setQueryReason] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+
+  async function loadStores() {
+    const response = await fetch('/api/stores', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to load stores');
+    const data = await response.json();
+    setStores(data);
+  }
+
+  async function loadRequests() {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status', statusFilter);
+    if (storeFilter) params.set('storeId', storeFilter);
+
+    const url = params.toString() ? `/api/requests?${params.toString()}` : '/api/requests';
+    const response = await fetch(url, { cache: 'no-store' });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Failed to load requests');
+    setRequests(payload.requests);
+  }
 
   useEffect(() => {
-    loadInitial();
+    let canceled = false;
+    async function init() {
+      setLoading(true);
+      setError('');
+      try {
+        await Promise.all([loadStores(), loadRequests()]);
+      } catch (err) {
+        if (!canceled) setError(err instanceof Error ? err.message : 'Failed to initialize approvals');
+      } finally {
+        if (!canceled) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      canceled = true;
+    };
   }, []);
 
-  async function loadInitial() {
-    const auth = await fetch('/api/auth/me');
-    if (!auth.ok) {
-      router.push('/login');
+  useEffect(() => {
+    loadRequests().catch(() => setError('Failed to refresh requests'));
+  }, [statusFilter, storeFilter]);
+
+  const pendingCount = requests.filter((request) => request.status === 'pending').length;
+  const approvedCount = requests.filter((request) => request.status === 'approved').length;
+  const rejectedCount = requests.filter((request) => request.status === 'rejected').length;
+
+  const actionableInView = requests.filter((request) => request.status === 'pending' || request.status === 'queried');
+  const allViewSelected = actionableInView.length > 0 && actionableInView.every((request) => selected.has(request.id));
+
+  const selectedInView = useMemo(
+    () => actionableInView.filter((request) => selected.has(request.id)),
+    [actionableInView, selected],
+  );
+
+  const selectedTotal = selectedInView.reduce((sum, request) => sum + request.amount, 0);
+
+  function toggleOne(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allViewSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        actionableInView.forEach((request) => next.delete(request.id));
+        return next;
+      });
       return;
     }
 
-    const userData = await auth.json();
-    setUser(userData.user);
-    if (userData.user.role !== 'director') {
-      router.push('/requests');
-      return;
-    }
-
-    const storesRes = await fetch('/api/stores');
-    setStores(await storesRes.json());
-    await loadRequests(statusFilter, storeFilter);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      actionableInView.forEach((request) => next.add(request.id));
+      return next;
+    });
   }
 
-  async function loadRequests(status: string, storeId: string) {
-    const params = new URLSearchParams();
-    if (status) params.set('status', status);
-    if (storeId) params.set('storeId', storeId);
-    const res = await fetch(`/api/requests?${params.toString()}`);
-    const data = await res.json();
-    setRequests(data.requests || []);
-  }
-
-  async function handleAction(requestId: number, action: 'approved' | 'rejected') {
-    setLoading(true);
-    const res = await fetch(`/api/requests/${requestId}`, {
+  async function performAction(id: number, action: 'approved' | 'rejected' | 'queried', comment?: string) {
+    const response = await fetch(`/api/requests/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, comment: comment || '' }),
     });
-    setLoading(false);
-    if (res.ok) {
-      await loadRequests(statusFilter, storeFilter);
-    } else {
-      const body = await res.json();
-      setError(body.error || 'Action failed.');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Failed to apply action');
+  }
+
+  async function handleAction(id: number, action: 'approved' | 'rejected') {
+    setError('');
+    try {
+      await performAction(id, action);
+      await loadRequests();
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process action');
     }
   }
 
-  function openQuery(requestId: number) {
-    setQueryId(requestId);
+  async function handleBulkAction(action: 'approved' | 'rejected') {
+    setError('');
+    try {
+      await Promise.all(Array.from(selected).map((id) => performAction(id, action)));
+      setSelected(new Set());
+      setBulkConfirm(null);
+      await loadRequests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process bulk action');
+    }
+  }
+
+  function openQuery(id: number) {
+    setQueryId(id);
     setQueryReason('');
     setModalOpen(true);
   }
 
   async function submitQuery() {
-    if (!queryId) return;
-    setLoading(true);
-    const res = await fetch(`/api/requests/${queryId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'queried', comment: queryReason }),
-    });
-    setLoading(false);
-    setModalOpen(false);
-    if (res.ok) {
-      await loadRequests(statusFilter, storeFilter);
-    } else {
-      const body = await res.json();
-      setError(body.error || 'Query failed.');
+    if (!queryId || !queryReason.trim()) return;
+    setError('');
+
+    try {
+      await performAction(queryId, 'queried', queryReason.trim());
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(queryId);
+        return next;
+      });
+      setModalOpen(false);
+      await loadRequests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send query');
     }
   }
 
@@ -106,107 +191,193 @@ export default function ApprovalPage() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="container py-10">
-        <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card title="Approval queue" description="Review and approve or query pending OPEX requests." className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-widest text-sky-600">Director approvals</p>
+            <h1 className="mt-1 text-3xl font-semibold text-slate-900">Approval Queue</h1>
+            <p className="mt-1 text-sm text-slate-500">Review and action pending requests from stores and field team.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-medium text-amber-700">{pendingCount} pending</div>
+            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-2 text-sm font-medium text-emerald-700">{approvedCount} approved</div>
+            <div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-medium text-rose-700">{rejectedCount} rejected</div>
+          </div>
+        </div>
+
+        {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
+
+        <div className="mt-8 grid gap-8 xl:grid-cols-[1.3fr_0.7fr]">
+          <Card className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid gap-4 md:grid-cols-2">
                 <select
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   value={storeFilter}
-                  onChange={(event) => setStoreFilter(event.target.value)}
+                  onChange={(e) => setStoreFilter(e.target.value)}
                 >
                   <option value="">All stores</option>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name}</option>
-                  ))}
+                  {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
                 </select>
                 <select
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
                   value={statusFilter}
-                  onChange={async (event) => {
-                    setStatusFilter(event.target.value);
-                    await loadRequests(event.target.value, storeFilter);
-                  }}
+                  onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
+                  <option value="">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="queried">Queried</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
-              <Button variant="secondary" type="button" onClick={() => loadRequests(statusFilter, storeFilter)}>
-                Refresh
-              </Button>
             </div>
 
-            {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-
             <div className="overflow-x-auto">
+              {selected.size > 0 && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3">
+                  <p className="text-sm font-medium text-sky-800">
+                    {selected.size} request{selected.size !== 1 ? 's' : ''} selected ·{' '}
+                    <span className="font-semibold">{formatCurrency(selectedTotal)}</span>
+                  </p>
+                  <div className="flex gap-2">
+                    {bulkConfirm === null ? (
+                      <>
+                        <button type="button" onClick={() => setBulkConfirm('approved')} className="rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Approve all</button>
+                        <button type="button" onClick={() => setBulkConfirm('rejected')} className="rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-rose-700">Reject all</button>
+                        <button type="button" onClick={() => setSelected(new Set())} className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Clear</button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold text-slate-800 self-center pr-2">Confirm {bulkConfirm} for {selected.size} items?</p>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkAction(bulkConfirm)}
+                          className={`rounded-xl px-4 py-1.5 text-xs font-semibold text-white ${bulkConfirm === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+                        >
+                          Yes, confirm
+                        </button>
+                        <button type="button" onClick={() => setBulkConfirm(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <Table>
                 <TableHeader>
                   <tr>
-                    <th className="px-4 py-3">Store</th>
-                    <th className="px-4 py-3">Requester</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Budget remaining</th>
-                    <th className="px-4 py-3">Actions</th>
+                    <th className="px-4 py-3 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={allViewSelected}
+                        onChange={toggleAll}
+                        disabled={actionableInView.length === 0}
+                        className="h-4 w-4 rounded border-slate-300 text-sky-600 accent-sky-600"
+                        title="Select all actionable"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left">Store</th>
+                    <th className="px-4 py-3 text-left">Requester</th>
+                    <th className="px-4 py-3 text-left">Amount</th>
+                    <th className="px-4 py-3 text-left">Category</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Actions</th>
                   </tr>
                 </TableHeader>
                 <tbody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>{request.storeName}</TableCell>
-                      <TableCell>{request.requesterName}</TableCell>
-                      <TableCell>{formatCurrency(request.amount)}</TableCell>
-                      <TableCell>{request.category}</TableCell>
-                      <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <span className="text-sm text-slate-600">
-                          {request.storeRemainingBudget ? formatCurrency(request.storeRemainingBudget) : '—'} remaining
-                        </span>
-                      </TableCell>
-                      <TableCell className="space-x-2 py-4">
-                        <Button variant="default" type="button" onClick={() => handleAction(request.id, 'approved')} disabled={loading}>
-                          Approve
-                        </Button>
-                        <Button variant="danger" type="button" onClick={() => handleAction(request.id, 'rejected')} disabled={loading}>
-                          Reject
-                        </Button>
-                        <Button variant="secondary" type="button" onClick={() => openQuery(request.id)} disabled={loading}>
-                          Query
-                        </Button>
-                      </TableCell>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-sm text-slate-500">Loading approvals…</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    requests.map((request) => {
+                      const isActionable = request.status === 'pending' || request.status === 'queried';
+                      return (
+                        <TableRow key={request.id}>
+                          <TableCell className={`w-10${selected.has(request.id) ? ' bg-sky-50' : ''}`}>
+                            {isActionable ? (
+                              <input
+                                type="checkbox"
+                                checked={selected.has(request.id)}
+                                onChange={() => toggleOne(request.id)}
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 accent-sky-600"
+                              />
+                            ) : (
+                              <span className="block w-4" />
+                            )}
+                          </TableCell>
+                          <TableCell><div className="font-medium text-slate-800">{request.storeName}</div></TableCell>
+                          <TableCell><div>{request.requesterName}</div></TableCell>
+                          <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
+                          <TableCell>
+                            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-500">{new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}</TableCell>
+                          <TableCell>
+                            <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[request.status]}`}>{request.status}</span>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            {isActionable ? (
+                              <div className="flex flex-col gap-1.5">
+                                <button type="button" onClick={() => handleAction(request.id, 'approved')} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
+                                <button type="button" onClick={() => handleAction(request.id, 'rejected')} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
+                                {request.status === 'pending' ? (
+                                  <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 capitalize">— {request.status}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </tbody>
               </Table>
-              {requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No matching requests found.</p> : null}
+              {!loading && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
             </div>
           </Card>
 
-          <Card title="Approval guidance" description="Director approval controls and status checks.">
-            <p className="text-sm text-slate-600">Use the query action to ask for more details before approving. Approved expenses will count against the store budget in the dashboard.</p>
-          </Card>
+          <div className="space-y-4">
+            <Card title="Approval guidance" description="Director approval controls and policy." className="space-y-4">
+              <ul className="space-y-3 text-sm text-slate-600">
+                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-sky-500" /><span><strong>Approve</strong> authorizes spend against the store budget.</span></li>
+                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-rose-500" /><span><strong>Reject</strong> blocks the request.</span></li>
+                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-amber-500" /><span><strong>Query</strong> requests more detail from the requester.</span></li>
+              </ul>
+            </Card>
+
+            <Card title="Approvals team" description="Current sign-off authority holders." className="space-y-3">
+              {[
+                { name: 'Alvin Galligan', role: 'Director' },
+                { name: 'Nick Twomey', role: 'Director' },
+                { name: "Cian O'Donoghue", role: 'Director' },
+                { name: 'Anthony Kilpatrick', role: 'Head of Compliance' },
+              ].map((person) => (
+                <div key={person.name} className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-800">{person.name}</span>
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{person.role}</span>
+                </div>
+              ))}
+            </Card>
+          </div>
         </div>
       </main>
 
-      <Dialog open={modalOpen} title="Send query" description="Ask the requester for more details." onClose={() => setModalOpen(false)}>
+      <Dialog open={modalOpen} title="Send query" description="Ask the requester for more details before deciding." onClose={() => setModalOpen(false)}>
         <div className="space-y-4">
           <textarea
             value={queryReason}
-            onChange={(event) => setQueryReason(event.target.value)}
+            onChange={(e) => setQueryReason(e.target.value)}
             rows={5}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-            placeholder="Add a short reason or question for the requester"
+            placeholder="For example, please provide an alternative supplier quote."
           />
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={submitQuery} disabled={loading || !queryReason.trim()}>
-              Send query
-            </Button>
+            <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={submitQuery} disabled={!queryReason.trim()}>Send query</Button>
           </div>
         </div>
       </Dialog>

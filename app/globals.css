@@ -43,3 +43,50 @@ textarea {
 .shadow-card {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
+
+/* ── react-day-picker brand theming ─────────────────────────────────────── */
+.rdp-opex {
+  --rdp-accent-color: #0ea5e9;
+  --rdp-background-color: #e0f2fe;
+  --rdp-accent-color-dark: #0284c7;
+  --rdp-background-color-dark: #082f49;
+  --rdp-outline: 2px solid var(--rdp-accent-color);
+  --rdp-outline-selected: 2px solid var(--rdp-accent-color);
+  margin: 0;
+}
+
+/* Day-in-range background fills full cell width (not just the circle) */
+.rdp-opex .rdp-day_range_middle .rdp-button_reset {
+  border-radius: 0;
+}
+.rdp-opex .rdp-day_range_start .rdp-button_reset,
+.rdp-opex .rdp-day_range_end .rdp-button_reset {
+  border-radius: 50%;
+  background-color: #0ea5e9;
+  color: #fff;
+}
+.rdp-opex .rdp-day_range_start:not(.rdp-day_range_end) {
+  border-radius: 9999px 0 0 9999px;
+}
+.rdp-opex .rdp-day_range_end:not(.rdp-day_range_start) {
+  border-radius: 0 9999px 9999px 0;
+}
+.rdp-opex .rdp-caption_label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.rdp-opex .rdp-head_cell {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.rdp-opex .rdp-nav_button {
+  color: #64748b;
+}
+.rdp-opex .rdp-nav_button:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}

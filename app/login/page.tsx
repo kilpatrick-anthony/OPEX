@@ -1,124 +1,123 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-
-type LoginState = {
-  email: string;
-  password: string;
-};
+import { useRouter } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
-  const [form, setForm] = useState<LoginState>({ email: '', password: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { status } = useSession();
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  async function handleCredentialsSubmit(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/dashboard');
+    }
+  }, [status, router]);
+
+  if (status === 'authenticated') return null;
+
+  async function handleCredentialsSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
 
     const result = await signIn('credentials', {
+      email,
+      password,
       redirect: false,
-      email: form.email,
-      password: form.password,
+      callbackUrl: '/dashboard',
     });
 
-    if (result?.ok) {
-      const response = await fetch('/api/auth/me');
-      const data = await response.json();
-      setLoading(false);
-      router.push(data.user.role === 'director' ? '/dashboard' : '/requests');
-    } else {
-      setLoading(false);
-      setError(result?.error || 'Login failed.');
-    }
-  }
+    setSubmitting(false);
 
-  async function handleGoogleSignIn() {
-    setError('');
-    setLoading(true);
-    await signIn('google', { callbackUrl: '/requests' });
+    if (result?.error) {
+      setError('Invalid email or password.');
+      return;
+    }
+
+    router.push('/dashboard');
   }
 
   return (
-    <main className="container py-10">
-      <div className="grid gap-8 md:grid-cols-[1.3fr_1fr]">
-        <Card className="p-8">
-          <div className="mb-6">
-            <p className="text-sm uppercase text-sky-600">Login</p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">OAKBERRY OPEX Portal</h1>
-            <p className="mt-2 text-slate-600">Sign in with your work account to submit requests, manage approvals, and review budgets.</p>
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
+      <div className="flex items-center justify-center pt-14 pb-8">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-4xl font-bold text-white tracking-tight drop-shadow-lg">OAKBERRY</h1>
+            <span className="rounded-lg px-3 py-1 text-sm font-bold uppercase tracking-widest"
+              style={{ background: 'rgba(255,255,255,0.18)', color: 'white', border: '1px solid rgba(255,255,255,0.3)' }}>
+              OPEX
+            </span>
           </div>
-
-          <div className="space-y-5">
-            <Button type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-              {loading ? 'Redirecting to Google…' : 'Sign in with Google'}
-            </Button>
-
-            <div className="flex items-center gap-3 text-sm text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
-              <span>or use existing account</span>
-              <span className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <form className="space-y-5" onSubmit={handleCredentialsSubmit}>
-              <label className="block text-sm font-medium text-slate-700">
-                Email
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm({ ...form, email: event.target.value })}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
-                  required
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Password
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) => setForm({ ...form, password: event.target.value })}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
-                  required
-                />
-              </label>
-              {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Signing in…' : 'Sign in'}
-              </Button>
-            </form>
-          </div>
-        </Card>
-
-        <Card className="space-y-4 bg-slate-950 text-white p-8">
-          <div>
-            <p className="text-sm uppercase text-sky-400">Quick access</p>
-            <h2 className="mt-3 text-2xl font-semibold">Sample accounts</h2>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div className="rounded-3xl bg-slate-900 p-4">
-              <p className="font-semibold">Director</p>
-              <p>director@oakberry.ie</p>
-              <p>Password: Director123!</p>
-            </div>
-            <div className="rounded-3xl bg-slate-900 p-4">
-              <p className="font-semibold">Store Manager</p>
-              <p>manager.dublin@oakberry.ie</p>
-              <p>Password: Manager123!</p>
-            </div>
-            <div className="rounded-3xl bg-slate-900 p-4">
-              <p className="font-semibold">Field Employee</p>
-              <p>employee.field@oakberry.ie</p>
-              <p>Password: Field123!</p>
-            </div>
-          </div>
-        </Card>
+          <p className="mt-2 text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>Operational Expenditure Portal</p>
+        </div>
       </div>
-    </main>
+
+      <div className="flex-1 flex items-start justify-center pb-14 px-4">
+        <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl">
+          <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
+          <p className="mt-1 text-sm text-slate-500">Use your OAKBERRY account credentials or Google Workspace login.</p>
+
+          <form className="mt-6 space-y-4" onSubmit={handleCredentialsSignIn}>
+            <label className="block space-y-2 text-sm text-slate-700">
+              Email
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                placeholder="name@oakberry.ie"
+              />
+            </label>
+            <label className="block space-y-2 text-sm text-slate-700">
+              Password
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                placeholder="Your password"
+              />
+            </label>
+            {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-full px-7 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #4a1f60, #6d2f8e)' }}
+            >
+              {submitting ? 'Signing in...' : 'Sign in with Email'}
+            </button>
+          </form>
+
+          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            className="w-full rounded-full border border-slate-200 bg-white px-7 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
+          >
+            Continue with Google Workspace
+          </button>
+
+          <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+            Director users can access approvals and dashboard views. Store and field users are redirected to their permitted screens.
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

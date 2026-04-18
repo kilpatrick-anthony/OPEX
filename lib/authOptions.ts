@@ -1,6 +1,7 @@
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getUserByEmail, createUser } from '@/lib/db';
+import { verifyPassword } from '@/lib/password';
 
 const allowedDomain = process.env.GOOGLE_ALLOWED_DOMAIN || 'oakberry.ie';
 
@@ -20,7 +21,8 @@ export const authOptions = {
         if (!credentials?.email || !credentials.password) return null;
         const email = credentials.email.toLowerCase();
         const user = await getUserByEmail(email);
-        if (!user || user.password !== credentials.password) {
+        const valid = user ? await verifyPassword(credentials.password, user.password) : false;
+        if (!user || !valid) {
           return null;
         }
         return {
