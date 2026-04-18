@@ -48,7 +48,6 @@ export const MOCK_USERS: MockUser[] = [
   { id: 'staff-ilac',              name: 'ILAC',              role: 'store_staff', store: 'ILAC',              employeeSlug: null },
   { id: 'staff-kildare-village',   name: 'Kildare Village',   role: 'store_staff', store: 'Kildare Village',   employeeSlug: null },
   { id: 'staff-maynooth',          name: 'Maynooth',          role: 'store_staff', store: 'Maynooth',          employeeSlug: null },
-  { id: 'staff-nutgrove',          name: 'Nutgrove',          role: 'store_staff', store: 'Nutgrove',          employeeSlug: null },
   { id: 'staff-swords-pavilions',  name: 'Swords Pavilions',  role: 'store_staff', store: 'Swords Pavilions',  employeeSlug: null },
 ];
 

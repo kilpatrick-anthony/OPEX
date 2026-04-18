@@ -61,7 +61,6 @@ export const ALL_STORES: { name: string; slug: string }[] = [
   { name: 'ILAC',              slug: 'ilac' },
   { name: 'Kildare Village',   slug: 'kildare-village' },
   { name: 'Maynooth',          slug: 'maynooth' },
-  { name: 'Nutgrove',          slug: 'nutgrove' },
   { name: 'Swords Pavilions',  slug: 'swords-pavilions' },
 ];
 
