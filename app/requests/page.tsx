@@ -213,7 +213,7 @@ export default function RequestsPage() {
 
         <div className={`grid gap-8 ${isStoreStaff ? '' : 'xl:grid-cols-[1.2fr_0.8fr]'}`}>
           <Card title="New OPEX Request" description="Submit a spend request for approval." className="space-y-6">
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-7" onSubmit={handleSubmit}>
               <label className="block space-y-2 text-sm text-slate-700">
                 Requester
                 <input
@@ -237,7 +237,7 @@ export default function RequestsPage() {
                   </select>
                 </label>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
                   <label className="space-y-2 text-sm text-slate-700">
                     Store / Team
                     <select
