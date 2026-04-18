@@ -74,7 +74,6 @@ const legacyEmails = [
   'manager.ilac@oakberry.ie',
   'manager.kildare-village@oakberry.ie',
   'manager.maynooth@oakberry.ie',
-  'manager.nutgrove@oakberry.ie',
   'manager.swords-pavilions@oakberry.ie',
 ];
 

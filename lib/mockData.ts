@@ -459,35 +459,6 @@ export const STORE_DETAILS: Record<string, EntityDetail> = {
     },
   },
 
-  'nutgrove': {
-    name: 'Nutgrove', slug: 'nutgrove', type: 'store', monthlyBudget: 7500,
-    trend: [
-      { month: 'Nov', total: 2500 }, { month: 'Dec', total: 3600 },
-      { month: 'Jan', total: 2400 }, { month: 'Feb', total: 2700 },
-      { month: 'Mar', total: 3200 }, { month: 'Apr', total: 2900 },
-    ],
-    month: {
-      totalSpent: 2900, budget: 7500,
-      byCategory: split(2900, [['Supplies', 35], ['Maintenance', 23], ['Marketing', 21], ['Travel', 13], ['Utilities', 8]]),
-      requests: [
-        { id: 18001, requesterName: 'Deirdre Nolan', requesterRole: 'Store Manager', category: 'Supplies', amount: 310, description: 'Paper bag bulk restock for April trading.', status: 'approved', createdAt: '2026-04-06' },
-        { id: 18002, requesterName: 'Deirdre Nolan', requesterRole: 'Store Manager', category: 'Supplies', amount: 380, description: 'Stationery, admin supplies and label printer rolls — Q2 restock.', status: 'pending', createdAt: '2026-04-12' },
-        { id: 18003, requesterName: 'Deirdre Nolan', requesterRole: 'Store Manager', category: 'Maintenance', amount: 667, description: 'Ice machine and blender service.', status: 'approved', createdAt: '2026-04-05' },
-        { id: 18004, requesterName: 'Deirdre Nolan', requesterRole: 'Store Manager', category: 'Marketing', amount: 609, description: 'Spring campaign local leaflet drop.', status: 'approved', createdAt: '2026-04-08' },
-      ],
-    },
-    'last-month': {
-      totalSpent: 3200, budget: 7500,
-      byCategory: split(3200, [['Supplies', 35], ['Maintenance', 23], ['Marketing', 21], ['Travel', 13], ['Utilities', 8]]),
-      requests: [],
-    },
-    quarter: {
-      totalSpent: 9200, budget: 22500,
-      byCategory: split(9200, [['Supplies', 35], ['Maintenance', 23], ['Marketing', 21], ['Travel', 13], ['Utilities', 8]]),
-      requests: [],
-    },
-  },
-
   'swords-pavilions': {
     name: 'Swords Pavilions', slug: 'swords-pavilions', type: 'store', monthlyBudget: 9000,
     trend: [
