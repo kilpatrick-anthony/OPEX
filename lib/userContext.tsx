@@ -67,6 +67,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         ? 'super_admin'
         : session.user.role === 'director'
         ? 'director'
+        : session.user.role === 'manager'
+        ? 'store_staff'
         : session.user.storeId
           ? 'store_staff'
           : 'field_team';
