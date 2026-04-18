@@ -66,6 +66,7 @@ export default function RequestsPage() {
 
   const isStoreStaff = user?.role === 'store_staff';
   const hideStoreSelector = user?.role === 'store_staff' || user?.role === 'field_team';
+  const showBudgetColumn = user?.role !== 'field_team' && user?.role !== 'director';
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login');
@@ -385,7 +386,7 @@ export default function RequestsPage() {
                       <th className="px-4 py-3 text-left">Amount</th>
                       <th className="px-4 py-3 text-left">Status</th>
                       <th className="px-4 py-3 text-left">Date</th>
-                      <th className="px-4 py-3 text-left">Budget left</th>
+                      {showBudgetColumn ? <th className="px-4 py-3 text-left">Budget left</th> : null}
                       <th className="px-4 py-3 text-left"></th>
                     </tr>
                   </TableHeader>
@@ -404,7 +405,7 @@ export default function RequestsPage() {
                         <TableCell className="text-sm text-slate-500">
                           {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
                         </TableCell>
-                        <TableCell className="text-sm text-slate-600">{formatCurrency(request.storeRemainingBudget)}</TableCell>
+                        {showBudgetColumn ? <TableCell className="text-sm text-slate-600">{formatCurrency(request.storeRemainingBudget)}</TableCell> : null}
                         <TableCell>
                           <button
                             type="button"
