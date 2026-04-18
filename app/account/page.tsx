@@ -8,6 +8,16 @@ import { Card } from '@/components/ui/card';
 import { useCurrentUser } from '@/lib/userContext';
 import { getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 
+type Notification = {
+  id: number;
+  requestId: number;
+  type: 'approved' | 'rejected' | 'queried';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
 export default function AccountPage() {
   const router = useRouter();
   const { user, isLoading } = useCurrentUser();
@@ -18,12 +28,55 @@ export default function AccountPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  async function loadNotifications() {
+    setLoadingNotifications(true);
+    try {
+      const response = await fetch('/api/notifications?limit=30', { cache: 'no-store' });
+      const payload = (await readJsonSafely(response)) as { notifications?: Notification[]; unreadCount?: number } | null;
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, 'Failed to load notifications'));
+      }
+      setNotifications(Array.isArray(payload?.notifications) ? payload.notifications : []);
+      setUnreadCount(Number(payload?.unreadCount ?? 0));
+    } catch {
+      // Keep account page functional if notification service is unavailable.
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace('/login');
     }
   }, [isLoading, user, router]);
+
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+    }
+  }, [user]);
+
+  async function markAllRead() {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-all-read' }),
+      });
+      if (!response.ok) {
+        const payload = await readJsonSafely(response);
+        throw new Error(getApiErrorMessage(response, payload, 'Failed to mark notifications as read'));
+      }
+      await loadNotifications();
+    } catch {
+      // Ignore and keep existing list rendered.
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,6 +165,30 @@ export default function AccountPage() {
                 {submitting ? 'Updating...' : 'Update Password'}
               </Button>
             </form>
+          </Card>
+
+          <Card className="mt-6 p-6" title="Notifications" description="Approval updates for your requests.">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-600">Unread: <span className="font-semibold text-slate-900">{unreadCount}</span></p>
+              <Button type="button" variant="secondary" onClick={markAllRead} disabled={unreadCount === 0}>Mark all as read</Button>
+            </div>
+
+            {loadingNotifications ? <p className="text-sm text-slate-500">Loading notifications...</p> : null}
+
+            <div className="space-y-3">
+              {notifications.map((notification) => (
+                <div key={notification.id} className={`rounded-xl border px-4 py-3 ${notification.isRead ? 'border-slate-200 bg-white' : 'border-sky-200 bg-sky-50/40'}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900">{notification.title}</p>
+                    <span className="text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
+                </div>
+              ))}
+              {!loadingNotifications && notifications.length === 0 ? (
+                <p className="text-sm text-slate-500">No notifications yet.</p>
+              ) : null}
+            </div>
           </Card>
         </div>
       </main>

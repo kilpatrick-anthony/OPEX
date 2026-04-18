@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
@@ -9,6 +10,33 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useCurrentUser();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUnread() {
+      if (!user) return;
+      try {
+        const response = await fetch('/api/notifications?limit=1', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { unreadCount?: number };
+        if (!cancelled) setUnreadCount(Number(payload.unreadCount ?? 0));
+      } catch {
+        // Keep navbar usable even if notification fetch fails.
+      }
+    }
+
+    if (user) {
+      loadUnread();
+    } else {
+      setUnreadCount(0);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname]);
 
   function handleLogout() {
     logout();
@@ -55,6 +83,7 @@ export function Navbar() {
                   className={`rounded-full px-4 py-1.5 font-medium transition-all ${active ? 'text-[#4a1f60] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
                   style={active ? { background: 'rgba(255,255,255,0.95)' } : {}}>
                   {item.label}
+                  {item.href === '/account' && unreadCount > 0 ? ` (${Math.min(unreadCount, 99)})` : ''}
                 </Link>
               );
             })}

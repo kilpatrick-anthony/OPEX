@@ -44,6 +44,17 @@ export type RequestRecord = {
   createdAt: string;
 };
 
+export type NotificationRecord = {
+  id: number;
+  userId: number;
+  requestId: number;
+  type: 'approved' | 'rejected' | 'queried';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
 const REQUEST_SELECT = `
   r.id,
   r.storeid as "storeId",
@@ -66,6 +77,7 @@ export async function ensureSchema() {
   await sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
 }
 
 async function ensureSchemaOnce() {
@@ -122,6 +134,61 @@ export async function updateUserStoreAssignment(userId: number, storeId: number 
   await ensureSchemaOnce();
   const sql = getSql();
   await sql`UPDATE users SET storeId = ${storeId} WHERE id = ${userId}`;
+}
+
+export async function createNotification(data: {
+  userId: number;
+  requestId: number;
+  type: 'approved' | 'rejected' | 'queried';
+  title: string;
+  message: string;
+}) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`
+    INSERT INTO notifications (userId, requestId, type, title, message, isRead)
+    VALUES (${data.userId}, ${data.requestId}, ${data.type}, ${data.title}, ${data.message}, false)
+  `;
+}
+
+export async function getNotificationsByUser(userId: number, limit = 25): Promise<NotificationRecord[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql.query(
+    `SELECT
+      n.id,
+      n.userid as "userId",
+      n.requestid as "requestId",
+      n.type,
+      n.title,
+      n.message,
+      n.isread as "isRead",
+      n.createdat as "createdAt"
+     FROM notifications n
+     WHERE n.userid = $1
+     ORDER BY n.createdat DESC
+     LIMIT $2`,
+    [userId, limit],
+  );
+  return result as NotificationRecord[];
+}
+
+export async function getUnreadNotificationCount(userId: number): Promise<number> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql.query(
+    `SELECT COUNT(*)::int as count
+     FROM notifications
+     WHERE userid = $1 AND isread = false`,
+    [userId],
+  );
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function markAllNotificationsRead(userId: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE notifications SET isRead = true WHERE userId = ${userId} AND isRead = false`;
 }
 
 export async function insertRequest(data: {
