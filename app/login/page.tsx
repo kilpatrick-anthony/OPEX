@@ -13,10 +13,24 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/dashboard');
+  async function resolveHomeRoute() {
+    try {
+      const response = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (!response.ok) return '/requests';
+      const payload = await response.json();
+      const role = payload?.user?.role;
+      if (role === 'director' || role === 'super_admin') {
+        return '/dashboard';
+      }
+      return '/requests';
+    } catch {
+      return '/requests';
     }
+  }
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    resolveHomeRoute().then((route) => router.replace(route));
   }, [status, router]);
 
   if (status === 'authenticated') return null;
@@ -30,7 +44,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: false,
-      callbackUrl: '/dashboard',
+      callbackUrl: '/requests',
     });
 
     setSubmitting(false);
@@ -40,7 +54,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/dashboard');
+    const route = await resolveHomeRoute();
+    router.push(route);
   }
 
   return (
