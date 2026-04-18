@@ -72,6 +72,12 @@ export async function getUserById(id: number) {
   return result[0] as User | undefined;
 }
 
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET password = ${passwordHash} WHERE id = ${userId}`;
+}
+
 export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director' | 'super_admin'; storeId: number | null }) {
   await ensureSchemaOnce();
   const sql = getSql();

@@ -24,6 +24,7 @@ export function Navbar() {
     { href: '/reports',            label: 'Reports',   show: true },
     { href: '/forecast',           label: 'Forecast',  show: isDirectorOrAdmin },
     { href: '/dashboard/compare',  label: 'Compare',   show: isDirectorOrAdmin },
+    { href: '/account',            label: 'Account',   show: Boolean(user) },
   ];
   const navItems = allNavItems.filter((i) => i.show);
 

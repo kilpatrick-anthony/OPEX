@@ -11,7 +11,6 @@ const stores = [
   'Anne Street',
   'Arnotts',
   'Blackrock',
-  'Blanchardstown',
   'Cork',
   'Dun Laoghaire',
   'Dundalk',
@@ -19,45 +18,71 @@ const stores = [
   'ILAC',
   'Kildare Village',
   'Maynooth',
-  'Nutgrove',
   'Swords Pavilions',
 ];
 
 // Individual credentials — email is the username, passwords are listed below
 const directors = [
-  { name: 'Anthony Kilpatrick', email: 'anthony.kilpatrick@oakberry.ie', password: 'Anthony@Oakberry1', role: 'super_admin' },
-  { name: 'Alvin Galligan',     email: 'alvin.galligan@oakberry.ie',     password: 'Alvin@Oakberry1',   role: 'director' },
-  { name: 'Nick Twomey',        email: 'nick.twomey@oakberry.ie',        password: 'Nick@Oakberry1',     role: 'director' },
-  { name: "Cian O'Donoghue",   email: 'cian.odonoghue@oakberry.ie',     password: 'Cian@Oakberry1',     role: 'director' },
+  { name: 'Anthony Kilpatrick', email: 'info@oakberry.ie',  password: 'Anthony2026!', role: 'super_admin' },
+  { name: 'Alvin Galligan',     email: 'alvin@oakberry.ie', password: 'Alvin2026!',   role: 'director' },
+  { name: 'Nick Twomey',        email: 'nick@oakberry.ie',  password: 'Nick2026!',    role: 'director' },
+  { name: "Cian O'Donoghue",   email: 'cian@oakberry.ie',  password: 'Cian2026!',    role: 'director' },
 ];
 
 const fieldTeam = [
-  { name: 'Emma Barrett',                email: 'emma.barrett@oakberry.ie',   password: 'Emma@Oakberry1' },
-  { name: 'Douglas Abreu',               email: 'douglas.abreu@oakberry.ie',  password: 'Douglas@Oakberry1' },
-  { name: 'Layla Pinheiro',              email: 'layla.pinheiro@oakberry.ie', password: 'Layla@Oakberry1' },
-  { name: 'Bernardo Vianna',             email: 'bernardo.vianna@oakberry.ie',password: 'Bernardo@Oakberry1' },
-  { name: 'Andre Monteiro',              email: 'andre.monteiro@oakberry.ie', password: 'Andre@Oakberry1' },
-  { name: 'Marcio Santos do Nascimento', email: 'marcio.santos@oakberry.ie',  password: 'Marcio@Oakberry1' },
+  { name: 'Andre Luis Monteiro Da Silva',  email: 'andre@oakberry.ie',    password: 'Andre2026!' },
+  { name: 'Bernardo Vianna',               email: 'bernardo@oakberry.ie', password: 'Bernardo2026!' },
+  { name: 'Douglas Abreu',                 email: 'douglas@oakberry.ie',  password: 'Douglas2026!' },
+  { name: 'Emma Barrett',                  email: 'emma@oakberry.ie',     password: 'Emma2026!' },
+  { name: 'Layla Conti Pinheiro',          email: 'layla@oakberry.ie',    password: 'Layla2026!' },
+  { name: 'Marcio Santos do Nascimento',   email: 'marcio@oakberry.ie',   password: 'Marcio2026!' },
 ];
 
-// Store manager passwords keyed by store name
-const storePasswords = {
-  'Anne Street':       'AnneStreet@Oakberry1',
-  'Arnotts':           'Arnotts@Oakberry1',
-  'Blackrock':         'Blackrock@Oakberry1',
-  'Blanchardstown':    'Blanchardstown@Oakberry1',
-  'Cork':              'Cork@Oakberry1',
-  'Dun Laoghaire':     'DunLaoghaire@Oakberry1',
-  'Dundalk':           'Dundalk@Oakberry1',
-  'Hansfield':         'Hansfield@Oakberry1',
-  'ILAC':              'ILAC@Oakberry1',
-  'Kildare Village':   'KildareVillage@Oakberry1',
-  'Maynooth':          'Maynooth@Oakberry1',
-  'Nutgrove':          'Nutgrove@Oakberry1',
-  'Swords Pavilions':  'SwordsPavilions@Oakberry1',
-};
+const storeAccounts = [
+  { storeName: 'Anne Street',      email: 'annestreet@oakberry.ie',     password: 'Annestreet2026!' },
+  { storeName: 'Arnotts',          email: 'arnotts@oakberry.ie',        password: 'Arnotts2026!' },
+  { storeName: 'Blackrock',        email: 'blackrock@oakberry.ie',      password: 'Blackrock2026!' },
+  { storeName: 'Cork',             email: 'cork@oakberry.ie',           password: 'Cork2026!' },
+  { storeName: 'Dun Laoghaire',    email: 'dunlaoghaire@oakberry.ie',   password: 'Dunlaoghaire2026!' },
+  { storeName: 'Dundalk',          email: 'dundalk@oakberry.ie',        password: 'Dundalk2026!' },
+  { storeName: 'Hansfield',        email: 'hansfield@oakberry.ie',      password: 'Hansfield2026!' },
+  { storeName: 'ILAC',             email: 'ilac@oakberry.ie',           password: 'Ilac2026!' },
+  { storeName: 'Kildare Village',  email: 'kildarevillage@oakberry.ie', password: 'Kildarevillage2026!' },
+  { storeName: 'Maynooth',         email: 'maynooth@oakberry.ie',       password: 'Maynooth2026!' },
+  { storeName: 'Swords Pavilions', email: 'swordspavilions@oakberry.ie',password: 'Swordspavilions2026!' },
+];
+
+const legacyEmails = [
+  'anthony.kilpatrick@oakberry.ie',
+  'alvin.galligan@oakberry.ie',
+  'nick.twomey@oakberry.ie',
+  'cian.odonoghue@oakberry.ie',
+  'emma.barrett@oakberry.ie',
+  'douglas.abreu@oakberry.ie',
+  'layla.pinheiro@oakberry.ie',
+  'bernardo.vianna@oakberry.ie',
+  'andre.monteiro@oakberry.ie',
+  'marcio.santos@oakberry.ie',
+  'manager.anne-street@oakberry.ie',
+  'manager.arnotts@oakberry.ie',
+  'manager.blackrock@oakberry.ie',
+  'manager.blanchardstown@oakberry.ie',
+  'manager.cork@oakberry.ie',
+  'manager.dun-laoghaire@oakberry.ie',
+  'manager.dundalk@oakberry.ie',
+  'manager.hansfield@oakberry.ie',
+  'manager.ilac@oakberry.ie',
+  'manager.kildare-village@oakberry.ie',
+  'manager.maynooth@oakberry.ie',
+  'manager.nutgrove@oakberry.ie',
+  'manager.swords-pavilions@oakberry.ie',
+];
 
 async function main() {
+  for (const email of legacyEmails) {
+    await sql`DELETE FROM users WHERE email = ${email}`;
+  }
+
   for (const name of stores) {
     await sql`INSERT INTO stores (name, budget) VALUES (${name}, 10000) ON CONFLICT (name) DO NOTHING`;
   }
@@ -80,13 +105,12 @@ async function main() {
     `;
   }
 
-  for (const storeName of stores) {
-    const store = await sql`SELECT id FROM stores WHERE name = ${storeName} LIMIT 1`;
-    const managerEmail = `manager.${storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}@oakberry.ie`;
-    const hash = await bcrypt.hash(storePasswords[storeName], 12);
+  for (const account of storeAccounts) {
+    const store = await sql`SELECT id FROM stores WHERE name = ${account.storeName} LIMIT 1`;
+    const hash = await bcrypt.hash(account.password, 12);
     await sql`
       INSERT INTO users (name, email, password, role, storeId)
-      VALUES (${storeName + ' Manager'}, ${managerEmail}, ${hash}, 'manager', ${store[0].id})
+      VALUES (${account.storeName}, ${account.email.toLowerCase()}, ${hash}, 'manager', ${store[0].id})
       ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password
     `;
   }
@@ -95,7 +119,7 @@ async function main() {
   console.log('\nCredentials summary:');
   for (const u of directors) console.log(` ${u.email}  /  ${u.password}`);
   for (const u of fieldTeam)  console.log(` ${u.email}  /  ${u.password}`);
-  for (const s of stores)     console.log(` manager.${s.toLowerCase().replace(/[^a-z0-9]+/g, '-')}@oakberry.ie  /  ${storePasswords[s]}`);
+  for (const u of storeAccounts) console.log(` ${u.email}  /  ${u.password}`);
 }
 
 main().catch((error) => {
