@@ -16,7 +16,7 @@ export function Navbar() {
   }
 
   const canViewAnalytics = Boolean(user && user.role !== 'store_staff');
-  const canViewForecast = user?.role === 'director' || user?.role === 'super_admin';
+  const canViewForecast = user?.role === 'super_admin';
 
   const allNavItems = [
     { href: '/dashboard',          label: 'Dashboard', show: user ? canAccess(user.role, 'dashboard') : true },

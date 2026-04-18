@@ -86,7 +86,7 @@ export default function ForecastPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const canAccessForecast = user?.role === 'director' || user?.role === 'super_admin';
+  const canAccessForecast = user?.role === 'super_admin';
 
   useEffect(() => {
     if (userLoading) return;
