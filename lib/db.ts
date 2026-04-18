@@ -111,6 +111,19 @@ export async function getStores() {
   return result as Store[];
 }
 
+export async function getStoreByName(name: string) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`SELECT * FROM stores WHERE LOWER(name) = ${name.toLowerCase()} LIMIT 1`;
+  return result[0] as Store | undefined;
+}
+
+export async function updateUserStoreAssignment(userId: number, storeId: number | null) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET storeId = ${storeId} WHERE id = ${userId}`;
+}
+
 export async function insertRequest(data: {
   storeId: number;
   userId: number;

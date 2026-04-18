@@ -1,5 +1,5 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { getUserByEmail } from '@/lib/db';
+import { getStoreByName, getUserByEmail, updateUserStoreAssignment } from '@/lib/db';
 import { verifyPassword } from '@/lib/password';
 
 const resolvedAuthSecret =
@@ -56,10 +56,20 @@ export const authOptions = {
       if (token.email) {
         const existing = await getUserByEmail(String(token.email).toLowerCase());
         if (existing) {
+          let resolvedStoreId = existing.storeId ?? null;
+
+          if (existing.role === 'manager' && !resolvedStoreId) {
+            const matchedStore = await getStoreByName(existing.name);
+            if (matchedStore) {
+              resolvedStoreId = matchedStore.id;
+              await updateUserStoreAssignment(existing.id, matchedStore.id);
+            }
+          }
+
           token.id = existing.id;
           token.role = existing.role;
           token.title = existing.title ?? null;
-          token.storeId = existing.storeId ?? null;
+          token.storeId = resolvedStoreId;
         }
       }
 

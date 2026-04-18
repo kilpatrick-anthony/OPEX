@@ -128,7 +128,7 @@ async function main() {
     await sql`
       INSERT INTO users (name, email, password, role, title, storeId)
       VALUES (${account.storeName}, ${account.email.toLowerCase()}, ${hash}, 'manager', ${account.title}, ${store[0].id})
-      ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, title = EXCLUDED.title
+      ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = EXCLUDED.role, title = EXCLUDED.title, storeId = EXCLUDED.storeId
     `;
   }
 
