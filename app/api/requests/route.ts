@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { insertRequest, queryRequests, getStoreRemainingBudget, getStores } from '@/lib/db';
+import { insertRequest, queryRequests, getStoreRemainingBudget, getStores, getDirectorEmails } from '@/lib/db';
 import { REQUEST_CATEGORIES } from '@/lib/categories';
+import { sendNewRequestEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,12 +32,21 @@ export async function GET(request: Request) {
       ? Number(session.user.storeId)
       : parsedStoreId;
 
+    // Director/super_admin-only filters for drill-down pages
+    const canViewAll = normalizedRole === 'director' || normalizedRole === 'super_admin';
+    const targetUserIdParam = canViewAll ? url.searchParams.get('targetUserId') : null;
+    const categoryParam = canViewAll ? url.searchParams.get('category') : null;
+    const targetUserId = targetUserIdParam && /^\d+$/.test(targetUserIdParam) ? Number(targetUserIdParam) : undefined;
+    const category = categoryParam || undefined;
+
     const filters = {
       storeId: effectiveStoreId,
       status,
       userId: session.user.id,
       role: normalizedRole,
       userStoreId: session.user.storeId,
+      targetUserId,
+      category,
     };
     const requests = await queryRequests(filters);
     const stores = await getStores();
@@ -106,6 +116,13 @@ export async function POST(request: Request) {
     submitterName: submitterName || undefined,
     submitterJobRole: submitterJobRole || undefined,
   });
+
+  // Fire-and-forget email to all directors/super_admins — never blocks the response
+  if (requestRecord) {
+    getDirectorEmails()
+      .then((directors) => sendNewRequestEmail(requestRecord, directors))
+      .catch((err) => console.error('Failed to send director notification email:', err));
+  }
 
   return NextResponse.json({ request: requestRecord });
 }

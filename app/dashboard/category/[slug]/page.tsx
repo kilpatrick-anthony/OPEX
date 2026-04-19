@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -13,8 +13,8 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker';
-import { formatCurrency } from '@/lib/utils';
-import { getCategoryDetail, type Period } from '@/lib/mockData';
+import { formatCurrency, readJsonSafely } from '@/lib/utils';
+import { REQUEST_CATEGORIES } from '@/lib/categories';
 
 const STORE_COLOR  = '#0ea5e9';
 const EMP_COLOR    = '#10b981';
@@ -26,6 +26,8 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-rose-50 text-rose-700',
   queried:  'bg-sky-50 text-sky-700',
 };
+
+type Period = 'month' | 'last-month' | 'quarter';
 
 const periodOptions: { label: string; value: Period }[] = [
   { label: 'This month', value: 'month' },
@@ -50,19 +52,127 @@ const CATEGORY_ICONS: Record<string, string> = {
   'professional-services':'🤝',
 };
 
+function slugify(s: string) {
+  return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+const SLUG_TO_CAT = Object.fromEntries(REQUEST_CATEGORIES.map((c) => [slugify(c), c]));
+
+type RequestRow = {
+  id: number; amount: number; status: string; category: string;
+  description: string; storeName: string; requesterName: string;
+  requesterRole: string; createdAt: string;
+};
+
+function inPeriod(date: Date, period: Period) {
+  const now = new Date();
+  if (period === 'month') return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  if (period === 'last-month') { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return date.getFullYear() === lm.getFullYear() && date.getMonth() === lm.getMonth(); }
+  const qStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  return date >= qStart;
+}
+
+function build6MonthTrend(requests: RequestRow[]) {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const label = d.toLocaleDateString('en-IE', { month: 'short', year: '2-digit' });
+    const total = requests.filter((r) => { const cd = new Date(r.createdAt); return cd.getFullYear() === d.getFullYear() && cd.getMonth() === d.getMonth(); }).reduce((s, r) => s + r.amount, 0);
+    return { month: label, total };
+  });
+}
+
 export default function CategoryDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug   = Array.isArray(params.slug) ? params.slug[0] : (params.slug ?? '');
+
+  const [allRequests, setAllRequests] = useState<RequestRow[]>([]);
+  const [categoryName, setCategoryName] = useState<string>('');
+  const [loading, setLoading]           = useState(true);
+  const [notFound, setNotFound]         = useState(false);
 
   const [period, setPeriod] = useState<Period>('month');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [entityFilter, setEntityFilter] = useState<'all' | 'store' | 'employee'>('all');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const category = getCategoryDetail(slug);
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const catName = SLUG_TO_CAT[slug];
+      if (!catName) { setNotFound(true); setLoading(false); return; }
+      setCategoryName(catName);
+      const res = await fetch(`/api/requests?category=${encodeURIComponent(catName)}`, { cache: 'no-store' });
+      const data = await readJsonSafely(res) as { requests?: RequestRow[] } | null;
+      setAllRequests(data?.requests ?? []);
+      setLoading(false);
+    }
+    load();
+  }, [slug]);
 
-  if (!category) {
+  const periodRequests = useMemo(() => {
+    if (dateRange?.from) {
+      return allRequests.filter((r) => {
+        const d = new Date(r.createdAt);
+        if (d < dateRange.from!) return false;
+        if (dateRange.to && d > dateRange.to) return false;
+        return true;
+      });
+    }
+    return allRequests.filter((r) => inPeriod(new Date(r.createdAt), period));
+  }, [allRequests, period, dateRange]);
+
+  const byEntity = useMemo(() => {
+    const map = new Map<string, { name: string; type: 'store' | 'employee'; total: number }>();
+    for (const r of periodRequests) {
+      const isStore = r.storeName !== 'Field';
+      const key  = isStore ? `store:${r.storeName}` : `emp:${r.requesterName}`;
+      const name = isStore ? r.storeName : r.requesterName;
+      const type: 'store' | 'employee' = isStore ? 'store' : 'employee';
+      const prev = map.get(key);
+      map.set(key, { name, type, total: (prev?.total ?? 0) + r.amount });
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [periodRequests]);
+
+  const filteredEntities = useMemo(
+    () => entityFilter === 'all' ? byEntity : byEntity.filter((e) => e.type === entityFilter),
+    [byEntity, entityFilter],
+  );
+
+  const filteredRequests = useMemo(() => {
+    return periodRequests
+      .filter((r) => {
+        if (statusFilter && r.status !== statusFilter) return false;
+        if (entityFilter === 'store' && r.storeName === 'Field') return false;
+        if (entityFilter === 'employee' && r.storeName !== 'Field') return false;
+        return true;
+      })
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
+  }, [periodRequests, statusFilter, entityFilter]);
+
+  const totalSpent  = periodRequests.reduce((s, r) => s + r.amount, 0);
+  const storeTotal  = byEntity.filter((e) => e.type === 'store').reduce((s, e) => s + e.total, 0);
+  const empTotal    = byEntity.filter((e) => e.type === 'employee').reduce((s, e) => s + e.total, 0);
+  const topEntity   = byEntity[0];
+  const trend       = useMemo(() => build6MonthTrend(allRequests), [allRequests]);
+
+  const icon = CATEGORY_ICONS[slug] ?? '💰';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <main className="container py-20 text-center">
+          <p className="text-slate-400">Loading…</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (notFound) {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navbar />
@@ -73,28 +183,6 @@ export default function CategoryDetailPage() {
       </div>
     );
   }
-
-  const data = category[period];
-
-  const filteredEntities = data.byEntity.filter(
-    (e) => entityFilter === 'all' || e.type === entityFilter,
-  );
-
-  const filteredRequests = data.requests.filter((r) => {
-    if (statusFilter && r.status !== statusFilter) return false;
-    if (dateRange?.from) {
-      const d = new Date(r.createdAt);
-      if (d < dateRange.from) return false;
-      if (dateRange.to && d > dateRange.to) return false;
-    }
-    return true;
-  });
-
-  const storeTotal    = data.byEntity.filter((e) => e.type === 'store').reduce((s, e) => s + e.total, 0);
-  const empTotal      = data.byEntity.filter((e) => e.type === 'employee').reduce((s, e) => s + e.total, 0);
-  const topEntity     = data.byEntity[0];
-
-  const icon = CATEGORY_ICONS[slug] ?? '💰';
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -107,7 +195,7 @@ export default function CategoryDetailPage() {
           <span>›</span>
           <span className="text-slate-500">Category</span>
           <span>›</span>
-          <span className="font-medium text-slate-800">{category.name}</span>
+          <span className="font-medium text-slate-800">{categoryName}</span>
         </div>
 
         {/* ── Page header ─────────────────────────────────────────────────── */}
@@ -117,7 +205,7 @@ export default function CategoryDetailPage() {
               <span className="text-3xl">{icon}</span>
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-amber-700">Category</span>
             </div>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">{category.name}</h1>
+            <h1 className="mt-2 text-3xl font-semibold text-slate-900">{categoryName}</h1>
             <p className="mt-1 text-sm text-slate-500 flex flex-wrap items-center gap-2">
               Spend across all stores and field team members
               {dateRange?.from && dateRange?.to && (
@@ -145,10 +233,10 @@ export default function CategoryDetailPage() {
         {/* ── KPI row ─────────────────────────────────────────────────────── */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Total {category.name} spend</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(data.total)}</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Total {categoryName} spend</p>
+            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
             <p className="mt-2 text-sm text-slate-500">
-              {data.total > 0 && data.budget > 0 ? `${Math.round((data.total / data.budget) * 100)}% of total OPEX budget` : 'No spend recorded'}
+              {totalSpent > 0 ? `Total ${categoryName.toLowerCase()} spend` : 'No spend recorded'}
             </p>
           </div>
 
@@ -156,7 +244,7 @@ export default function CategoryDetailPage() {
             <p className="text-xs uppercase tracking-widest text-slate-500">Stores spending</p>
             <p className="mt-3 text-4xl font-semibold text-sky-600">{formatCurrency(storeTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">
-              {data.byEntity.filter((e) => e.type === 'store').length} stores
+              {byEntity.filter((e) => e.type === 'store').length} stores
             </p>
           </div>
 
@@ -164,7 +252,7 @@ export default function CategoryDetailPage() {
             <p className="text-xs uppercase tracking-widest text-slate-500">Field team spending</p>
             <p className="mt-3 text-4xl font-semibold text-emerald-600">{formatCurrency(empTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">
-              {data.byEntity.filter((e) => e.type === 'employee').length} team members
+              {byEntity.filter((e) => e.type === 'employee').length} team members
             </p>
           </div>
 
@@ -182,12 +270,12 @@ export default function CategoryDetailPage() {
         <div className="mt-6">
           <Card className="space-y-4">
             <div>
-              <p className="text-sm uppercase tracking-widest text-slate-500">6-month spend trend · {category.name}</p>
-              <p className="mt-1 text-xs text-slate-400">Total monthly {category.name.toLowerCase()} spend across all entities</p>
+              <p className="text-sm uppercase tracking-widest text-slate-500">6-month spend trend · {categoryName}</p>
+              <p className="mt-1 text-xs text-slate-400">Total monthly {categoryName.toLowerCase()} spend across all entities</p>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={category.trend} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={trend} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tick={{ fill: '#475569', fontSize: 12 }} />
                   <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
@@ -199,7 +287,7 @@ export default function CategoryDetailPage() {
                     strokeWidth={2.5}
                     dot={{ fill: LINE_COLOR, r: 4 }}
                     activeDot={{ r: 6 }}
-                    name={category.name}
+                    name={categoryName}
                   />
                   <Legend />
                 </LineChart>
@@ -215,7 +303,7 @@ export default function CategoryDetailPage() {
               <div>
                 <p className="text-sm uppercase tracking-widest text-slate-500">Spend breakdown by entity</p>
                 <p className="mt-1 text-xs text-slate-400">
-                  Who is spending on {category.name.toLowerCase()} — stores vs field team
+                  Who is spending on {categoryName.toLowerCase()} — stores vs field team
                 </p>
               </div>
               <div className="flex gap-2">
@@ -312,13 +400,13 @@ export default function CategoryDetailPage() {
                             <div
                               className="h-full rounded-full"
                               style={{
-                                width: `${data.total > 0 ? Math.round((entity.total / data.total) * 100) : 0}%`,
+                                width: `${totalSpent > 0 ? Math.round((entity.total / totalSpent) * 100) : 0}%`,
                                 backgroundColor: entity.type === 'employee' ? EMP_COLOR : STORE_COLOR,
                               }}
                             />
                           </div>
                           <span className="text-xs text-slate-500">
-                            {data.total > 0 ? Math.round((entity.total / data.total) * 100) : 0}%
+                            {totalSpent > 0 ? Math.round((entity.total / totalSpent) * 100) : 0}%
                           </span>
                         </div>
                       </TableCell>
@@ -336,7 +424,7 @@ export default function CategoryDetailPage() {
             <Card className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm uppercase tracking-widest text-slate-500">Top requests · {category.name}</p>
+                  <p className="text-sm uppercase tracking-widest text-slate-500">Top requests · {categoryName}</p>
                   <p className="mt-1 text-xs text-slate-400">Up to 10 highest-value requests across all entities</p>
                 </div>
                 <div className="flex flex-wrap gap-2">

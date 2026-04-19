@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -8,10 +8,11 @@ import {
 } from 'recharts';
 import { Card }   from '@/components/ui/card';
 import { Navbar } from '@/components/Navbar';
-import { formatCurrency } from '@/lib/utils';
-import { STORE_DETAILS, EMPLOYEE_DETAILS, ALL_STORES, ALL_EMPLOYEES, type Period, type EntityPeriodData } from '@/lib/mockData';
+import { formatCurrency, readJsonSafely } from '@/lib/utils';
 
 const PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#ef4444', '#0284c7'];
+
+type Period = 'month' | 'last-month' | 'quarter';
 
 const PERIOD_OPTIONS: { label: string; value: Period }[] = [
   { label: 'This Month', value: 'month' },
@@ -19,23 +20,33 @@ const PERIOD_OPTIONS: { label: string; value: Period }[] = [
   { label: 'Quarter',    value: 'quarter' },
 ];
 
-const ALL_ENTITIES = [
-  ...ALL_STORES.map((s) => ({ ...s, type: 'store' as const })),
-  ...ALL_EMPLOYEES.map((e) => ({ ...e, type: 'employee' as const })),
-];
-
-type CompareEntity = {
-  slug:        string;
-  name:        string;
-  type:        'store' | 'employee';
-  totalSpent:  number;
-  budget:      number;
-  pct:         number;
-  byCategory:  EntityPeriodData['byCategory'];
-  trend:       { month: string; total: number }[];
-  requests:    EntityPeriodData['requests'];
-  color:       string;
+type StoreRow   = { id: number; name: string; budget: number };
+type UserRow    = { id: number; name: string; title: string | null; budget: number };
+type RequestRow = {
+  id: number; amount: number; status: string; category: string;
+  description: string; storeName: string; requesterName: string;
+  requesterRole: string; createdAt: string; userId?: number;
 };
+
+type EntityKey = string; // "store:1" | "employee:3"
+
+function inPeriod(date: Date, period: Period) {
+  const now = new Date();
+  if (period === 'month') return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  if (period === 'last-month') { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return date.getFullYear() === lm.getFullYear() && date.getMonth() === lm.getMonth(); }
+  const qStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  return date >= qStart;
+}
+
+function build6MonthTrend(requests: RequestRow[]) {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const label = d.toLocaleDateString('en-IE', { month: 'short', year: '2-digit' });
+    const total = requests.filter((r) => { const cd = new Date(r.createdAt); return cd.getFullYear() === d.getFullYear() && cd.getMonth() === d.getMonth(); }).reduce((s, r) => s + r.amount, 0);
+    return { month: label, total };
+  });
+}
 
 function getBudgetPct(spent: number, budget: number) {
   return budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
@@ -47,28 +58,93 @@ function healthColor(pct: number) {
   return '#10b981';
 }
 
+type CompareEntity = {
+  key:         EntityKey;
+  name:        string;
+  type:        'store' | 'employee';
+  totalSpent:  number;
+  budget:      number;
+  pct:         number;
+  byCategory:  { category: string; total: number }[];
+  trend:       { month: string; total: number }[];
+  requests:    RequestRow[];
+  color:       string;
+  slug:        string;
+};
+
 export default function ComparePage() {
-  const [period,   setPeriod]   = useState<Period>('month');
-  const [selected, setSelected] = useState<string[]>(['anne-street', 'cork']);
+  const [period,      setPeriod]      = useState<Period>('month');
+  const [selected,    setSelected]    = useState<EntityKey[]>([]);
+  const [stores,      setStores]      = useState<StoreRow[]>([]);
+  const [fieldUsers,  setFieldUsers]  = useState<UserRow[]>([]);
+  const [allRequests, setAllRequests] = useState<RequestRow[]>([]);
+  const [loading,     setLoading]     = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const [storesRes, usersRes, reqRes] = await Promise.all([
+        fetch('/api/stores', { cache: 'no-store' }),
+        fetch('/api/users',  { cache: 'no-store' }),
+        fetch('/api/requests', { cache: 'no-store' }),
+      ]);
+      const storesData  = await readJsonSafely(storesRes) as StoreRow[] | null;
+      const usersData   = await readJsonSafely(usersRes)  as UserRow[]  | null;
+      const reqData     = await readJsonSafely(reqRes)    as { requests?: RequestRow[] } | null;
+      const loadedStores = Array.isArray(storesData) ? storesData : [];
+      const loadedUsers  = Array.isArray(usersData)  ? usersData  : [];
+      setStores(loadedStores);
+      setFieldUsers(loadedUsers);
+      setAllRequests(reqData?.requests ?? []);
+      // Default select first two stores if available
+      const defaultKeys = loadedStores.slice(0, 2).map((s) => `store:${s.id}`);
+      setSelected(defaultKeys);
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   // ── Derived data per selected entity ──────────────────────────────────────
 
   const entities = useMemo<CompareEntity[]>(() => {
-    return selected.flatMap((slug, idx) => {
-      const src = STORE_DETAILS[slug] ?? EMPLOYEE_DETAILS[slug];
-      if (!src) return [];
-      const data = src[period];
-      const pct  = getBudgetPct(data.totalSpent, data.budget);
-      return [{
-        slug, name: src.name, type: src.type,
-        totalSpent: data.totalSpent, budget: data.budget, pct,
-        byCategory: data.byCategory, trend: src.trend, requests: data.requests,
-        color: PALETTE[idx % PALETTE.length],
-      }];
-    });
-  }, [selected, period]);
+    return selected.flatMap((key, idx) => {
+      const [type, idStr] = key.split(':');
+      const id = Number(idStr);
+      let name = '';
+      let budget = 0;
+      let entityRequests: RequestRow[] = [];
+      let slug = '';
+      if (type === 'store') {
+        const store = stores.find((s) => s.id === id);
+        if (!store) return [];
+        name   = store.name;
+        budget = store.budget;
+        slug   = store.name.toLowerCase().replace(/\s+/g, '-');
+        entityRequests = allRequests.filter((r) => r.storeName.toLowerCase() === store.name.toLowerCase());
+      } else {
+        const user = fieldUsers.find((u) => u.id === id);
+        if (!user) return [];
+        name   = user.name;
+        budget = user.budget;
+        slug   = user.name.toLowerCase().replace(/\s+/g, '-');
+        entityRequests = allRequests.filter((r) => r.userId === id || r.requesterName.toLowerCase() === user.name.toLowerCase());
+      }
 
-  // ── Category comparison (radar + grouped bar) ──────────────────────────────
+      const periodReqs = entityRequests.filter((r) => inPeriod(new Date(r.createdAt), period));
+      const totalSpent = periodReqs.reduce((s, r) => s + r.amount, 0);
+      const pct = getBudgetPct(totalSpent, budget);
+
+      const catMap = new Map<string, number>();
+      for (const r of periodReqs) catMap.set(r.category, (catMap.get(r.category) ?? 0) + r.amount);
+      const byCategory = [...catMap.entries()].map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+
+      const trend = build6MonthTrend(entityRequests);
+
+      return [{ key, name, type: type as 'store' | 'employee', totalSpent, budget, pct, byCategory, trend, requests: periodReqs, color: PALETTE[idx % PALETTE.length], slug }];
+    });
+  }, [selected, period, stores, fieldUsers, allRequests]);
+
+  // ── Category comparison ────────────────────────────────────────────────────
 
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -78,6 +154,68 @@ export default function ComparePage() {
 
   const categoryBarData = useMemo(() => {
     return allCategories.map((cat) => {
+      const row: Record<string, any> = { category: cat };
+      for (const e of entities) {
+        const match = e.byCategory.find((c) => c.category === cat);
+        row[e.name] = match?.total ?? 0;
+      }
+      return row;
+    });
+  }, [allCategories, entities]);
+
+  const radarData = useMemo(() => {
+    return allCategories.map((cat) => {
+      const row: Record<string, any> = { category: cat };
+      for (const e of entities) {
+        const match = e.byCategory.find((c) => c.category === cat);
+        row[e.name] = match?.total ?? 0;
+      }
+      return row;
+    });
+  }, [allCategories, entities]);
+
+  // ── Trend comparison ───────────────────────────────────────────────────────
+
+  const trendMonths = useMemo(() => {
+    if (entities.length === 0) return [];
+    return entities[0].trend.map((t) => t.month);
+  }, [entities]);
+
+  const trendData = useMemo(() => {
+    return trendMonths.map((month) => {
+      const row: Record<string, any> = { month };
+      for (const e of entities) {
+        const point = e.trend.find((t) => t.month === month);
+        row[e.name] = point?.total ?? 0;
+      }
+      return row;
+    });
+  }, [trendMonths, entities]);
+
+  // ── Status summary ─────────────────────────────────────────────────────────
+
+  const statusData = useMemo(() => {
+    return entities.map((e) => {
+      const approved = e.requests.filter((r) => r.status === 'approved').reduce((s, r) => s + r.amount, 0);
+      const pending  = e.requests.filter((r) => r.status === 'pending').reduce((s, r) => s + r.amount, 0);
+      const rejected = e.requests.filter((r) => r.status === 'rejected').reduce((s, r) => s + r.amount, 0);
+      const queried  = e.requests.filter((r) => r.status === 'queried').reduce((s, r) => s + r.amount, 0);
+      return { name: e.name, approved, pending, rejected, queried };
+    });
+  }, [entities]);
+
+  // ── Toggle entity ──────────────────────────────────────────────────────────
+
+  function toggleEntity(key: EntityKey) {
+    setSelected((prev) => {
+      if (prev.includes(key)) {
+        if (prev.length <= 1) return prev;
+        return prev.filter((k) => k !== key);
+      }
+      if (prev.length >= 4) return prev;
+      return [...prev, key];
+    });
+  }
       const row: Record<string, any> = { category: cat };
       for (const e of entities) {
         const match = e.byCategory.find((c) => c.category === cat);
@@ -165,34 +303,42 @@ export default function ComparePage() {
 
         {/* ── Entity picker ───────────────────────────────────────────────── */}
         <div className="mt-6">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Stores</p>
-          <div className="flex flex-wrap gap-2">
-            {ALL_STORES.map((s) => {
-              const active = selected.includes(s.slug);
-              const idx    = selected.indexOf(s.slug);
-              return (
-                <button key={s.slug} onClick={() => toggleEntity(s.slug)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
-                  style={active ? { background: PALETTE[idx % PALETTE.length] } : {}}>
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-4 mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Field Team</p>
-          <div className="flex flex-wrap gap-2">
-            {ALL_EMPLOYEES.map((e) => {
-              const active = selected.includes(e.slug);
-              const idx    = selected.indexOf(e.slug);
-              return (
-                <button key={e.slug} onClick={() => toggleEntity(e.slug)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
-                  style={active ? { background: PALETTE[idx % PALETTE.length] } : {}}>
-                  {e.name}
-                </button>
-              );
-            })}
-          </div>
+          {loading ? (
+            <p className="text-sm text-slate-400">Loading entities…</p>
+          ) : (
+            <>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Stores</p>
+              <div className="flex flex-wrap gap-2">
+                {stores.map((s) => {
+                  const key = `store:${s.id}`;
+                  const active = selected.includes(key);
+                  const idx    = selected.indexOf(key);
+                  return (
+                    <button key={key} onClick={() => toggleEntity(key)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                      style={active ? { background: PALETTE[idx % PALETTE.length] } : {}}>
+                      {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-4 mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Field Team</p>
+              <div className="flex flex-wrap gap-2">
+                {fieldUsers.map((u) => {
+                  const key = `employee:${u.id}`;
+                  const active = selected.includes(key);
+                  const idx    = selected.indexOf(key);
+                  return (
+                    <button key={key} onClick={() => toggleEntity(key)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                      style={active ? { background: PALETTE[idx % PALETTE.length] } : {}}>
+                      {u.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {entities.length === 0 && (
@@ -205,7 +351,7 @@ export default function ComparePage() {
             {/* ── KPI cards ─────────────────────────────────────────────── */}
             <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${entities.length}, minmax(0, 1fr))` }}>
               {entities.map((e) => (
-                <Card key={e.slug} className="p-5 space-y-3" style={{ borderTop: `3px solid ${e.color}` }}>
+                <Card key={e.key} className="p-5 space-y-3" style={{ borderTop: `3px solid ${e.color}` }}>
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold text-slate-900">{e.name}</p>
@@ -260,7 +406,7 @@ export default function ComparePage() {
                       fill="#0ea5e9"
                       label={false}>
                       {entities.map((e) => (
-                        <rect key={e.slug} fill={e.color} />
+                        <rect key={e.key} fill={e.color} />
                       ))}
                     </Bar>
                     <Bar dataKey="budget" name="Budget" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
@@ -281,7 +427,7 @@ export default function ComparePage() {
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Legend />
                     {entities.map((e) => (
-                      <Line key={e.slug} type="monotone" dataKey={e.name} stroke={e.color}
+                      <Line key={e.key} type="monotone" dataKey={e.name} stroke={e.color}
                         strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                     ))}
                   </LineChart>
@@ -302,7 +448,7 @@ export default function ComparePage() {
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
                       <Legend />
                       {entities.map((e) => (
-                        <Bar key={e.slug} dataKey={e.name} fill={e.color} radius={[0, 4, 4, 0]} />
+                        <Bar key={e.key} dataKey={e.name} fill={e.color} radius={[0, 4, 4, 0]} />
                       ))}
                     </BarChart>
                   </ResponsiveContainer>
@@ -320,7 +466,7 @@ export default function ComparePage() {
                         <PolarRadiusAxis angle={30} tick={{ fontSize: 9 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(v: number) => formatCurrency(v)} />
                         {entities.map((e) => (
-                          <Radar key={e.slug} name={e.name} dataKey={e.name}
+                          <Radar key={e.key} name={e.name} dataKey={e.name}
                             stroke={e.color} fill={e.color} fillOpacity={0.12} strokeWidth={2} />
                         ))}
                         <Legend />
@@ -342,7 +488,7 @@ export default function ComparePage() {
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-4 py-3 text-left">Category</th>
-                        {entities.map((e) => <th key={e.slug} className="px-4 py-3 text-right">{e.name}</th>)}
+                        {entities.map((e) => <th key={e.key} className="px-4 py-3 text-right">{e.name}</th>)}
                         <th className="px-4 py-3 text-right">Δ</th>
                         <th className="px-4 py-3 text-right">Δ %</th>
                       </tr>
@@ -370,7 +516,7 @@ export default function ComparePage() {
                       {/* totals row */}
                       <tr className="bg-slate-50 font-semibold">
                         <td className="px-4 py-3">Total</td>
-                        {entities.map((e) => <td key={e.slug} className="px-4 py-3 text-right">{formatCurrency(e.totalSpent)}</td>)}
+                        {entities.map((e) => <td key={e.key} className="px-4 py-3 text-right">{formatCurrency(e.totalSpent)}</td>)}
                         <td className={`px-4 py-3 text-right ${entities[0].totalSpent - (entities[1]?.totalSpent ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                           {formatCurrency(Math.abs(entities[0].totalSpent - (entities[1]?.totalSpent ?? 0)))}
                         </td>

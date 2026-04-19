@@ -228,7 +228,7 @@ export async function getRequestById(id: number) {
   return result[0] as RequestRecord | undefined;
 }
 
-export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null; requesterRole?: string }): Promise<RequestRecord[]> {
+export async function queryRequests(filters: { storeId?: number; status?: string; userId?: number; role: string; userStoreId?: number | null; requesterRole?: string; targetUserId?: number; category?: string }): Promise<RequestRecord[]> {
   await ensureSchemaOnce();
   const sql = getSql();
   const isManager = filters.role === 'manager';
@@ -236,6 +236,8 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   const storeId = filters.storeId ?? null;
   const status = filters.status ?? null;
   const requesterRole = filters.requesterRole ?? null;
+  const targetUserId = filters.targetUserId ?? null;
+  const category = filters.category ?? null;
 
   const result = await sql.query(
     `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole"
@@ -246,8 +248,10 @@ export async function queryRequests(filters: { storeId?: number; status?: string
        AND ($3::int IS NULL OR r.storeid = $3)
        AND ($4::text IS NULL OR r.status = $4)
        AND ($5::text IS NULL OR u.role = $5)
+       AND ($6::int IS NULL OR r.userid = $6)
+       AND ($7::text IS NULL OR LOWER(r.category) = LOWER($7))
      ORDER BY r.createdat DESC`,
-    [isManager, userStoreId, storeId, status, requesterRole],
+    [isManager, userStoreId, storeId, status, requesterRole, targetUserId, category],
   );
   return result as RequestRecord[];
 }
@@ -270,6 +274,13 @@ export async function getFieldTeamUsers() {
   const sql = getSql();
   const result = await sql`SELECT id, name, title, budget FROM users WHERE role IN ('employee', 'field_team') ORDER BY name`;
   return result as { id: number; name: string; title: string | null; budget: number }[];
+}
+
+export async function getDirectorEmails(): Promise<{ name: string; email: string }[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`SELECT name, email FROM users WHERE role IN ('director', 'super_admin') ORDER BY name`;
+  return result as { name: string; email: string }[];
 }
 
 export async function updateUserBudget(userId: number, budget: number) {
