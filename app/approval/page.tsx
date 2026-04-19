@@ -234,7 +234,7 @@ export default function ApprovalPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div>
               {selected.size > 0 && (
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3">
                   <p className="text-sm font-medium text-sky-800">

@@ -139,9 +139,9 @@ export default function AccountPage() {
                     notification.isRead ? 'border-slate-200 bg-white' : 'border-sky-200 bg-sky-50/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
                     <p className="text-sm font-semibold text-slate-900">{notification.title}</p>
-                    <span className="text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
+                    <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
                 </Link>

@@ -195,7 +195,7 @@ export default function StoreDetailPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total spend</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
             <p className="mt-2 text-sm text-slate-500">of {formatCurrency(budgetForPeriod)} budget</p>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full transition-all" style={{ width: `${budgetPct}%`, backgroundColor: gaugeColor }} />
@@ -205,13 +205,13 @@ export default function StoreDetailPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Remaining budget</p>
-            <p className="mt-3 text-4xl font-semibold text-emerald-600">{formatCurrency(remaining)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-emerald-600">{formatCurrency(remaining)}</p>
             <p className="mt-2 text-sm text-slate-500">Available to allocate</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Approved spend</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(approvedTotal)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(approvedTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">
               {periodRequests.filter((r) => r.status === 'approved').length} approved request{periodRequests.filter((r) => r.status === 'approved').length !== 1 ? 's' : ''}
             </p>
@@ -219,7 +219,7 @@ export default function StoreDetailPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Pending value</p>
-            <p className="mt-3 text-4xl font-semibold text-amber-600">{formatCurrency(pendingTotal)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{formatCurrency(pendingTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">Awaiting approval</p>
           </div>
         </div>

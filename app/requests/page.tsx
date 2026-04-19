@@ -444,7 +444,7 @@ export default function RequestsPage() {
           <section className="mt-8">
             <Card title="Request history" description="All requests you can access." className="space-y-4">
               {loadingData ? <p className="text-sm text-slate-500">Loading requests…</p> : null}
-              <div className="overflow-x-auto">
+              
                 <Table>
                   <TableHeader>
                     <tr>
@@ -488,14 +488,13 @@ export default function RequestsPage() {
                   </tbody>
                 </Table>
                 {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
-              </div>
             </Card>
           </section>
         ) : (
           <section className="mt-8">
             <Card title="Queried requests" description="Requests needing updates before resubmission." className="space-y-4">
               {loadingData ? <p className="text-sm text-slate-500">Loading queried requests…</p> : null}
-              <div className="overflow-x-auto">
+              
                 <Table>
                   <TableHeader>
                     <tr>
@@ -525,7 +524,6 @@ export default function RequestsPage() {
                   </tbody>
                 </Table>
                 {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No queried requests right now.</p> : null}
-              </div>
             </Card>
           </section>
         )}

@@ -122,7 +122,7 @@ export default function AdminPage() {
                   <div key={store.id} className="flex items-center justify-between px-6 py-3 gap-3">
                     <span className="text-sm font-medium text-slate-800">{store.name}</span>
                     {isEditing ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 gap-y-2">
                         <span className="text-sm text-slate-400">€</span>
                         <input
                           type="number"
@@ -185,7 +185,7 @@ export default function AdminPage() {
                       {user.title && <p className="text-xs text-slate-400">{user.title}</p>}
                     </div>
                     {isEditing ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 gap-y-2">
                         <span className="text-sm text-slate-400">€</span>
                         <input
                           type="number"
@@ -254,7 +254,7 @@ export default function AdminPage() {
                       </span>
                       <span className="text-sm font-medium text-slate-800">{u.name}</span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       {u.store && <span>Store: <span className="text-slate-600">{u.store}</span></span>}
                       {u.employeeSlug && <span>Slug: <span className="font-mono text-slate-600">{u.employeeSlug}</span></span>}
                       {/* Show current budget for store_staff / field_team */}

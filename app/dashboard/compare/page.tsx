@@ -298,7 +298,7 @@ export default function ComparePage() {
           <div className="mt-8 space-y-8">
 
             {/* ── KPI cards ─────────────────────────────────────────────── */}
-            <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${entities.length}, minmax(0, 1fr))` }}>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {entities.map((e) => (
                 <Card key={e.key} className="p-5 space-y-3" style={{ borderTop: `3px solid ${e.color}` }}>
                   <div className="flex items-start justify-between">

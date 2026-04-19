@@ -234,7 +234,7 @@ export default function CategoryDetailPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total {categoryName} spend</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
             <p className="mt-2 text-sm text-slate-500">
               {totalSpent > 0 ? `Total ${categoryName.toLowerCase()} spend` : 'No spend recorded'}
             </p>
@@ -242,7 +242,7 @@ export default function CategoryDetailPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Stores spending</p>
-            <p className="mt-3 text-4xl font-semibold text-sky-600">{formatCurrency(storeTotal)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-sky-600">{formatCurrency(storeTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">
               {byEntity.filter((e) => e.type === 'store').length} stores
             </p>
@@ -250,7 +250,7 @@ export default function CategoryDetailPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Field team spending</p>
-            <p className="mt-3 text-4xl font-semibold text-emerald-600">{formatCurrency(empTotal)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-emerald-600">{formatCurrency(empTotal)}</p>
             <p className="mt-2 text-sm text-slate-500">
               {byEntity.filter((e) => e.type === 'employee').length} team members
             </p>

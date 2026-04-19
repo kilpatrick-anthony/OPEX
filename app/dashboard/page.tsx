@@ -173,7 +173,7 @@ export default function DashboardPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total spend</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent)}</p>
             <p className="mt-2 text-sm text-slate-500">of {formatCurrency(dashboard.totalBudget)} budget</p>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full transition-all" style={{ width: `${gaugeValue}%`, backgroundColor: gaugeColor }} />
@@ -183,13 +183,13 @@ export default function DashboardPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Remaining budget</p>
-            <p className="mt-3 text-4xl font-semibold text-emerald-600">{formatCurrency(dashboard.remainingBudget)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-emerald-600">{formatCurrency(dashboard.remainingBudget)}</p>
             <p className="mt-2 text-sm text-slate-500">Available to allocate</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Active stores</p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900">{dashboard.byStore.length}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{dashboard.byStore.length}</p>
             <p className="mt-2 text-sm text-slate-500">Stores with tracked budgets</p>
           </div>
 
@@ -199,13 +199,13 @@ export default function DashboardPage() {
               className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-md"
             >
               <p className="text-xs uppercase tracking-widest text-slate-500">Pending approvals</p>
-              <p className="mt-3 text-4xl font-semibold text-amber-600">{pendingCount}</p>
+              <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{pendingCount}</p>
               <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
             </Link>
           ) : (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
               <p className="text-xs uppercase tracking-widest text-slate-500">Pending approvals</p>
-              <p className="mt-3 text-4xl font-semibold text-amber-600">{pendingCount}</p>
+              <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{pendingCount}</p>
               <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
             </div>
           )}

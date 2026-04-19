@@ -15,7 +15,15 @@ interface Props {
 
 export function DateRangePicker({ range, onChange }: Props) {
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 640); }
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -29,8 +37,8 @@ export function DateRangePicker({ range, onChange }: Props) {
 
   const label = range?.from
     ? range.to
-      ? `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`
-      : `From ${format(range.from, 'd MMM yyyy')}`
+      ? `${format(range.from, 'd MMM yy')} – ${format(range.to, 'd MMM yy')}`
+      : `From ${format(range.from, 'd MMM yy')}`
     : 'Custom range';
 
   function handleSelect(r: RdpRange | undefined) {
@@ -76,7 +84,8 @@ export function DateRangePicker({ range, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+6px)] z-[200] overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div className="absolute right-0 top-[calc(100%+6px)] z-[200] overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl max-w-[calc(100vw-2rem)]"
+          style={{ left: isMobile ? '50%' : 'auto', transform: isMobile ? 'translateX(-50%)' : 'none', right: isMobile ? 'auto' : 0 }}>
           {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Select date range</p>
@@ -101,8 +110,8 @@ export function DateRangePicker({ range, onChange }: Props) {
             mode="range"
             selected={range as RdpRange | undefined}
             onSelect={handleSelect}
-            defaultMonth={range?.from ?? new Date(2026, 3, 1)}
-            numberOfMonths={2}
+            defaultMonth={range?.from ?? new Date()}
+            numberOfMonths={isMobile ? 1 : 2}
             className="rdp-opex"
           />
 
