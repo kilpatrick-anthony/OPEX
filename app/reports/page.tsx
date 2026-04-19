@@ -423,7 +423,7 @@ export default function ReportsPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Payroll Report</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Select stores or team members then pick a date range to build a printable payroll summary.
+                Build an expense summary for payroll
               </p>
             </div>
             {hasPayroll && (
