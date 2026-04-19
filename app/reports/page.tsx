@@ -252,10 +252,10 @@ export default function ReportsPage() {
 
           <Card className="space-y-4">
             <p className="text-sm uppercase tracking-widest text-slate-500">Request status distribution</p>
-            <div className="h-72">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusBreakdown} dataKey="value" nameKey="name" innerRadius={65} outerRadius={105} label>
+                  <Pie data={statusBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
                     {statusBreakdown.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
@@ -263,6 +263,15 @@ export default function ReportsPage() {
                   <Tooltip formatter={(value: number) => String(value)} />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+              {statusBreakdown.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                  <span className="text-xs font-medium capitalize text-slate-700">{entry.name}</span>
+                  <span className="text-xs text-slate-400">({entry.value})</span>
+                </div>
+              ))}
             </div>
           </Card>
         </div>
