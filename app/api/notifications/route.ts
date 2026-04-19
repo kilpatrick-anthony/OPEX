@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   }
 
   const url = new URL(request.url);
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   }
 
   const body = await request.json().catch(() => ({}));

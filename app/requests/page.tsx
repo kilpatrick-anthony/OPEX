@@ -29,6 +29,8 @@ type RequestRecord = {
   description: string;
   status: RequestStatus;
   queryComment?: string | null;
+  submitterName?: string | null;
+  submitterJobRole?: string | null;
   createdAt: string;
   storeRemainingBudget: number;
 };
@@ -57,6 +59,8 @@ export default function RequestsPage() {
     category: 'Supplies',
     amount: '',
     description: '',
+    submitterName: '',
+    submitterJobRole: 'Team Member',
   });
 
   const [error, setError] = useState('');
@@ -66,6 +70,7 @@ export default function RequestsPage() {
 
   const isStoreStaff = user?.role === 'store_staff';
   const hideStoreSelector = user?.role === 'store_staff' || user?.role === 'field_team';
+  const isStoreLevelUser = isStoreStaff || user?.role === 'field_team';
   const showBudgetColumn = user?.role !== 'field_team' && user?.role !== 'director';
 
   useEffect(() => {
@@ -148,6 +153,16 @@ export default function RequestsPage() {
     loadRequests().catch(() => setError('Failed to refresh requests'));
   }, [statusFilter, storeFilter, user, isStoreStaff]);
 
+  // Auto-open a specific request modal when ?open=ID is in the URL (e.g. clicking a notification).
+  useEffect(() => {
+    if (!requests.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get('open');
+    if (!openId) return;
+    const found = requests.find((r) => r.id === Number(openId));
+    if (found) setSelectedRequest(found);
+  }, [requests]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -176,6 +191,8 @@ export default function RequestsPage() {
           category: form.category,
           amount: Number(form.amount),
           description: form.description.trim(),
+          submitterName: isStoreLevelUser ? form.submitterName.trim() : undefined,
+          submitterJobRole: isStoreLevelUser ? form.submitterJobRole : undefined,
         }),
       });
 
@@ -190,6 +207,7 @@ export default function RequestsPage() {
         category: 'Supplies',
         amount: '',
         description: '',
+        submitterName: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
       if (isStoreStaff) {
@@ -213,6 +231,8 @@ export default function RequestsPage() {
       category: request.category,
       amount: String(request.amount),
       description: request.description,
+      submitterName: '',
+      submitterJobRole: 'Team Member',
     }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -251,6 +271,35 @@ export default function RequestsPage() {
                   className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3.5"
                 />
               </label>
+
+              {isStoreLevelUser && (
+                <div className="grid gap-6 md:grid-cols-2">
+                  <label className="space-y-3 text-sm text-slate-700">
+                    Your name
+                    <input
+                      type="text"
+                      value={form.submitterName}
+                      onChange={(e) => setForm({ ...form, submitterName: e.target.value })}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      placeholder="Enter your name"
+                      required
+                    />
+                  </label>
+                  <label className="space-y-3 text-sm text-slate-700">
+                    Job role
+                    <select
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      value={form.submitterJobRole}
+                      onChange={(e) => setForm({ ...form, submitterJobRole: e.target.value })}
+                      required
+                    >
+                      <option>Store Lead</option>
+                      <option>Team Lead</option>
+                      <option>Team Member</option>
+                    </select>
+                  </label>
+                </div>
+              )}
 
               {hideStoreSelector ? (
                 <label className="space-y-3 text-sm text-slate-700">
@@ -473,6 +522,9 @@ export default function RequestsPage() {
         >
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 space-y-1">
             <p><span className="font-medium text-slate-800">Requester:</span> {selectedRequest.requesterName}</p>
+            {selectedRequest.submitterName ? (
+              <p><span className="font-medium text-slate-800">Submitted by:</span> {selectedRequest.submitterName} · {selectedRequest.submitterJobRole}</p>
+            ) : null}
             <p><span className="font-medium text-slate-800">Category:</span> {selectedRequest.category}</p>
             <p><span className="font-medium text-slate-800">Amount:</span> {formatCurrency(selectedRequest.amount)}</p>
             <p><span className="font-medium text-slate-800">Status:</span> {selectedRequest.status}</p>

@@ -15,6 +15,8 @@ type ApprovalRequest = {
   storeId: number;
   storeName: string;
   requesterName: string;
+  submitterName?: string | null;
+  submitterJobRole?: string | null;
   amount: number;
   category: string;
   description: string;
@@ -308,7 +310,12 @@ export default function ApprovalPage() {
                             )}
                           </TableCell>
                           <TableCell><div className="font-medium text-slate-800">{request.storeName}</div></TableCell>
-                          <TableCell><div>{request.requesterName}</div></TableCell>
+                          <TableCell>
+                            <div>{request.requesterName}</div>
+                            {request.submitterName ? (
+                              <div className="text-xs text-slate-500">{request.submitterName} · {request.submitterJobRole}</div>
+                            ) : null}
+                          </TableCell>
                           <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
                           <TableCell>
                             <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
@@ -343,7 +350,7 @@ export default function ApprovalPage() {
           <div className="space-y-4">
             <Card title="Approval guidance" description="Director approval controls and policy." className="space-y-4">
               <ul className="space-y-3 text-sm text-slate-600">
-                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-sky-500" /><span><strong>Approve</strong> authorizes spend against the store budget.</span></li>
+                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-sky-500" /><span><strong>Approve</strong> authorises spend against the store budget.</span></li>
                 <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-rose-500" /><span><strong>Reject</strong> blocks the request.</span></li>
                 <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-amber-500" /><span><strong>Query</strong> requests more detail from the requester.</span></li>
               </ul>

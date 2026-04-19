@@ -40,6 +40,8 @@ export type RequestRecord = {
   status: 'pending' | 'approved' | 'rejected' | 'queried';
   queryComment?: string;
   actionComment?: string;
+  submitterName?: string | null;
+  submitterJobRole?: string | null;
   updatedAt: string;
   createdAt: string;
 };
@@ -66,6 +68,8 @@ const REQUEST_SELECT = `
   r.status,
   r.querycomment as "queryComment",
   r.actioncomment as "actionComment",
+  r.submittername as "submitterName",
+  r.submitterjobrole as "submitterJobRole",
   r.updatedat as "updatedAt",
   r.createdat as "createdAt"
 `;
@@ -75,7 +79,9 @@ export async function ensureSchema() {
   await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`;
   await sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
-  await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, submitterName TEXT, submitterJobRole TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`;
+  await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
 }
@@ -198,10 +204,12 @@ export async function insertRequest(data: {
   amount: number;
   description: string;
   receipt?: string;
+  submitterName?: string;
+  submitterJobRole?: string;
 }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, 'pending') RETURNING *`;
+  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, 'pending') RETURNING *`;
   return getRequestById(result[0].id);
 }
 

@@ -242,7 +242,7 @@ export default function ForecastPage() {
           </Card>
 
           <Card className="p-5">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Projected utilization</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Projected utilisation</p>
             <p className={`mt-3 text-3xl font-semibold ${totals.utilizationPct >= 100 ? 'text-rose-600' : totals.utilizationPct >= 80 ? 'text-amber-600' : 'text-emerald-600'}`}>
               {totals.utilizationPct.toFixed(0)}%
             </p>

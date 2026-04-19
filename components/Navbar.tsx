@@ -82,8 +82,14 @@ export function Navbar() {
                 <Link key={item.href} href={item.href}
                   className={`rounded-full px-4 py-1.5 font-medium transition-all ${active ? 'text-[#4a1f60] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
                   style={active ? { background: 'rgba(255,255,255,0.95)' } : {}}>
-                  {item.label}
-                  {item.href === '/account' && unreadCount > 0 ? ` (${Math.min(unreadCount, 99)})` : ''}
+                  <span className="relative inline-flex items-center gap-1.5">
+                    {item.label}
+                    {item.href === '/account' && unreadCount > 0 ? (
+                      <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white">
+                        {Math.min(unreadCount, 99)}
+                      </span>
+                    ) : null}
+                  </span>
                 </Link>
               );
             })}

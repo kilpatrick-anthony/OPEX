@@ -177,7 +177,7 @@ export default function DashboardPage() {
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full transition-all" style={{ width: `${gaugeValue}%`, backgroundColor: gaugeColor }} />
             </div>
-            <p className="mt-2 text-xs text-slate-500">{Math.round(gaugeValue)}% utilized</p>
+            <p className="mt-2 text-xs text-slate-500">{Math.round(gaugeValue)}% utilised</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">

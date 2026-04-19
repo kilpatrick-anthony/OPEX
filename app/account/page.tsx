@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -118,10 +119,40 @@ export default function AccountPage() {
       <main className="container py-10">
         <div className="mx-auto max-w-xl">
           <p className="text-sm uppercase tracking-widest text-sky-600">Account</p>
-          <h1 className="mt-1 text-3xl font-semibold text-slate-900">Reset Password</h1>
-          <p className="mt-1 text-sm text-slate-500">Update your own portal password securely.</p>
+          <h1 className="mt-1 text-3xl font-semibold text-slate-900">My Account</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your notifications and account settings.</p>
 
-          <Card className="mt-6 p-6">
+          <Card className="mt-6 p-6" title="Notifications" description="Approval updates for your requests.">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-600">Unread: <span className="font-semibold text-slate-900">{unreadCount}</span></p>
+              <Button type="button" variant="secondary" onClick={markAllRead} disabled={unreadCount === 0}>Mark all as read</Button>
+            </div>
+
+            {loadingNotifications ? <p className="text-sm text-slate-500">Loading notifications...</p> : null}
+
+            <div className="space-y-3">
+              {notifications.map((notification) => (
+                <Link
+                  key={notification.id}
+                  href={`/requests?open=${notification.requestId}`}
+                  className={`block rounded-xl border px-4 py-3 transition-shadow hover:shadow-sm ${
+                    notification.isRead ? 'border-slate-200 bg-white' : 'border-sky-200 bg-sky-50/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900">{notification.title}</p>
+                    <span className="text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
+                </Link>
+              ))}
+              {!loadingNotifications && notifications.length === 0 ? (
+                <p className="text-sm text-slate-500">No notifications yet.</p>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card className="mt-6 p-6" title="Reset Password" description="Update your own portal password securely.">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block text-sm text-slate-700">
                 Current password
@@ -167,29 +198,7 @@ export default function AccountPage() {
             </form>
           </Card>
 
-          <Card className="mt-6 p-6" title="Notifications" description="Approval updates for your requests.">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-600">Unread: <span className="font-semibold text-slate-900">{unreadCount}</span></p>
-              <Button type="button" variant="secondary" onClick={markAllRead} disabled={unreadCount === 0}>Mark all as read</Button>
-            </div>
 
-            {loadingNotifications ? <p className="text-sm text-slate-500">Loading notifications...</p> : null}
-
-            <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div key={notification.id} className={`rounded-xl border px-4 py-3 ${notification.isRead ? 'border-slate-200 bg-white' : 'border-sky-200 bg-sky-50/40'}`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-sm font-semibold text-slate-900">{notification.title}</p>
-                    <span className="text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
-                </div>
-              ))}
-              {!loadingNotifications && notifications.length === 0 ? (
-                <p className="text-sm text-slate-500">No notifications yet.</p>
-              ) : null}
-            </div>
-          </Card>
         </div>
       </main>
     </div>

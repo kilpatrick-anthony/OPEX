@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
     const normalizedRole = ['employee', 'manager', 'director', 'super_admin'].includes(session.user.role)
@@ -80,6 +80,8 @@ export async function POST(request: Request) {
   const amount = Number(body.amount);
   const description = body.description?.trim();
   const receipt = body.receipt || null;
+  const submitterName = body.submitterName?.trim() || null;
+  const submitterJobRole = body.submitterJobRole?.trim() || null;
 
   if (!storeId || !category || !amount || amount <= 0 || !description) {
     return NextResponse.json({ error: 'storeId, category, amount and description are required.' }, { status: 400 });
@@ -101,6 +103,8 @@ export async function POST(request: Request) {
     amount,
     description,
     receipt,
+    submitterName: submitterName || undefined,
+    submitterJobRole: submitterJobRole || undefined,
   });
 
   return NextResponse.json({ request: requestRecord });
