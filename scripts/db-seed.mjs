@@ -95,6 +95,9 @@ async function main() {
     await sql`INSERT INTO stores (name, budget) VALUES (${name}, 10000) ON CONFLICT (name) DO NOTHING`;
   }
 
+  // Ensure budget column on users table exists
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`;
+
   const fieldStore = await sql`SELECT id FROM stores WHERE name = 'Field' LIMIT 1`;
   if (fieldStore[0]?.id) {
     await sql`
@@ -116,8 +119,8 @@ async function main() {
   for (const user of fieldTeam) {
     const hash = await bcrypt.hash(user.password, 12);
     await sql`
-      INSERT INTO users (name, email, password, role, title, storeId)
-      VALUES (${user.name}, ${user.email.toLowerCase()}, ${hash}, 'employee', ${user.title}, NULL)
+      INSERT INTO users (name, email, password, role, title, storeId, budget)
+      VALUES (${user.name}, ${user.email.toLowerCase()}, ${hash}, 'employee', ${user.title}, NULL, 2000)
       ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, title = EXCLUDED.title
     `;
   }

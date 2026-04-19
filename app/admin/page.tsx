@@ -1,19 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Card } from '@/components/ui/card';
 import { MOCK_USERS, ROLE_LABELS, ROLE_COLORS } from '@/lib/mockUsers';
-import { STORE_DETAILS, EMPLOYEE_DETAILS } from '@/lib/mockData';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, readJsonSafely } from '@/lib/utils';
 
-// Build initial budgets from mockData
-const INITIAL_STORE_BUDGETS = Object.fromEntries(
-  Object.entries(STORE_DETAILS).map(([slug, d]) => [slug, d.monthlyBudget])
-);
-const INITIAL_EMP_BUDGETS = Object.fromEntries(
-  Object.entries(EMPLOYEE_DETAILS).map(([slug, d]) => [slug, d.monthlyBudget])
-);
+type StoreRecord = { id: number; name: string; budget: number };
+type FieldUser  = { id: number; name: string; title: string | null; budget: number };
 
 export default function AdminPage() {
   const byRole = {
@@ -23,32 +17,79 @@ export default function AdminPage() {
     store_staff: MOCK_USERS.filter((u) => u.role === 'store_staff'),
   } as const;
 
-  const [storeBudgets, setStoreBudgets] = useState<Record<string, number>>(INITIAL_STORE_BUDGETS);
-  const [empBudgets,   setEmpBudgets]   = useState<Record<string, number>>(INITIAL_EMP_BUDGETS);
+  const [stores, setStores]       = useState<StoreRecord[]>([]);
+  const [fieldUsers, setFieldUsers] = useState<FieldUser[]>([]);
+  const [editingBudget, setEditingBudget] = useState<{ id: string; value: string } | null>(null);
+  const [saving, setSaving]   = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  // Inline editing state: { slug, value }
-  const [editingBudget, setEditingBudget] = useState<{ slug: string; value: string } | null>(null);
+  useEffect(() => {
+    fetch('/api/stores', { cache: 'no-store' })
+      .then((r) => readJsonSafely(r))
+      .then((data) => { if (Array.isArray(data)) setStores(data as StoreRecord[]); })
+      .catch(() => {});
+    fetch('/api/users', { cache: 'no-store' })
+      .then((r) => readJsonSafely(r))
+      .then((data) => { if (Array.isArray(data)) setFieldUsers(data as FieldUser[]); })
+      .catch(() => {});
+  }, []);
 
-  function startEdit(slug: string, current: number) {
-    setEditingBudget({ slug, value: String(current) });
+  function startEdit(id: string, current: number) {
+    setEditingBudget({ id, value: String(current) });
+    setSaveError('');
   }
 
-  function saveBudget(isStore: boolean) {
+  async function saveBudget(isStore: boolean) {
     if (!editingBudget) return;
     const val = Number(editingBudget.value);
-    if (!isNaN(val) && val >= 0) {
-      if (isStore) setStoreBudgets((prev) => ({ ...prev, [editingBudget.slug]: val }));
-      else         setEmpBudgets(  (prev) => ({ ...prev, [editingBudget.slug]: val }));
+    if (isNaN(val) || val < 0) { setEditingBudget(null); return; }
+
+    if (isStore) {
+      setSaving(true);
+      setSaveError('');
+      try {
+        const res = await fetch('/api/stores', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storeId: Number(editingBudget.id), budget: val }),
+        });
+        if (!res.ok) {
+          const payload = await readJsonSafely(res) as any;
+          setSaveError(payload?.error ?? 'Failed to save budget.');
+        } else {
+          setStores((prev) => prev.map((s) => s.id === Number(editingBudget.id) ? { ...s, budget: val } : s));
+        }
+      } catch {
+        setSaveError('Network error — budget not saved.');
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setSaving(true);
+      setSaveError('');
+      try {
+        const res = await fetch('/api/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: Number(editingBudget.id), budget: val }),
+        });
+        if (!res.ok) {
+          const payload = await readJsonSafely(res) as any;
+          setSaveError(payload?.error ?? 'Failed to save budget.');
+        } else {
+          setFieldUsers((prev) => prev.map((u) => u.id === Number(editingBudget.id) ? { ...u, budget: val } : u));
+        }
+      } catch {
+        setSaveError('Network error — budget not saved.');
+      } finally {
+        setSaving(false);
+      }
     }
+
     setEditingBudget(null);
   }
 
-  function cancelEdit() { setEditingBudget(null); }
-
-  // slug → name mapping for stores
-  function storeSlugToName(slug: string) {
-    return STORE_DETAILS[slug]?.name ?? slug;
-  }
+  function cancelEdit() { setEditingBudget(null); setSaveError(''); }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -69,12 +110,17 @@ export default function AdminPage() {
               <span className="text-sm font-semibold text-slate-800">Monthly Budgets</span>
               <span className="ml-auto text-xs text-slate-400">Click pencil to edit</span>
             </div>
+            {saveError && (
+              <div className="bg-rose-50 px-6 py-2 text-xs font-medium text-rose-600">{saveError}</div>
+            )}
             <div className="divide-y divide-slate-50">
-              {Object.entries(storeBudgets).map(([slug, budget]) => {
-                const isEditing = editingBudget?.slug === slug;
+              {stores.length === 0 ? (
+                <div className="px-6 py-4 text-sm text-slate-400">Loading stores…</div>
+              ) : stores.map((store) => {
+                const isEditing = editingBudget?.id === String(store.id);
                 return (
-                  <div key={slug} className="flex items-center justify-between px-6 py-3 gap-3">
-                    <span className="text-sm font-medium text-slate-800">{storeSlugToName(slug)}</span>
+                  <div key={store.id} className="flex items-center justify-between px-6 py-3 gap-3">
+                    <span className="text-sm font-medium text-slate-800">{store.name}</span>
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-slate-400">€</span>
@@ -88,20 +134,20 @@ export default function AdminPage() {
                           onKeyDown={(e) => { if (e.key === 'Enter') saveBudget(true); if (e.key === 'Escape') cancelEdit(); }}
                           className="w-28 rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
                         />
-                        <button type="button" onClick={() => saveBudget(true)}
-                          className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
-                          Save
+                        <button type="button" onClick={() => saveBudget(true)} disabled={saving}
+                          className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                          {saving ? 'Saving…' : 'Save'}
                         </button>
-                        <button type="button" onClick={cancelEdit}
+                        <button type="button" onClick={cancelEdit} disabled={saving}
                           className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
                           Cancel
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(budget)}</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(store.budget)}</span>
                         <span className="text-xs text-slate-400">/mo</span>
-                        <button type="button" onClick={() => startEdit(slug, budget)}
+                        <button type="button" onClick={() => startEdit(String(store.id), store.budget)}
                           className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-sky-600 transition-colors"
                           title="Edit budget">
                           ✏️
@@ -114,7 +160,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-6 py-3 bg-slate-50">
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Network total</span>
                 <span className="text-sm font-bold text-slate-900">
-                  {formatCurrency(Object.values(storeBudgets).reduce((s, v) => s + v, 0))}/mo
+                  {formatCurrency(stores.reduce((s, v) => s + v.budget, 0))}/mo
                 </span>
               </div>
             </div>
@@ -128,14 +174,15 @@ export default function AdminPage() {
               <span className="ml-auto text-xs text-slate-400">Click pencil to edit</span>
             </div>
             <div className="divide-y divide-slate-50">
-              {Object.entries(empBudgets).map(([slug, budget]) => {
-                const isEditing = editingBudget?.slug === slug;
-                const emp = EMPLOYEE_DETAILS[slug];
+              {fieldUsers.length === 0 ? (
+                <div className="px-6 py-4 text-sm text-slate-400">Loading field team…</div>
+              ) : fieldUsers.map((user) => {
+                const isEditing = editingBudget?.id === String(user.id);
                 return (
-                  <div key={slug} className="flex items-center justify-between px-6 py-3 gap-3">
+                  <div key={user.id} className="flex items-center justify-between px-6 py-3 gap-3">
                     <div>
-                      <p className="text-sm font-medium text-slate-800">{emp?.name ?? slug}</p>
-                      {emp?.role && <p className="text-xs text-slate-400">{emp.role}</p>}
+                      <p className="text-sm font-medium text-slate-800">{user.name}</p>
+                      {user.title && <p className="text-xs text-slate-400">{user.title}</p>}
                     </div>
                     {isEditing ? (
                       <div className="flex items-center gap-2">
@@ -150,20 +197,20 @@ export default function AdminPage() {
                           onKeyDown={(e) => { if (e.key === 'Enter') saveBudget(false); if (e.key === 'Escape') cancelEdit(); }}
                           className="w-28 rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
                         />
-                        <button type="button" onClick={() => saveBudget(false)}
-                          className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
-                          Save
+                        <button type="button" onClick={() => saveBudget(false)} disabled={saving}
+                          className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                          {saving ? 'Saving…' : 'Save'}
                         </button>
-                        <button type="button" onClick={cancelEdit}
+                        <button type="button" onClick={cancelEdit} disabled={saving}
                           className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
                           Cancel
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(budget)}</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(user.budget)}</span>
                         <span className="text-xs text-slate-400">/mo</span>
-                        <button type="button" onClick={() => startEdit(slug, budget)}
+                        <button type="button" onClick={() => startEdit(String(user.id), user.budget)}
                           className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-sky-600 transition-colors"
                           title="Edit budget">
                           ✏️
@@ -176,7 +223,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-6 py-3 bg-slate-50">
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Team total</span>
                 <span className="text-sm font-bold text-slate-900">
-                  {formatCurrency(Object.values(empBudgets).reduce((s, v) => s + v, 0))}/mo
+                  {formatCurrency(fieldUsers.reduce((s, u) => s + u.budget, 0))}/mo
                 </span>
               </div>
             </div>
@@ -211,16 +258,16 @@ export default function AdminPage() {
                       {u.store && <span>Store: <span className="text-slate-600">{u.store}</span></span>}
                       {u.employeeSlug && <span>Slug: <span className="font-mono text-slate-600">{u.employeeSlug}</span></span>}
                       {/* Show current budget for store_staff / field_team */}
-                      {u.store && storeBudgets[u.store.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')] !== undefined && (
+                      {u.store && (() => { const s = stores.find((st) => st.name === u.store); return s ? (
                         <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
-                          {formatCurrency(storeBudgets[u.store.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')]  )}/mo
+                          {formatCurrency(s.budget)}/mo
                         </span>
-                      )}
-                      {u.employeeSlug && empBudgets[u.employeeSlug] !== undefined && (
+                      ) : null; })()}
+                      {u.employeeSlug && (() => { const fu = fieldUsers.find((f) => f.name === u.name); return fu ? (
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          {formatCurrency(empBudgets[u.employeeSlug])}/mo
+                          {formatCurrency(fu.budget)}/mo
                         </span>
-                      )}
+                      ) : null; })()}
                       <span className="font-mono text-slate-300">{u.id}</span>
                     </div>
                   </div>

@@ -82,6 +82,7 @@ export async function ensureSchema() {
   await sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, submitterName TEXT, submitterJobRole TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`;
   await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
 }
@@ -256,6 +257,25 @@ export async function getStoreBudgets() {
   const sql = getSql();
   const result = await sql`SELECT id, name, budget FROM stores ORDER BY id`;
   return result as Store[];
+}
+
+export async function updateStoreBudget(storeId: number, budget: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE stores SET budget = ${budget} WHERE id = ${storeId}`;
+}
+
+export async function getFieldTeamUsers() {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`SELECT id, name, title, budget FROM users WHERE role IN ('employee', 'field_team') ORDER BY name`;
+  return result as { id: number; name: string; title: string | null; budget: number }[];
+}
+
+export async function updateUserBudget(userId: number, budget: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET budget = ${budget} WHERE id = ${userId}`;
 }
 
 export async function getStoreRemainingBudget(storeId: number) {
