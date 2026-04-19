@@ -82,6 +82,13 @@ export function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
+export function unslugify(slug: string) {
+  return slug
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 function split(total: number, weights: [string, number][]): CategoryBreakdown[] {
@@ -705,13 +712,14 @@ export const EMPLOYEE_DETAILS: Record<string, EntityDetail> = {
 // ─── Category detail data ─────────────────────────────────────────────────────
 
 function buildCategoryByEntity(slug: string, period: Period): CategorySpendByEntity[] {
+  const catName = unslugify(slug);
   const results: CategorySpendByEntity[] = [];
   for (const store of Object.values(STORE_DETAILS)) {
-    const match = store[period].byCategory.find((c) => c.category === slug.charAt(0).toUpperCase() + slug.slice(1));
+    const match = store[period].byCategory.find((c) => c.category === catName);
     if (match && match.total > 0) results.push({ name: store.name, type: 'store', total: match.total });
   }
   for (const emp of Object.values(EMPLOYEE_DETAILS)) {
-    const match = emp[period].byCategory.find((c) => c.category === slug.charAt(0).toUpperCase() + slug.slice(1));
+    const match = emp[period].byCategory.find((c) => c.category === catName);
     if (match && match.total > 0) results.push({ name: emp.name, type: 'employee', total: match.total });
   }
   return results.sort((a, b) => b.total - a.total);
@@ -719,7 +727,7 @@ function buildCategoryByEntity(slug: string, period: Period): CategorySpendByEnt
 
 function buildCategoryRequests(slug: string, period: Period): RequestItem[] {
   const results: RequestItem[] = [];
-  const catName = slug.charAt(0).toUpperCase() + slug.slice(1);
+  const catName = unslugify(slug);
   for (const store of Object.values(STORE_DETAILS)) {
     for (const req of store[period].requests) {
       if (req.category === catName) results.push(req);
@@ -752,7 +760,7 @@ const CATEGORY_TRENDS: Record<string, TrendPoint[]> = {
 
 export function getCategoryDetail(slug: string): CategoryDetail | null {
   if (!CATEGORY_TRENDS[slug]) return null;
-  const catName = slug.charAt(0).toUpperCase() + slug.slice(1);
+  const catName = unslugify(slug);
   const totalBudget = 95000;
 
   const monthEntities = buildCategoryByEntity(slug, 'month');

@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
+import { slugify } from '@/lib/mockData';
 import { useCurrentUser } from '@/lib/userContext';
 
 type DashboardPeriod = 'month' | 'last-month' | 'quarter';
@@ -232,26 +233,27 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm uppercase tracking-widest text-slate-500">Spend by category</p>
             </div>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dashboard.byCategory}
-                    dataKey="total"
-                    nameKey="category"
-                    innerRadius={65}
-                    outerRadius={105}
-                    paddingAngle={4}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
+            <div className="space-y-2">
+              {dashboard.byCategory.map((item, index) => {
+                const max = Math.max(...dashboard.byCategory.map((c) => c.total));
+                const pct = max > 0 ? (item.total / max) * 100 : 0;
+                return (
+                  <Link
+                    key={item.category}
+                    href={`/dashboard/category/${slugify(item.category)}`}
+                    className="group flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-slate-50 transition-colors"
                   >
-                    {dashboard.byCategory.map((_, index) => (
-                      <Cell key={`category-cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                </PieChart>
-              </ResponsiveContainer>
+                    <span className="w-36 shrink-0 text-xs font-medium text-slate-700 group-hover:text-sky-600 truncate">{item.category}</span>
+                    <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: COLORS[index % COLORS.length] }}
+                      />
+                    </div>
+                    <span className="w-20 shrink-0 text-right text-xs font-semibold text-slate-900">{formatCurrency(item.total)}</span>
+                  </Link>
+                );
+              })}
             </div>
           </Card>
         </div>

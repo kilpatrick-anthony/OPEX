@@ -34,12 +34,20 @@ const periodOptions: { label: string; value: Period }[] = [
 ];
 
 const CATEGORY_ICONS: Record<string, string> = {
-  supplies:    '📦',
-  marketing:   '📣',
-  maintenance: '🔧',
-  travel:      '✈️',
-  utilities:   '⚡',
-  equipment:   '🖥️',
+  supplies:               '📦',
+  marketing:              '📣',
+  maintenance:            '🔧',
+  travel:                 '✈️',
+  utilities:              '⚡',
+  equipment:              '🖥️',
+  'lunch-and-dinner':     '🍽️',
+  subscriptions:          '🔄',
+  'software-licenses':    '💻',
+  repairs:                '🛠️',
+  'courier-and-delivery': '📦',
+  events:                 '🎉',
+  training:               '🎓',
+  'professional-services':'🤝',
 };
 
 export default function CategoryDetailPage() {
