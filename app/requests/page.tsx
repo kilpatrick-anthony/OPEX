@@ -56,11 +56,11 @@ export default function RequestsPage() {
 
   const [form, setForm] = useState({
     storeId: '',
-    category: 'Supplies',
+    category: '',
     amount: '',
     description: '',
     submitterName: '',
-    submitterJobRole: 'Team Member',
+    submitterJobRole: '',
   });
 
   const [error, setError] = useState('');
@@ -172,6 +172,18 @@ export default function RequestsPage() {
       setError('Store is not configured yet. Please contact an admin.');
       return;
     }
+    if (!form.category) {
+      setError('Please select a category.');
+      return;
+    }
+    if (isStoreLevelUser && !form.submitterName.trim()) {
+      setError('Please enter your name.');
+      return;
+    }
+    if (isStoreLevelUser && !form.submitterJobRole) {
+      setError('Please select your job role.');
+      return;
+    }
     if (!form.amount || Number(form.amount) <= 0) {
       setError('Please enter a valid amount.');
       return;
@@ -204,10 +216,11 @@ export default function RequestsPage() {
       setSuccess('Request submitted successfully and is pending approval.');
       setForm((prev) => ({
         ...prev,
-        category: 'Supplies',
+        category: '',
         amount: '',
         description: '',
         submitterName: '',
+        submitterJobRole: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
       if (isStoreStaff) {
@@ -232,7 +245,7 @@ export default function RequestsPage() {
       amount: String(request.amount),
       description: request.description,
       submitterName: '',
-      submitterJobRole: 'Team Member',
+      submitterJobRole: '',
     }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -261,64 +274,67 @@ export default function RequestsPage() {
 
         <div className={`grid gap-8 ${isStoreStaff ? '' : 'xl:grid-cols-[1.2fr_0.8fr]'}`}>
           <Card title="New OPEX Request" description="Submit a spend request for approval." className="space-y-8">
-            <form className="space-y-9" onSubmit={handleSubmit}>
-              <label className="block space-y-3 text-sm text-slate-700">
+            <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Requester
                 <input
                   type="text"
                   value={user.name}
                   disabled
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3.5"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3.5 font-normal text-slate-500"
                 />
               </label>
 
               {isStoreLevelUser && (
-                <div className="grid gap-6 md:grid-cols-2">
-                  <label className="space-y-3 text-sm text-slate-700">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                     Your name
                     <input
                       type="text"
                       value={form.submitterName}
                       onChange={(e) => setForm({ ...form, submitterName: e.target.value })}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                       placeholder="Enter your name"
                       required
                     />
                   </label>
-                  <label className="space-y-3 text-sm text-slate-700">
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                     Job role
                     <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                       value={form.submitterJobRole}
                       onChange={(e) => setForm({ ...form, submitterJobRole: e.target.value })}
                       required
                     >
+                      <option value="">Select a role</option>
                       <option>Store Lead</option>
                       <option>Team Lead</option>
                       <option>Team Member</option>
+                      <option>Field Based</option>
                     </select>
                   </label>
                 </div>
               )}
 
               {hideStoreSelector ? (
-                <label className="space-y-3 text-sm text-slate-700">
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                   Category
                   <select
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     required
                   >
+                    <option value="">Select a category</option>
                     {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
                   </select>
                 </label>
               ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  <label className="space-y-3 text-sm text-slate-700">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                     Store / Team
                     <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                       value={form.storeId}
                       onChange={(e) => setForm({ ...form, storeId: e.target.value })}
                       required
@@ -330,21 +346,22 @@ export default function RequestsPage() {
                     </select>
                   </label>
 
-                  <label className="space-y-3 text-sm text-slate-700">
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                     Category
                     <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
                       required
                     >
+                      <option value="">Select a category</option>
                       {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
                     </select>
                   </label>
                 </div>
               )}
 
-              <label className="space-y-3 text-sm text-slate-700">
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Amount (€)
                 <input
                   type="number"
@@ -352,19 +369,19 @@ export default function RequestsPage() {
                   step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
                   placeholder="0.00"
                   required
                 />
               </label>
 
-              <label className="space-y-3 text-sm text-slate-700">
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Description
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={5}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-normal"
                   placeholder="Describe the spend and business purpose."
                   required
                 />
@@ -372,7 +389,9 @@ export default function RequestsPage() {
 
               {error ? <p className="text-sm text-rose-600">{error}</p> : null}
               {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
-              <Button className="mt-1" type="submit" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit Request'}</Button>
+              <div className="pt-2">
+                <Button type="submit" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit Request'}</Button>
+              </div>
             </form>
           </Card>
 
