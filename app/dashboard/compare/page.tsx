@@ -216,68 +216,6 @@ export default function ComparePage() {
       return [...prev, key];
     });
   }
-      const row: Record<string, any> = { category: cat };
-      for (const e of entities) {
-        const match = e.byCategory.find((c) => c.category === cat);
-        row[e.name] = match?.total ?? 0;
-      }
-      return row;
-    });
-  }, [allCategories, entities]);
-
-  const radarData = useMemo(() => {
-    return allCategories.map((cat) => {
-      const row: Record<string, any> = { category: cat };
-      for (const e of entities) {
-        const match = e.byCategory.find((c) => c.category === cat);
-        row[e.name] = match?.total ?? 0;
-      }
-      return row;
-    });
-  }, [allCategories, entities]);
-
-  // ── Trend comparison ───────────────────────────────────────────────────────
-
-  const trendMonths = useMemo(() => {
-    if (entities.length === 0) return [];
-    return entities[0].trend.map((t) => t.month);
-  }, [entities]);
-
-  const trendData = useMemo(() => {
-    return trendMonths.map((month) => {
-      const row: Record<string, any> = { month };
-      for (const e of entities) {
-        const point = e.trend.find((t) => t.month === month);
-        row[e.name] = point?.total ?? 0;
-      }
-      return row;
-    });
-  }, [trendMonths, entities]);
-
-  // ── Status summary ─────────────────────────────────────────────────────────
-
-  const statusData = useMemo(() => {
-    return entities.map((e) => {
-      const approved = e.requests.filter((r) => r.status === 'approved').reduce((s, r) => s + r.amount, 0);
-      const pending  = e.requests.filter((r) => r.status === 'pending').reduce((s, r) => s + r.amount, 0);
-      const rejected = e.requests.filter((r) => r.status === 'rejected').reduce((s, r) => s + r.amount, 0);
-      const queried  = e.requests.filter((r) => r.status === 'queried').reduce((s, r) => s + r.amount, 0);
-      return { name: e.name, approved, pending, rejected, queried };
-    });
-  }, [entities]);
-
-  // ── Toggle entity ──────────────────────────────────────────────────────────
-
-  function toggleEntity(slug: string) {
-    setSelected((prev) => {
-      if (prev.includes(slug)) {
-        if (prev.length <= 1) return prev; // keep at least 1
-        return prev.filter((s) => s !== slug);
-      }
-      if (prev.length >= 4) return prev; // max 4
-      return [...prev, slug];
-    });
-  }
 
   return (
     <div className="min-h-screen bg-slate-50">
