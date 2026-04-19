@@ -5,9 +5,11 @@ import { getFieldTeamUsers, updateUserBudget } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+const DASHBOARD_ROLES = ['super_admin', 'director', 'manager', 'employee'];
+
 export async function GET() {
   const session = (await getServerSession(authOptions)) as any;
-  if (session?.user?.role !== 'super_admin') {
+  if (!DASHBOARD_ROLES.includes(session?.user?.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const users = await getFieldTeamUsers();
