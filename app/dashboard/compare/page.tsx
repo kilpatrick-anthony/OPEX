@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { Card }   from '@/components/ui/card';
 import { Navbar } from '@/components/Navbar';
+import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker';
 import { formatCurrency, readJsonSafely } from '@/lib/utils';
 
 const PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#ef4444', '#0284c7'];
@@ -74,6 +75,7 @@ type CompareEntity = {
 
 export default function ComparePage() {
   const [period,      setPeriod]      = useState<Period>('month');
+  const [dateRange,   setDateRange]   = useState<DateRange | undefined>();
   const [selected,    setSelected]    = useState<EntityKey[]>([]);
   const [stores,      setStores]      = useState<StoreRow[]>([]);
   const [fieldUsers,  setFieldUsers]  = useState<UserRow[]>([]);
@@ -130,7 +132,15 @@ export default function ComparePage() {
         entityRequests = allRequests.filter((r) => r.userId === id || r.requesterName.toLowerCase() === user.name.toLowerCase());
       }
 
-      const periodReqs = entityRequests.filter((r) => inPeriod(new Date(r.createdAt), period));
+      const periodReqs = entityRequests.filter((r) => {
+        const d = new Date(r.createdAt);
+        if (dateRange?.from) {
+          if (d < dateRange.from) return false;
+          if (dateRange.to && d > dateRange.to) return false;
+          return true;
+        }
+        return inPeriod(d, period);
+      });
       const totalSpent = periodReqs.reduce((s, r) => s + r.amount, 0);
       const pct = getBudgetPct(totalSpent, budget);
 
@@ -142,7 +152,7 @@ export default function ComparePage() {
 
       return [{ key, name, type: type as 'store' | 'employee', totalSpent, budget, pct, byCategory, trend, requests: periodReqs, color: PALETTE[idx % PALETTE.length], slug }];
     });
-  }, [selected, period, stores, fieldUsers, allRequests]);
+  }, [selected, period, dateRange, stores, fieldUsers, allRequests]);
 
   // ── Category comparison ────────────────────────────────────────────────────
 
@@ -231,11 +241,12 @@ export default function ComparePage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {PERIOD_OPTIONS.map((opt) => (
-              <button key={opt.value} onClick={() => setPeriod(opt.value)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${period === opt.value ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+              <button key={opt.value} onClick={() => { setPeriod(opt.value); setDateRange(undefined); }}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${!dateRange && period === opt.value ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                 {opt.label}
               </button>
             ))}
+            <DateRangePicker range={dateRange} onChange={(r) => { setDateRange(r); }} />
           </div>
         </div>
 
