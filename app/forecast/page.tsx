@@ -274,12 +274,12 @@ export default function ForecastPage() {
             <p className="text-sm uppercase tracking-widest text-slate-500">Store-level month-end projection</p>
             <div className="h-96">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={forecastRows} margin={{ bottom: 70 }}>
+                <BarChart data={forecastRows} margin={{ bottom: 70, top: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="store" tick={{ fill: '#475569', fontSize: 11 }} angle={-35} textAnchor="end" />
                   <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `EUR ${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Legend />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
                   <Bar dataKey="projected" name="Projected" radius={[8, 8, 0, 0]}>
                     {forecastRows.map((row) => (
                       <Cell key={row.store} fill={statusColor(row.status)} />
