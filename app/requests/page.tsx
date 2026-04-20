@@ -419,7 +419,7 @@ export default function RequestsPage() {
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-                Receipt <span className="font-normal text-slate-400">(optional)</span>
+                Receipt
                 <input
                   key={fileInputKey}
                   type="file"
