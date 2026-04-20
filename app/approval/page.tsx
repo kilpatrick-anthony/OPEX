@@ -42,6 +42,7 @@ export default function ApprovalPage() {
   const [queryReason, setQueryReason] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [viewRequest, setViewRequest] = useState<ApprovalRequest | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ request: ApprovalRequest; action: 'approved' | 'rejected' } | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,6 +142,7 @@ export default function ApprovalPage() {
 
   async function handleAction(id: number, action: 'approved' | 'rejected') {
     setError('');
+    setConfirmAction(null);
     try {
       await performAction(id, action);
       await loadRequests();
@@ -328,8 +330,8 @@ export default function ApprovalPage() {
                           <TableCell className="py-3">
                             {isActionable ? (
                               <div className="flex flex-col gap-1.5">
-                                <button type="button" onClick={() => handleAction(request.id, 'approved')} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
-                                <button type="button" onClick={() => handleAction(request.id, 'rejected')} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
+                                <button type="button" onClick={() => setConfirmAction({ request, action: 'approved' })} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
+                                <button type="button" onClick={() => setConfirmAction({ request, action: 'rejected' })} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
                                 {request.status === 'pending' ? (
                                   <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
                                 ) : null}
@@ -377,6 +379,34 @@ export default function ApprovalPage() {
           </div>
         </div>
       </main>
+
+      <Dialog
+        open={!!confirmAction}
+        title={confirmAction?.action === 'approved' ? 'Confirm approval' : 'Confirm rejection'}
+        description={confirmAction ? `${confirmAction.action === 'approved' ? 'Approve' : 'Reject'} the ${confirmAction.request.category} request of ${formatCurrency(confirmAction.request.amount)} from ${confirmAction.request.storeName}?` : ''}
+        onClose={() => setConfirmAction(null)}
+      >
+        {confirmAction && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 space-y-1">
+              <p><span className="font-medium">Store:</span> {confirmAction.request.storeName}</p>
+              <p><span className="font-medium">Requester:</span> {confirmAction.request.requesterName}</p>
+              <p><span className="font-medium">Category:</span> {confirmAction.request.category}</p>
+              <p><span className="font-medium">Amount:</span> {formatCurrency(confirmAction.request.amount)}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" type="button" onClick={() => setConfirmAction(null)}>Cancel</Button>
+              <Button
+                type="button"
+                onClick={() => handleAction(confirmAction.request.id, confirmAction.action)}
+                className={confirmAction.action === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}
+              >
+                {confirmAction.action === 'approved' ? 'Yes, approve' : 'Yes, reject'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <Dialog open={!!viewRequest} title="Request details" description="Full information for this expenditure request." onClose={() => setViewRequest(null)}>
         {viewRequest && (
