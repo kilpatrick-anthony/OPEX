@@ -103,16 +103,10 @@ export function Navbar() {
         {/* Desktop user pill + sign out */}
         {user && (
           <div className="hidden md:flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-white"
-              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ background: 'rgba(255,255,255,0.25)' }}>
-                {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
-              </span>
-              <span>{user.name}</span>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
-              <span style={{ color: 'rgba(255,255,255,0.65)' }}>{user.role === 'store_staff' ? 'Store' : (user.title || ROLE_LABELS[user.role])}</span>
-            </div>
+            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+              style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.2)' }}>
+              {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+            </span>
             <button onClick={handleLogout}
               className="rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:bg-white/10"
               style={{ color: 'rgba(255,255,255,0.65)' }}>
@@ -188,6 +182,15 @@ export function Navbar() {
       )}
 
       <div className="h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+
+      {/* ── Desktop user strip ────────────────────────────────────────── */}
+      {user && (
+        <div className="hidden md:flex container items-center justify-end gap-1.5 py-1 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <span style={{ color: 'rgba(255,255,255,0.75)' }}>{user.name}</span>
+          <span>·</span>
+          <span>{user.role === 'store_staff' ? 'Store' : (user.title || ROLE_LABELS[user.role])}</span>
+        </div>
+      )}
     </header>
   );
 }
