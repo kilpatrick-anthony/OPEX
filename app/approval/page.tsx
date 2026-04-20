@@ -20,6 +20,7 @@ type ApprovalRequest = {
   amount: number;
   category: string;
   description: string;
+  receipt?: string | null;
   createdAt: string;
   storeRemainingBudget: number;
   status: RequestStatus;
@@ -93,6 +94,17 @@ export default function ApprovalPage() {
   const pendingCount = requests.filter((request) => request.status === 'pending').length;
   const approvedCount = requests.filter((request) => request.status === 'approved').length;
   const rejectedCount = requests.filter((request) => request.status === 'rejected').length;
+
+  function openReceiptInNewTab(receipt: string) {
+    const [header, data] = receipt.split(',');
+    const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 
   const actionableInView = requests.filter((request) => request.status === 'pending' || request.status === 'queried');
   const allViewSelected = actionableInView.length > 0 && actionableInView.every((request) => selected.has(request.id));
@@ -452,6 +464,18 @@ export default function ApprovalPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>
               <p className="mt-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-slate-700">{viewRequest.description || '—'}</p>
             </div>
+            {viewRequest.receipt ? (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Receipt</p>
+                <button
+                  type="button"
+                  onClick={() => openReceiptInNewTab(viewRequest.receipt!)}
+                  className="mt-1 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                >
+                  View / Download Receipt
+                </button>
+              </div>
+            ) : null}
             {viewRequest.queryComment ? (
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Query comment</p>

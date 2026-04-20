@@ -64,6 +64,7 @@ export const ALL_STORES: { name: string; slug: string }[] = [
   { name: 'Kildare Village',   slug: 'kildare-village' },
   { name: 'Maynooth',          slug: 'maynooth' },
   { name: 'Swords Pavilions',  slug: 'swords-pavilions' },
+  { name: 'Warehouse',         slug: 'warehouse' },
 ];
 
 export const ALL_EMPLOYEES: { name: string; slug: string; role: string }[] = [
@@ -492,6 +493,36 @@ export const STORE_DETAILS: Record<string, EntityDetail> = {
     quarter: {
       totalSpent: 17400, budget: 27000,
       byCategory: split(17400, [['Supplies', 34], ['Marketing', 22], ['Maintenance', 22], ['Travel', 13], ['Utilities', 9]]),
+      requests: [],
+    },
+  },
+
+  'warehouse': {
+    name: 'Warehouse', slug: 'warehouse', type: 'store', monthlyBudget: 8000,
+    trend: [
+      { month: 'Nov', total: 3200 }, { month: 'Dec', total: 4600 },
+      { month: 'Jan', total: 3000 }, { month: 'Feb', total: 3500 },
+      { month: 'Mar', total: 4800 }, { month: 'Apr', total: 4100 },
+    ],
+    month: {
+      totalSpent: 4100, budget: 8000,
+      byCategory: split(4100, [['Supplies', 38], ['Maintenance', 28], ['Utilities', 18], ['Travel', 10], ['Equipment', 6]]),
+      requests: [
+        { id: 30001, requesterName: 'Marcio Santos do Nascimento', requesterRole: 'Warehouse Manager', category: 'Supplies', amount: 1558, description: 'Pallet wrap, labels and safety tape — Q2 warehouse stock.', status: 'approved', createdAt: '2026-04-02' },
+        { id: 30002, requesterName: 'Marcio Santos do Nascimento', requesterRole: 'Warehouse Manager', category: 'Maintenance', amount: 1148, description: 'Pallet truck and trolley annual service contract.', status: 'approved', createdAt: '2026-04-05' },
+        { id: 30003, requesterName: 'Marcio Santos do Nascimento', requesterRole: 'Warehouse Manager', category: 'Utilities', amount: 738, description: 'Cold store energy supplement — warmer weather extra load.', status: 'approved', createdAt: '2026-04-07' },
+        { id: 30004, requesterName: 'Marcio Santos do Nascimento', requesterRole: 'Warehouse Manager', category: 'Travel', amount: 410, description: 'Logistics runs to distribution points.', status: 'approved', createdAt: '2026-04-09' },
+        { id: 30005, requesterName: 'Marcio Santos do Nascimento', requesterRole: 'Warehouse Manager', category: 'Equipment', amount: 246, description: 'Replacement barcode scanner — lost unit.', status: 'pending', createdAt: '2026-04-13' },
+      ],
+    },
+    'last-month': {
+      totalSpent: 4800, budget: 8000,
+      byCategory: split(4800, [['Supplies', 38], ['Maintenance', 28], ['Utilities', 18], ['Travel', 10], ['Equipment', 6]]),
+      requests: [],
+    },
+    quarter: {
+      totalSpent: 13800, budget: 24000,
+      byCategory: split(13800, [['Supplies', 38], ['Maintenance', 28], ['Utilities', 18], ['Travel', 10], ['Equipment', 6]]),
       requests: [],
     },
   },

@@ -27,6 +27,7 @@ type RequestRecord = {
   category: string;
   amount: number;
   description: string;
+  receipt?: string | null;
   status: RequestStatus;
   queryComment?: string | null;
   submitterName?: string | null;
@@ -63,10 +64,37 @@ export default function RequestsPage() {
     submitterJobRole: '',
   });
 
+  const [receiptDataUrl, setReceiptDataUrl] = useState<string>('');
+  const [fileInputKey, setFileInputKey] = useState(0);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loadingData, setLoadingData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  function openReceiptInNewTab(receipt: string) {
+    const [header, data] = receipt.split(',');
+    const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) { setReceiptDataUrl(''); return; }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Receipt file must be under 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setReceiptDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  }
 
   const isStoreStaff = user?.role === 'store_staff';
   const hideStoreSelector = user?.role === 'store_staff' || user?.role === 'field_team';
@@ -203,6 +231,7 @@ export default function RequestsPage() {
           category: form.category,
           amount: Number(form.amount),
           description: form.description.trim(),
+          receipt: receiptDataUrl || undefined,
           submitterName: isStoreLevelUser ? form.submitterName.trim() : undefined,
           submitterJobRole: isStoreLevelUser ? form.submitterJobRole : undefined,
         }),
@@ -214,6 +243,8 @@ export default function RequestsPage() {
       }
 
       setSuccess('Request submitted successfully and is pending approval.');
+      setReceiptDataUrl('');
+      setFileInputKey((k) => k + 1);
       setForm((prev) => ({
         ...prev,
         category: '',
@@ -387,6 +418,17 @@ export default function RequestsPage() {
                 />
               </label>
 
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Receipt <span className="font-normal text-slate-400">(optional)</span>
+                <input
+                  key={fileInputKey}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleReceiptChange}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal file:mr-3 file:rounded-xl file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700 hover:file:bg-sky-100"
+                />
+              </label>
+
               {error ? <p className="text-sm text-rose-600">{error}</p> : null}
               {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
               <div className="pt-2">
@@ -546,6 +588,18 @@ export default function RequestsPage() {
             <p><span className="font-medium text-slate-800">Amount:</span> {formatCurrency(selectedRequest.amount)}</p>
             <p><span className="font-medium text-slate-800">Status:</span> {selectedRequest.status}</p>
             <p><span className="font-medium text-slate-800">Description:</span> {selectedRequest.description}</p>
+            {selectedRequest.receipt ? (
+              <p>
+                <span className="font-medium text-slate-800">Receipt:</span>{' '}
+                <button
+                  type="button"
+                  onClick={() => openReceiptInNewTab(selectedRequest.receipt!)}
+                  className="text-sky-600 hover:underline"
+                >
+                  View / Download
+                </button>
+              </p>
+            ) : null}
           </div>
         </Dialog>
       ) : null}

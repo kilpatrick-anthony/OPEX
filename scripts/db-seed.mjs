@@ -20,6 +20,7 @@ const stores = [
   'Kildare Village',
   'Maynooth',
   'Swords Pavilions',
+  'Warehouse',
 ];
 
 // Individual credentials — email is the username, passwords are listed below
@@ -51,6 +52,7 @@ const storeAccounts = [
   { storeName: 'Kildare Village',  email: 'kildarevillage@oakberry.ie', password: 'Kildarevillage2026!',  title: 'Store Manager' },
   { storeName: 'Maynooth',         email: 'maynooth@oakberry.ie',       password: 'Maynooth2026!',        title: 'Store Manager' },
   { storeName: 'Swords Pavilions', email: 'swordspavilions@oakberry.ie',password: 'Swordspavilions2026!', title: 'Store Manager' },
+  { storeName: 'Warehouse',         email: 'warehouse@oakberry.ie',        password: 'Warehouse2026!',         title: 'Warehouse Manager' },
 ];
 
 const legacyEmails = [
