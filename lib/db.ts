@@ -85,6 +85,8 @@ export async function ensureSchema() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  // Ensure Warehouse store exists
+  await sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`;
 }
 
 async function ensureSchemaOnce() {
