@@ -97,7 +97,7 @@ export default function RequestsPage() {
   }
 
   const isStoreStaff = user?.role === 'store_staff';
-  const hideStoreSelector = user?.role === 'store_staff' || user?.role === 'field_team';
+  const hideStoreSelector = user?.role === 'store_staff';
   const isStoreLevelUser = isStoreStaff || user?.role === 'field_team';
   const showBudgetColumn = user?.role !== 'field_team' && user?.role !== 'director';
 
@@ -151,12 +151,6 @@ export default function RequestsPage() {
               setStoreFilter(String(ownStore.id));
               await loadRequests({ status: 'queried', storeId: String(ownStore.id) });
             }
-          }
-        } else if (user.role === 'field_team') {
-          // Field team submits against the dedicated Field bucket.
-          const fieldStore = allStores.find((store) => store.name === 'Field');
-          if (fieldStore) {
-            setForm((prev) => ({ ...prev, storeId: String(fieldStore.id) }));
           }
         } else {
           await loadRequests();
