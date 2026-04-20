@@ -41,6 +41,7 @@ export default function ApprovalPage() {
   const [queryId, setQueryId] = useState<number | null>(null);
   const [queryReason, setQueryReason] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewRequest, setViewRequest] = useState<ApprovalRequest | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -332,9 +333,13 @@ export default function ApprovalPage() {
                                 {request.status === 'pending' ? (
                                   <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
                                 ) : null}
+                                <button type="button" onClick={() => setViewRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-400 capitalize">— {request.status}</span>
+                              <div className="flex flex-col gap-1.5">
+                                <span className="text-xs text-slate-400 capitalize">— {request.status}</span>
+                                <button type="button" onClick={() => setViewRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>
@@ -372,6 +377,63 @@ export default function ApprovalPage() {
           </div>
         </div>
       </main>
+
+      <Dialog open={!!viewRequest} title="Request details" description="Full information for this expenditure request." onClose={() => setViewRequest(null)}>
+        {viewRequest && (
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Store</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{viewRequest.storeName}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Amount</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(viewRequest.amount)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Category</p>
+                <p className="mt-0.5"><span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{viewRequest.category}</span></p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Status</p>
+                <p className="mt-0.5"><span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[viewRequest.status]}`}>{viewRequest.status}</span></p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Requester</p>
+                <p className="mt-0.5 text-slate-800">{viewRequest.requesterName}</p>
+              </div>
+              {viewRequest.submitterName ? (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Submitted by</p>
+                  <p className="mt-0.5 text-slate-800">{viewRequest.submitterName}</p>
+                  {viewRequest.submitterJobRole ? <p className="text-xs text-slate-500">{viewRequest.submitterJobRole}</p> : null}
+                </div>
+              ) : <div />}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Date submitted</p>
+                <p className="mt-0.5 text-slate-800">{new Date(viewRequest.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Remaining store budget</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(viewRequest.storeRemainingBudget)}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>
+              <p className="mt-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-slate-700">{viewRequest.description || '—'}</p>
+            </div>
+            {viewRequest.queryComment ? (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Query comment</p>
+                <p className="mt-1 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sky-800">{viewRequest.queryComment}</p>
+              </div>
+            ) : null}
+            <div className="flex justify-end">
+              <Button variant="secondary" type="button" onClick={() => setViewRequest(null)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <Dialog open={modalOpen} title="Send query" description="Ask the requester for more details before deciding." onClose={() => setModalOpen(false)}>
         <div className="space-y-4">
