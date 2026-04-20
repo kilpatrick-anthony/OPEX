@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createNotification, getUserById, performRequestAction } from '@/lib/db';
+import { createNotification, deleteRequest, getUserById, performRequestAction } from '@/lib/db';
 import { sendRequestDecisionEmail } from '@/lib/notificationEmail';
 
 export const dynamic = 'force-dynamic';
@@ -64,4 +64,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   return NextResponse.json({ request: requestRecord });
+}
+
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const session = (await getServerSession(authOptions)) as any;
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
+  if (session.user.role !== 'super_admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const requestId = Number(params.id);
+  if (!requestId) {
+    return NextResponse.json({ error: 'Invalid request ID.' }, { status: 400 });
+  }
+  await deleteRequest(requestId);
+  return NextResponse.json({ ok: true });
 }

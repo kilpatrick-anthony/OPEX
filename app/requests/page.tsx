@@ -71,9 +71,9 @@ export default function RequestsPage() {
   const [success, setSuccess] = useState('');
   const [loadingData, setLoadingData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-  function openReceiptInNewTab(receipt: string) {
-    const [header, data] = receipt.split(',');
+  function openReceiptInNewTab(receipt: string) {    const [header, data] = receipt.split(',');
     const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
     const binary = atob(data);
     const bytes = new Uint8Array(binary.length);
@@ -81,6 +81,22 @@ export default function RequestsPage() {
     const blob = new Blob([bytes], { type: mime });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      const res = await fetch(`/api/requests/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete request');
+      setSelectedRequest(null);
+      setDeleteConfirm(false);
+      if (isStoreStaff) {
+        await loadRequests({ status: 'queried', storeId: form.storeId });
+      } else {
+        await loadRequests();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete request');
+    }
   }
 
   function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -568,7 +584,7 @@ export default function RequestsPage() {
           open
           title={`Request #${selectedRequest.id} — ${selectedRequest.storeName}`}
           description="Request details"
-          onClose={() => setSelectedRequest(null)}
+          onClose={() => { setSelectedRequest(null); setDeleteConfirm(false); }}
           className="max-w-2xl"
         >
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 space-y-1">
@@ -593,6 +609,37 @@ export default function RequestsPage() {
               </p>
             ) : null}
           </div>
+          {user?.role === 'super_admin' && (
+            <div className="mt-4 flex justify-end">
+              {deleteConfirm ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600">Delete this request?</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(selectedRequest.id)}
+                    className="rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
+                  >
+                    Yes, delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(true)}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                >
+                  Delete request
+                </button>
+              )}
+            </div>
+          )}
         </Dialog>
       ) : null}
     </div>

@@ -285,6 +285,14 @@ export async function getDirectorEmails(): Promise<{ name: string; email: string
   return result as { name: string; email: string }[];
 }
 
+export async function deleteRequest(requestId: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`DELETE FROM approvals WHERE requestId = ${requestId}`;
+  await sql`DELETE FROM notifications WHERE requestId = ${requestId}`;
+  await sql`DELETE FROM requests WHERE id = ${requestId}`;
+}
+
 export async function updateUserBudget(userId: number, budget: number) {
   await ensureSchemaOnce();
   const sql = getSql();
