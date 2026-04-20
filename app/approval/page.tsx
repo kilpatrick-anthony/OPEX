@@ -38,7 +38,7 @@ export default function ApprovalPage() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeFilter, setStoreFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('requires-action');
   const [queryId, setQueryId] = useState<number | null>(null);
   const [queryReason, setQueryReason] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -58,7 +58,7 @@ export default function ApprovalPage() {
 
   async function loadRequests() {
     const params = new URLSearchParams();
-    if (statusFilter) params.set('status', statusFilter);
+    if (statusFilter && statusFilter !== 'requires-action') params.set('status', statusFilter);
     if (storeFilter) params.set('storeId', storeFilter);
 
     const url = params.toString() ? `/api/requests?${params.toString()}` : '/api/requests';
@@ -96,6 +96,10 @@ export default function ApprovalPage() {
   const rejectedCount = requests.filter((request) => request.status === 'rejected').length;
   const queriedCount = requests.filter((request) => request.status === 'queried').length;
 
+  const displayedRequests = statusFilter === 'requires-action'
+    ? requests.filter((r) => r.status === 'pending' || r.status === 'queried')
+    : requests;
+
   function openReceiptInNewTab(receipt: string) {
     const [header, data] = receipt.split(',');
     const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
@@ -107,7 +111,7 @@ export default function ApprovalPage() {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  const actionableInView = requests.filter((request) => request.status === 'pending' || request.status === 'queried');
+  const actionableInView = displayedRequests.filter((request) => request.status === 'pending' || request.status === 'queried');
   const allViewSelected = actionableInView.length > 0 && actionableInView.every((request) => selected.has(request.id));
 
   const selectedInView = useMemo(
@@ -242,6 +246,7 @@ export default function ApprovalPage() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
+                  <option value="requires-action">Requires Action</option>
                   <option value="">All</option>
                   <option value="pending">Pending</option>
                   <option value="queried">Queried</option>
@@ -310,7 +315,7 @@ export default function ApprovalPage() {
                       <TableCell colSpan={8} className="text-sm text-slate-500">Loading approvals…</TableCell>
                     </TableRow>
                   ) : (
-                    requests.map((request) => {
+                    displayedRequests.map((request) => {
                       const isActionable = request.status === 'pending' || request.status === 'queried';
                       return (
                         <TableRow key={request.id}>
@@ -364,7 +369,7 @@ export default function ApprovalPage() {
                   )}
                 </tbody>
               </Table>
-              {!loading && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
+              {!loading && displayedRequests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
             </div>
           </Card>
 
