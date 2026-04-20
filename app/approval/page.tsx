@@ -94,6 +94,7 @@ export default function ApprovalPage() {
   const pendingCount = requests.filter((request) => request.status === 'pending').length;
   const approvedCount = requests.filter((request) => request.status === 'approved').length;
   const rejectedCount = requests.filter((request) => request.status === 'rejected').length;
+  const queriedCount = requests.filter((request) => request.status === 'queried').length;
 
   function openReceiptInNewTab(receipt: string) {
     const [header, data] = receipt.split(',');
@@ -217,6 +218,7 @@ export default function ApprovalPage() {
           <div className="flex flex-wrap gap-3">
             <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-2 text-sm font-medium text-amber-700">{pendingCount} pending</div>
             <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-2 text-sm font-medium text-emerald-700">{approvedCount} approved</div>
+            <div className="rounded-3xl border border-sky-200 bg-sky-50 px-5 py-2 text-sm font-medium text-sky-700">{queriedCount} queried</div>
             <div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-2 text-sm font-medium text-rose-700">{rejectedCount} rejected</div>
           </div>
         </div>
