@@ -44,7 +44,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Reset password token error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Reset password token error:', message);
+    // Surface DB quota/connectivity errors more clearly
+    if (message.includes('quota') || message.includes('402') || message.includes('exceeded')) {
+      return NextResponse.json({ error: 'The service is temporarily unavailable. Please try again later.' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

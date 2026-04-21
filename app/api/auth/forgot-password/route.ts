@@ -71,7 +71,12 @@ export async function POST(request: Request) {
 
       const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
       const resetUrl = `${appUrl}/reset-password?token=${token}`;
-      await sendResetEmail(user.email, user.name, resetUrl);
+      try {
+        await sendResetEmail(user.email, user.name, resetUrl);
+      } catch (emailErr) {
+        // Log email failure but don't expose it — the token is saved and the link still works
+        console.error('Failed to send reset email:', emailErr);
+      }
     }
 
     return NextResponse.json({ ok: true });
