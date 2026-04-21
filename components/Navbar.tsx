@@ -49,12 +49,14 @@ export function Navbar() {
 
   const canViewAnalytics = Boolean(user && user.role !== 'store_staff');
   const canViewForecast = user?.role === 'super_admin';
+  const canViewAudit = user?.role === 'super_admin' || user?.role === 'director';
 
   const allNavItems = [
     { href: '/dashboard',          label: 'Dashboard', show: user ? canAccess(user.role, 'dashboard') : true },
     { href: '/approval',           label: 'Approvals', show: user ? canAccess(user.role, 'approval')  : false },
     { href: '/requests',           label: 'Requests',  show: true },
     { href: '/reports',            label: 'Reports',   show: user ? user.role !== 'store_staff' : true },
+    { href: '/audit',              label: 'Audit',     show: canViewAudit },
     { href: '/forecast',           label: 'Forecast',  show: canViewForecast },
     { href: '/dashboard/compare',  label: 'Compare',   show: canViewAnalytics },
     { href: '/account',            label: 'Account',   show: Boolean(user) },

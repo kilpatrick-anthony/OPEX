@@ -174,6 +174,10 @@ export default function ReportsPage() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
 
+  // Filters for the All Requests table
+  const [tableLocationFilter, setTableLocationFilter] = useState('');
+  const [tableEmployeeFilter, setTableEmployeeFilter] = useState('');
+
   // ── Load dashboard + all requests + entity lists ───────────────────────
 
   async function loadData() {
@@ -289,6 +293,19 @@ export default function ReportsPage() {
     ];
     downloadCsv(rows, `opex-report-${period}.csv`);
   }
+
+  // ── Table-level filters (All Requests section) ─────────────────────────
+
+  const tableFilteredRequests = useMemo(() => {
+    return dateFilteredRequests.filter((r) => {
+      if (tableLocationFilter && r.storeName !== tableLocationFilter) return false;
+      if (tableEmployeeFilter) {
+        const uid = Number(tableEmployeeFilter);
+        if (r.userId !== uid) return false;
+      }
+      return true;
+    });
+  }, [dateFilteredRequests, tableLocationFilter, tableEmployeeFilter]);
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -460,6 +477,50 @@ export default function ReportsPage() {
             {/* Entity selector */}
             {(stores.length > 0 || fieldUsers.length > 0) && (
               <div className="space-y-3 border-t border-slate-100 pt-4">
+                {/* Quick filter dropdowns */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick filter</span>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      setSelectedEntityKeys([val]);
+                    }}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <option value="">Select location…</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={`store:${s.id}`}>{s.name}</option>
+                    ))}
+                  </select>
+                  {fieldUsers.length > 0 && (
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        setSelectedEntityKeys([val]);
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      <option value="">Select employee…</option>
+                      {fieldUsers.map((u) => (
+                        <option key={u.id} value={`employee:${u.id}`}>{u.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEntityKeys([
+                      ...stores.map((s) => `store:${s.id}`),
+                      ...fieldUsers.map((u) => `employee:${u.id}`),
+                    ])}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Select all
+                  </button>
+                </div>
                 {stores.length > 0 && (
                   <div>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Stores</p>
@@ -570,12 +631,41 @@ export default function ReportsPage() {
         {/* ── All requests table ─────────────────────────────────────────── */}
         <div className="mt-6">
           <Card className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm uppercase tracking-widest text-slate-500">
-                All requests
-                {dateRange?.from && <span className="ml-2 text-xs font-normal normal-case text-slate-400">({payrollDateLabel})</span>}
-              </p>
-              <span className="text-xs text-slate-400">{dateFilteredRequests.length} requests</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase tracking-widest text-slate-500">
+                  All requests
+                  {dateRange?.from && <span className="ml-2 text-xs font-normal normal-case text-slate-400">({payrollDateLabel})</span>}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={tableLocationFilter}
+                  onChange={(e) => { setTableLocationFilter(e.target.value); setTableEmployeeFilter(''); }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="">All locations</option>
+                  {stores.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+                <select
+                  value={tableEmployeeFilter}
+                  onChange={(e) => { setTableEmployeeFilter(e.target.value); setTableLocationFilter(''); }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="">All employees</option>
+                  {fieldUsers.map((u) => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                </select>
+                {(tableLocationFilter || tableEmployeeFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => { setTableLocationFilter(''); setTableEmployeeFilter(''); }}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline"
+                  >
+                    Clear
+                  </button>
+                )}
+                <span className="text-xs text-slate-400">{tableFilteredRequests.length} requests</span>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <Table>
@@ -590,7 +680,7 @@ export default function ReportsPage() {
                   </tr>
                 </TableHeader>
                 <tbody>
-                  {dateFilteredRequests.slice(0, 50).map((request) => (
+                  {tableFilteredRequests.slice(0, 50).map((request) => (
                     <TableRow key={request.id}>
                       <TableCell>{format(new Date(request.createdAt), 'd MMM yyyy')}</TableCell>
                       <TableCell>{request.storeName}</TableCell>

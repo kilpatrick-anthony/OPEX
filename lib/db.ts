@@ -293,6 +293,78 @@ export async function deleteRequest(requestId: number) {
   await sql`DELETE FROM requests WHERE id = ${requestId}`;
 }
 
+export async function updateRequestReceipt(requestId: number, receipt: string | null) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE requests SET receipt = ${receipt}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
+}
+
+export type AuditEntry = {
+  id: number;
+  action: string;
+  comment: string | null;
+  createdAt: string;
+  actorId: number;
+  actorName: string;
+  actorRole: string;
+  requestId: number;
+  requestCategory: string;
+  requestAmount: number;
+  storeName: string;
+  requesterName: string;
+};
+
+export async function getAuditTrail(filters?: { actorId?: number; dateFrom?: string; dateTo?: string; action?: string }): Promise<AuditEntry[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const parts: string[] = [];
+  const values: (string | number)[] = [];
+
+  if (filters?.actorId) {
+    values.push(filters.actorId);
+    parts.push(`a.userid = $${values.length}`);
+  }
+  if (filters?.action) {
+    values.push(filters.action);
+    parts.push(`a.action = $${values.length}`);
+  }
+  if (filters?.dateFrom) {
+    values.push(filters.dateFrom);
+    parts.push(`a.createdat >= $${values.length}::timestamptz`);
+  }
+  if (filters?.dateTo) {
+    values.push(filters.dateTo);
+    parts.push(`a.createdat <= $${values.length}::timestamptz`);
+  }
+
+  const where = parts.length ? `WHERE ${parts.join(' AND ')}` : '';
+  const result = await sql.query(
+    `SELECT
+       a.id,
+       a.action,
+       a.comment,
+       a.createdat AS "createdAt",
+       u.id AS "actorId",
+       u.name AS "actorName",
+       u.role AS "actorRole",
+       r.id AS "requestId",
+       r.category AS "requestCategory",
+       r.amount AS "requestAmount",
+       s.name AS "storeName",
+       ru.name AS "requesterName"
+     FROM approvals a
+     JOIN users u ON u.id = a.userid
+     JOIN requests r ON r.id = a.requestid
+     JOIN stores s ON s.id = r.storeid
+     JOIN users ru ON ru.id = r.userid
+     ${where}
+     ORDER BY a.createdat DESC
+     LIMIT 500`,
+    values,
+  );
+  return result as AuditEntry[];
+}
+
 export async function updateUserBudget(userId: number, budget: number) {
   await ensureSchemaOnce();
   const sql = getSql();

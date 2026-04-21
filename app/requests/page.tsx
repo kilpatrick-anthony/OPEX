@@ -73,6 +73,12 @@ export default function RequestsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  // Receipt editing inside the view dialog
+  const [editingReceipt, setEditingReceipt] = useState(false);
+  const [editReceiptDataUrl, setEditReceiptDataUrl] = useState('');
+  const [editReceiptKey, setEditReceiptKey] = useState(0);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+
   function openReceiptInNewTab(receipt: string) {    const [header, data] = receipt.split(',');
     const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
     const binary = atob(data);
@@ -96,6 +102,31 @@ export default function RequestsPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete request');
+    }
+  }
+
+  async function handleSaveReceipt(id: number) {
+    setSavingReceipt(true);
+    try {
+      const res = await fetch(`/api/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receipt: editReceiptDataUrl || null }),
+      });
+      const payload = await readJsonSafely(res);
+      if (!res.ok) throw new Error(getApiErrorMessage(res, payload, 'Failed to update receipt'));
+      const updated = (payload as any)?.request;
+      if (updated) {
+        setSelectedRequest((prev) => prev ? { ...prev, receipt: updated.receipt ?? null } : prev);
+        setRequests((prev) => prev.map((r) => r.id === id ? { ...r, receipt: updated.receipt ?? null } : r));
+      }
+      setEditingReceipt(false);
+      setEditReceiptDataUrl('');
+      setEditReceiptKey((k) => k + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update receipt');
+    } finally {
+      setSavingReceipt(false);
     }
   }
 
@@ -584,7 +615,7 @@ export default function RequestsPage() {
           open
           title={`Request #${selectedRequest.id} — ${selectedRequest.storeName}`}
           description="Request details"
-          onClose={() => { setSelectedRequest(null); setDeleteConfirm(false); }}
+          onClose={() => { setSelectedRequest(null); setDeleteConfirm(false); setEditingReceipt(false); setEditReceiptDataUrl(''); }}
           className="max-w-2xl"
         >
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 space-y-1">
@@ -609,6 +640,64 @@ export default function RequestsPage() {
               </p>
             ) : null}
           </div>
+
+          {/* Receipt upload / update */}
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            {!editingReceipt ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-600">
+                  {selectedRequest.receipt ? 'Update the attached receipt.' : 'No receipt attached yet.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditingReceipt(true)}
+                  className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                >
+                  {selectedRequest.receipt ? 'Replace Receipt' : 'Upload Receipt'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-700">Upload a receipt (image or PDF, max 5 MB)</p>
+                <input
+                  key={editReceiptKey}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) { setEditReceiptDataUrl(''); return; }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError('Receipt file must be under 5 MB.');
+                      e.target.value = '';
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => setEditReceiptDataUrl(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm file:mr-3 file:rounded-xl file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700 hover:file:bg-sky-100"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingReceipt || !editReceiptDataUrl}
+                    onClick={() => handleSaveReceipt(selectedRequest.id)}
+                    className="rounded-xl bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+                  >
+                    {savingReceipt ? 'Saving…' : 'Save Receipt'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingReceipt(false); setEditReceiptDataUrl(''); setEditReceiptKey((k) => k + 1); }}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {user?.role === 'super_admin' && (
             <div className="mt-4 flex justify-end">
               {deleteConfirm ? (

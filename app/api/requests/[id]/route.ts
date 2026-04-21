@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createNotification, deleteRequest, getUserById, performRequestAction } from '@/lib/db';
+import { createNotification, deleteRequest, getRequestById, getUserById, performRequestAction, updateRequestReceipt } from '@/lib/db';
 import { sendRequestDecisionEmail } from '@/lib/notificationEmail';
 
 export const dynamic = 'force-dynamic';
@@ -80,4 +80,30 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   }
   await deleteRequest(requestId);
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const session = (await getServerSession(authOptions)) as any;
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
+
+  const requestId = Number(params.id);
+  if (!requestId) {
+    return NextResponse.json({ error: 'Invalid request ID.' }, { status: 400 });
+  }
+
+  const body = await request.json();
+  const { receipt } = body as { receipt?: string | null };
+
+  if (receipt !== undefined && typeof receipt !== 'string' && receipt !== null) {
+    return NextResponse.json({ error: 'Invalid receipt data.' }, { status: 400 });
+  }
+
+  if (receipt !== undefined) {
+    await updateRequestReceipt(requestId, receipt ?? null);
+  }
+
+  const updated = await getRequestById(requestId);
+  return NextResponse.json({ request: updated });
 }
