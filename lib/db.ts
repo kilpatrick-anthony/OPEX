@@ -85,6 +85,7 @@ export async function ensureSchema() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`;
   await sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   // Ensure Warehouse store exists
   await sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`;
 }
@@ -369,6 +370,27 @@ export async function updateUserBudget(userId: number, budget: number) {
   await ensureSchemaOnce();
   const sql = getSql();
   await sql`UPDATE users SET budget = ${budget} WHERE id = ${userId}`;
+}
+
+export async function createPasswordResetToken(userId: number, token: string, expiresAt: Date) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  // Remove any existing tokens for this user first
+  await sql`DELETE FROM password_reset_tokens WHERE userId = ${userId}`;
+  await sql`INSERT INTO password_reset_tokens (userId, token, expiresAt) VALUES (${userId}, ${token}, ${expiresAt.toISOString()})`;
+}
+
+export async function getPasswordResetToken(token: string) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`SELECT id, userid as "userId", token, expiresat as "expiresAt" FROM password_reset_tokens WHERE token = ${token} LIMIT 1`;
+  return result[0] as { id: number; userId: number; token: string; expiresAt: Date } | undefined;
+}
+
+export async function deletePasswordResetToken(token: string) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`DELETE FROM password_reset_tokens WHERE token = ${token}`;
 }
 
 export async function getStoreRemainingBudget(storeId: number) {
