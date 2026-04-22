@@ -65,19 +65,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
+      <div className="w-full max-w-4xl">
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="px-8 pt-10 pb-6">
-        <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-lg">OAKBERRY</h1>
-        <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
-      </div>
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <div className="mb-10 text-center">
+          <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-lg">OAKBERRY</h1>
+          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
+        </div>
 
-      {/* ── Two-column layout ───────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col lg:flex-row gap-8 px-8 pb-12 items-center lg:items-start justify-center">
+        {/* ── Two-column layout ────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
 
-        {/* LEFT — tool tiles stacked vertically */}
-        <div className="flex flex-col gap-4 w-full lg:w-72 shrink-0">
+          {/* LEFT — tool tiles stacked vertically */}
+          <div className="flex flex-col gap-3 w-full lg:w-80 shrink-0">
 
           {/* OPEX — active */}
           <div className="flex items-center gap-4 rounded-2xl px-5 py-4 transition-all cursor-default"
@@ -157,9 +158,9 @@ export default function LoginPage() {
 
         </div>
 
-        {/* RIGHT — login card */}
-        <div className="flex-1 flex lg:justify-center">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
+          {/* RIGHT — login card */}
+          <div className="flex-1">
+            <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ background: 'linear-gradient(135deg, #4a1f60, #6d2f8e)' }}>
@@ -232,9 +233,10 @@ export default function LoginPage() {
                 {submitting ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );
