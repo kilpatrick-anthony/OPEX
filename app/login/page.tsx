@@ -76,7 +76,7 @@ export default function LoginPage() {
 
         {/* ── Two-column layout ────────────────────────────────────────── */}
         {/* Login card is first in DOM → appears on top on mobile; order classes swap on desktop */}
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-8">
 
           {/* LOGIN CARD — first in DOM (top on mobile), right column on desktop */}
           <div className="order-first lg:order-last flex-1 rounded-3xl bg-white p-6 sm:p-8 shadow-2xl flex flex-col justify-center">
