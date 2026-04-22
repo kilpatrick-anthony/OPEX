@@ -74,7 +74,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Two-column layout ───────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col lg:flex-row gap-8 px-8 pb-12 items-start">
+      <div className="flex flex-1 flex-col lg:flex-row gap-8 px-8 pb-12 items-center lg:items-start justify-center">
 
         {/* LEFT — tool tiles stacked vertically */}
         <div className="flex flex-col gap-4 w-full lg:w-72 shrink-0">
@@ -158,8 +158,8 @@ export default function LoginPage() {
         </div>
 
         {/* RIGHT — login card */}
-        <div className="w-full lg:max-w-md">
-          <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
+        <div className="flex-1 flex lg:justify-center">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ background: 'linear-gradient(135deg, #4a1f60, #6d2f8e)' }}>
