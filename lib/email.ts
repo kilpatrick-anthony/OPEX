@@ -46,7 +46,7 @@ function buildRequestEmailHtml(request: RequestRecord): string {
 
           <!-- Header -->
           <tr>
-            <td style="background:#0ea5e9;padding:28px 36px;">
+            <td style="background:#6d2f8e;padding:28px 36px;">
               <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">OAKBERRY Ireland</p>
               <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">New OPEX Request</h1>
             </td>
@@ -60,11 +60,11 @@ function buildRequestEmailHtml(request: RequestRecord): string {
               </p>
 
               <!-- Amount highlight -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f0ff;border:1px solid #d8b4fe;border-radius:10px;margin-bottom:24px;">
                 <tr>
                   <td style="padding:20px 24px;">
-                    <p style="margin:0;color:#0369a1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Amount Requested</p>
-                    <p style="margin:6px 0 0;color:#0c4a6e;font-size:32px;font-weight:700;">${formatCurrencyEur(request.amount)}</p>
+                    <p style="margin:0;color:#6d2f8e;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Amount Requested</p>
+                    <p style="margin:6px 0 0;color:#3a1750;font-size:32px;font-weight:700;">${formatCurrencyEur(request.amount)}</p>
                   </td>
                 </tr>
               </table>
@@ -92,7 +92,7 @@ function buildRequestEmailHtml(request: RequestRecord): string {
                 <tr>
                   <td align="center">
                     <a href="${approvalUrl}"
-                       style="display:inline-block;background:#0ea5e9;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:8px;">
+                       style="display:inline-block;background:#6d2f8e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:8px;">
                       Review &amp; Approve →
                     </a>
                   </td>

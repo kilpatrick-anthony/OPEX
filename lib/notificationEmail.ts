@@ -46,7 +46,7 @@ export async function sendRequestDecisionEmail(data: {
         <li><strong>Amount:</strong> ${amount}</li>
       </ul>
       ${note}
-      <p><a href="${requestUrl}" style="display: inline-block; background: #0ea5e9; color: #fff; padding: 10px 14px; border-radius: 8px; text-decoration: none;">Open Requests</a></p>
+      <p><a href="${requestUrl}" style="display: inline-block; background: #6d2f8e; color: #fff; padding: 10px 14px; border-radius: 8px; text-decoration: none;">Open Requests</a></p>
       <p style="color: #64748b; font-size: 13px;">OAKBERRY OPEX Portal</p>
     </div>
   `;
