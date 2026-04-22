@@ -70,8 +70,8 @@ export default function LoginPage() {
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-lg">OAKBERRY</h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
+          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 w-auto drop-shadow-lg" />
+          <p className="mt-3 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
         </div>
 
         {/* ── Two-column layout ────────────────────────────────────────── */}
