@@ -66,11 +66,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-lg md:max-w-xl">
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="mb-5 text-center">
-          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-20 w-auto drop-shadow-lg" />
+          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 md:h-20 w-auto drop-shadow-lg" />
           <p className="mt-3 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
         </div>
 
