@@ -159,8 +159,7 @@ export default function LoginPage() {
         </div>
 
           {/* RIGHT — login card */}
-          <div className="flex-1 flex">
-            <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl w-full flex flex-col justify-center">
+          <div className="flex-1 rounded-3xl bg-white p-6 sm:p-8 shadow-2xl flex flex-col justify-center">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ background: 'linear-gradient(135deg, #4a1f60, #6d2f8e)' }}>
@@ -233,7 +232,6 @@ export default function LoginPage() {
                 {submitting ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
-            </div>
           </div>
 
         </div>
