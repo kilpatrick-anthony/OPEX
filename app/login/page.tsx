@@ -70,7 +70,7 @@ export default function LoginPage() {
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="mb-5 text-center">
-          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 w-auto drop-shadow-lg" />
+          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-20 w-auto drop-shadow-lg" />
           <p className="mt-3 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Internal Tools Portal</p>
         </div>
 
