@@ -25,6 +25,7 @@ type ApprovalRequest = {
   storeRemainingBudget: number;
   status: RequestStatus;
   queryComment?: string;
+  actionedByName?: string | null;
 };
 
 const STATUS_STYLES: Record<RequestStatus, string> = {
@@ -376,9 +377,9 @@ export default function ApprovalPage() {
           <div className="space-y-4">
             <Card title="Approval guidance" description="Director approval controls and policy." className="space-y-4">
               <ul className="space-y-3 text-sm text-slate-600">
-                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-sky-500" /><span><strong>Approve</strong> authorises spend against the store budget.</span></li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-rose-500" /><span><strong>Reject</strong> blocks the request.</span></li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 h-2 w-2 flex-none rounded-full bg-amber-500" /><span><strong>Query</strong> requests more detail from the requester.</span></li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 flex-none rounded-full bg-emerald-500" /><span><strong>Approve</strong> authorises spend against the store budget.</span></li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 flex-none rounded-full bg-rose-500" /><span><strong>Reject</strong> blocks the request.</span></li>
+                <li className="flex items-center gap-2"><span className="h-2 w-2 flex-none rounded-full bg-sky-500" /><span><strong>Query</strong> requests more detail from the requester.</span></li>
               </ul>
             </Card>
 
@@ -466,6 +467,12 @@ export default function ApprovalPage() {
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Remaining store budget</p>
                 <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(viewRequest.storeRemainingBudget)}</p>
               </div>
+              {(viewRequest.status === 'approved' || viewRequest.status === 'rejected') && viewRequest.actionedByName ? (
+                <div className="col-span-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{viewRequest.status === 'approved' ? 'Approved by' : 'Rejected by'}</p>
+                  <p className="mt-0.5 text-slate-800">{viewRequest.actionedByName}</p>
+                </div>
+              ) : null}
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>

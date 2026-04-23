@@ -40,6 +40,7 @@ export type RequestRecord = {
   status: 'pending' | 'approved' | 'rejected' | 'queried';
   queryComment?: string;
   actionComment?: string;
+  actionedByName?: string | null;
   submitterName?: string | null;
   submitterJobRole?: string | null;
   updatedAt: string;
@@ -201,6 +202,12 @@ export async function markAllNotificationsRead(userId: number) {
   await sql`UPDATE notifications SET isRead = true WHERE userId = ${userId} AND isRead = false`;
 }
 
+export async function markNotificationRead(userId: number, notificationId: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE notifications SET isRead = true WHERE id = ${notificationId} AND userId = ${userId}`;
+}
+
 export async function insertRequest(data: {
   storeId: number;
   userId: number;
@@ -243,10 +250,15 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   const category = filters.category ?? null;
 
   const result = await sql.query(
-    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole"
+    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole",
+            au.name as "actionedByName"
      FROM requests r
      JOIN stores s ON r.storeid = s.id
      JOIN users u ON r.userid = u.id
+     LEFT JOIN LATERAL (
+       SELECT ap.userid FROM approvals ap WHERE ap.requestid = r.id AND ap.action IN ('approved','rejected') ORDER BY ap.createdat DESC LIMIT 1
+     ) latest_ap ON true
+     LEFT JOIN users au ON au.id = latest_ap.userid
      WHERE ($1 = false OR r.storeid = $2)
        AND ($3::int IS NULL OR r.storeid = $3)
        AND ($4::text IS NULL OR r.status = $4)

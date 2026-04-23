@@ -37,8 +37,12 @@ export function Navbar() {
       setUnreadCount(0);
     }
 
+    const handleNotificationsUpdated = () => { loadUnread(); };
+    window.addEventListener('notificationsUpdated', handleNotificationsUpdated);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('notificationsUpdated', handleNotificationsUpdated);
     };
   }, [user, pathname]);
 

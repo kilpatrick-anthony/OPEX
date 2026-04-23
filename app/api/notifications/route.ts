@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getNotificationsByUser, getUnreadNotificationCount, markAllNotificationsRead } from '@/lib/db';
+import { getNotificationsByUser, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +30,12 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
+
+  if (body?.action === 'mark-read' && body?.notificationId) {
+    await markNotificationRead(Number(session.user.id), Number(body.notificationId));
+    return NextResponse.json({ ok: true });
+  }
+
   if (body?.action !== 'mark-all-read') {
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }

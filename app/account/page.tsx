@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog } from '@/components/ui/dialog';
 import { useCurrentUser } from '@/lib/userContext';
 import { getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ export default function AccountPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [openNotification, setOpenNotification] = useState<Notification | null>(null);
 
   async function loadNotifications() {
     setLoadingNotifications(true);
@@ -74,8 +75,29 @@ export default function AccountPage() {
         throw new Error(getApiErrorMessage(response, payload, 'Failed to mark notifications as read'));
       }
       await loadNotifications();
+      window.dispatchEvent(new Event('notificationsUpdated'));
     } catch {
       // Ignore and keep existing list rendered.
+    }
+  }
+
+  async function handleOpenNotification(notification: Notification) {
+    setOpenNotification(notification);
+    if (!notification.isRead) {
+      try {
+        await fetch('/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'mark-read', notificationId: notification.id }),
+        });
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n)),
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new Event('notificationsUpdated'));
+      } catch {
+        // Non-critical — notification still opens.
+      }
     }
   }
 
@@ -132,10 +154,11 @@ export default function AccountPage() {
 
             <div className="space-y-3">
               {notifications.map((notification) => (
-                <Link
+                <button
                   key={notification.id}
-                  href={`/requests?open=${notification.requestId}`}
-                  className={`block rounded-xl border px-4 py-3 transition-shadow hover:shadow-sm ${
+                  type="button"
+                  onClick={() => handleOpenNotification(notification)}
+                  className={`block w-full text-left rounded-xl border px-4 py-3 transition-shadow hover:shadow-sm ${
                     notification.isRead ? 'border-slate-200 bg-white' : 'border-sky-200 bg-sky-50/40'
                   }`}
                 >
@@ -144,7 +167,7 @@ export default function AccountPage() {
                     <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(notification.createdAt).toLocaleString('en-IE')}</span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
-                </Link>
+                </button>
               ))}
               {!loadingNotifications && notifications.length === 0 ? (
                 <p className="text-sm text-slate-500">No notifications yet.</p>
@@ -201,6 +224,22 @@ export default function AccountPage() {
 
         </div>
       </main>
+
+      {openNotification && (
+        <Dialog
+          open={!!openNotification}
+          title={openNotification.title}
+          onClose={() => setOpenNotification(null)}
+        >
+          <div className="space-y-4 text-sm">
+            <p className="text-slate-700">{openNotification.message}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">{new Date(openNotification.createdAt).toLocaleString('en-IE')}</span>
+              <Button variant="secondary" type="button" onClick={() => setOpenNotification(null)}>Close</Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

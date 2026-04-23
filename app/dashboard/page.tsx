@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('month');
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingPipeline, setPendingPipeline] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -71,7 +72,9 @@ export default function DashboardPage() {
       }
 
       setDashboard(dashboardPayload as DashboardResponse);
-      setPendingCount(Array.isArray((pendingPayload as any)?.requests) ? (pendingPayload as any).requests.length : 0);
+      const pendingRequests: Array<{ amount: number }> = Array.isArray((pendingPayload as any)?.requests) ? (pendingPayload as any).requests : [];
+      setPendingCount(pendingRequests.length);
+      setPendingPipeline(pendingRequests.reduce((sum, r) => sum + r.amount, 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -182,15 +185,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Remaining budget</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-emerald-600">{formatCurrency(dashboard.remainingBudget)}</p>
-            <p className="mt-2 text-sm text-slate-500">Available to allocate</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Pending pipeline</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{formatCurrency(pendingPipeline)}</p>
+            <p className="mt-2 text-sm text-slate-500">{pendingCount} request{pendingCount !== 1 ? 's' : ''} awaiting approval</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Active stores</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{dashboard.byStore.length}</p>
-            <p className="mt-2 text-sm text-slate-500">Stores with tracked budgets</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Projected period end</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent + pendingPipeline)}</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {period === 'month' ? 'If all pending approved this month' : period === 'last-month' ? 'If all pending approved last month' : 'If all pending approved this quarter'}
+            </p>
           </div>
 
           {canOpenApprovals ? (
