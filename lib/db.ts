@@ -33,6 +33,7 @@ export type RequestRecord = {
   userId: number;
   requesterName: string;
   requesterRole?: string;
+  requesterTitle?: string | null;
   category: string;
   amount: number;
   description: string;
@@ -250,7 +251,7 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   const category = filters.category ?? null;
 
   const result = await sql.query(
-    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole",
+    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole", u.title as "requesterTitle",
             au.name as "actionedByName"
      FROM requests r
      JOIN stores s ON r.storeid = s.id

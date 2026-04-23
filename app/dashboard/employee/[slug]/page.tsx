@@ -36,7 +36,7 @@ type FieldUser  = { id: number; name: string; title: string | null; budget: numb
 type RequestRow = {
   id: number; amount: number; status: string; category: string;
   description: string; storeName: string; requesterName: string;
-  requesterRole: string; createdAt: string;
+  requesterRole: string; requesterTitle?: string | null; createdAt: string;
 };
 
 function inPeriod(date: Date, period: Period) {

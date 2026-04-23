@@ -36,7 +36,7 @@ type StoreRecord = { id: number; name: string; budget: number };
 type RequestRow = {
   id: number; amount: number; status: string; category: string;
   description: string; storeName: string; requesterName: string;
-  requesterRole: string; createdAt: string;
+  requesterRole: string; requesterTitle?: string | null; createdAt: string;
 };
 
 function inPeriod(date: Date, period: Period) {
@@ -361,7 +361,7 @@ export default function StoreDetailPage() {
                         <TableCell>
                           <div>
                             <p className="font-medium text-slate-800">{req.requesterName}</p>
-                            <p className="text-xs text-slate-400">{req.requesterRole}</p>
+                            <p className="text-xs text-slate-400">{req.requesterTitle || req.requesterRole}</p>
                           </div>
                         </TableCell>
                         <TableCell><span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{req.category}</span></TableCell>

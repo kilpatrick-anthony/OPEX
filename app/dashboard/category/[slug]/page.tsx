@@ -61,7 +61,7 @@ const SLUG_TO_CAT = Object.fromEntries(REQUEST_CATEGORIES.map((c) => [slugify(c)
 type RequestRow = {
   id: number; amount: number; status: string; category: string;
   description: string; storeName: string; requesterName: string;
-  requesterRole: string; createdAt: string;
+  requesterRole: string; requesterTitle?: string | null; createdAt: string;
 };
 
 function inPeriod(date: Date, period: Period) {
@@ -463,7 +463,7 @@ export default function CategoryDetailPage() {
                           {new Date(req.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
                         </TableCell>
                         <TableCell className="font-medium text-slate-800">{req.requesterName}</TableCell>
-                        <TableCell className="text-sm text-slate-500">{req.requesterRole}</TableCell>
+                        <TableCell className="text-sm text-slate-500">{req.requesterTitle || req.requesterRole}</TableCell>
                         <TableCell className="max-w-xs text-sm text-slate-600">{req.description}</TableCell>
                         <TableCell className="font-semibold text-slate-900 whitespace-nowrap">{formatCurrency(req.amount)}</TableCell>
                         <TableCell>
