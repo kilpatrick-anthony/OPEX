@@ -184,20 +184,6 @@ export default function DashboardPage() {
             <p className="mt-2 text-xs text-slate-500">{Math.round(gaugeValue)}% utilised</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Pending pipeline</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{formatCurrency(pendingPipeline)}</p>
-            <p className="mt-2 text-sm text-slate-500">{pendingCount} request{pendingCount !== 1 ? 's' : ''} awaiting approval</p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Projected period end</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent + pendingPipeline)}</p>
-            <p className="mt-2 text-sm text-slate-500">
-              {period === 'month' ? 'If all pending approved this month' : period === 'last-month' ? 'If all pending approved last month' : 'If all pending approved this quarter'}
-            </p>
-          </div>
-
           {canOpenApprovals ? (
             <Link
               href="/approval"
@@ -214,6 +200,20 @@ export default function DashboardPage() {
               <p className="mt-2 text-sm text-slate-500">Awaiting director sign-off</p>
             </div>
           )}
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+            <p className="text-xs uppercase tracking-widest text-slate-500">Pending pipeline</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{formatCurrency(pendingPipeline)}</p>
+            <p className="mt-2 text-sm text-slate-500">{pendingCount} request{pendingCount !== 1 ? 's' : ''} awaiting approval</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+            <p className="text-xs uppercase tracking-widest text-slate-500">Projected period end</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent + pendingPipeline)}</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {period === 'month' ? 'If all pending approved this month' : period === 'last-month' ? 'If all pending approved last month' : 'If all pending approved this quarter'}
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
