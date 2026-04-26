@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { insertRequest, queryRequests, getStoreRemainingBudget, getStores, getDirectorEmails } from '@/lib/db';
+import { insertRequest, queryRequests, getStoreRemainingBudget, getStores, getDirectorEmails, getAllStoreRemainingBudgets } from '@/lib/db';
 import { REQUEST_CATEGORIES } from '@/lib/categories';
 import { sendNewRequestEmail } from '@/lib/email';
 
@@ -50,17 +50,15 @@ export async function GET(request: Request) {
     };
     const requests = await queryRequests(filters);
     const stores = await getStores();
-    const requestsWithBudget = await Promise.all(
-      requests.map(async (request) => {
-        const store = stores.find((item) => item.id === request.storeId);
-        const remaining = store ? await getStoreRemainingBudget(store.id) : 0;
-        return {
-          ...request,
-          storeBudget: store?.budget || 0,
-          storeRemainingBudget: remaining,
-        };
-      }),
-    );
+    const remainingBudgets = await getAllStoreRemainingBudgets(stores);
+    const requestsWithBudget = requests.map((request) => {
+      const store = stores.find((item) => item.id === request.storeId);
+      return {
+        ...request,
+        storeBudget: store?.budget || 0,
+        storeRemainingBudget: remainingBudgets.get(request.storeId) ?? 0,
+      };
+    });
 
     return NextResponse.json({ requests: requestsWithBudget });
   } catch (error) {

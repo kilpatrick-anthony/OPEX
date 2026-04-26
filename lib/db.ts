@@ -416,6 +416,28 @@ export async function getStoreRemainingBudget(storeId: number) {
   return Math.max(storeBudget - totalSpent, 0);
 }
 
+/**
+ * Returns a map of storeId -> remaining budget for all stores in a single query,
+ * avoiding N+1 database calls when enriching a list of requests.
+ */
+export async function getAllStoreRemainingBudgets(stores: Store[]): Promise<Map<number, number>> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const spent = await sql`
+    SELECT storeid as "storeId", COALESCE(SUM(amount), 0) as total
+    FROM requests
+    WHERE status = 'approved'
+      AND DATE_TRUNC('month', createdat) = DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY storeid
+  `;
+  const spentMap = new Map<number, number>(spent.map((r: any) => [Number(r.storeId), Number(r.total)]));
+  const result = new Map<number, number>();
+  for (const store of stores) {
+    result.set(store.id, Math.max(store.budget - (spentMap.get(store.id) ?? 0), 0));
+  }
+  return result;
+}
+
 export async function performRequestAction(requestId: number, userId: number, action: 'approved' | 'rejected' | 'queried', comment?: string) {
   await ensureSchemaOnce();
   const sql = getSql();
