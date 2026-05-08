@@ -355,7 +355,7 @@ export async function updateRequestReimbursable(requestId: number, reimbursable:
   await sql`UPDATE requests SET reimbursable = ${reimbursable}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
 }
 
-
+export type AuditEntry = {
   id: number;
   action: string;
   comment: string | null;

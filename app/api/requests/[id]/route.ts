@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   return NextResponse.json({ request: record });
 }
 
-
+export async function POST(request: Request, { params }: { params: { id: string } }) {
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
