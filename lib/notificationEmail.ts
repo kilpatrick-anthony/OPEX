@@ -79,3 +79,87 @@ export async function sendRequestDecisionEmail(data: {
     }),
   });
 }
+
+export async function sendReceiptToAccountant(data: {
+  requestId: number;
+  storeName: string;
+  category: string;
+  amount: number;
+  requesterName: string;
+  approvedAt: string;
+  receiptDataUrl: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  const accountantEmail = process.env.ACCOUNTANT_EMAIL;
+
+  if (!apiKey || !from || !accountantEmail) return;
+
+  const accountantRecipients = accountantEmail.split(',').map((e) => e.trim()).filter(Boolean);
+
+  // Parse the data URL: "data:<mime>;base64,<data>"
+  const match = data.receiptDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+  if (!match) return;
+  const [, mime, base64Content] = match;
+
+  // Derive a sensible file extension
+  const extMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'application/pdf': 'pdf',
+  };
+  const ext = extMap[mime] ?? 'bin';
+  const filename = `receipt-${data.requestId}.${ext}`;
+
+  const amount = new Intl.NumberFormat('en-IE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  }).format(data.amount);
+
+  const approvedDate = new Date(data.approvedAt).toLocaleString('en-IE', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  const subject = `OPEX Receipt – Request #${data.requestId} | ${data.storeName} | ${amount}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
+      <p>Hi,</p>
+      <p>An OPEX expense has been approved. The receipt is attached to this email.</p>
+      <table style="border-collapse: collapse; width: 100%; max-width: 480px;">
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Request ID</td><td style="padding: 6px 0; font-weight: 600;">#${data.requestId}</td></tr>
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Store</td><td style="padding: 6px 0; font-weight: 600;">${data.storeName}</td></tr>
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Category</td><td style="padding: 6px 0; font-weight: 600;">${data.category}</td></tr>
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Amount</td><td style="padding: 6px 0; font-weight: 600;">${amount}</td></tr>
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Submitted by</td><td style="padding: 6px 0; font-weight: 600;">${data.requesterName}</td></tr>
+        <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Approved on</td><td style="padding: 6px 0; font-weight: 600;">${approvedDate}</td></tr>
+      </table>
+      <p style="color: #64748b; font-size: 13px; margin-top: 24px;">OAKBERRY OPEX Portal</p>
+    </div>
+  `;
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: accountantRecipients,
+      subject,
+      html,
+      attachments: [
+        {
+          filename,
+          content: base64Content,
+        },
+      ],
+    }),
+  });
+}
+

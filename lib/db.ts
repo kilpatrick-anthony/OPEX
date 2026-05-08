@@ -53,6 +53,7 @@ export type RequestRecord = {
   actionedByName?: string | null;
   submitterName?: string | null;
   submitterJobRole?: string | null;
+  reimbursable: boolean;
   updatedAt: string;
   createdAt: string;
 };
@@ -81,6 +82,25 @@ const REQUEST_SELECT = `
   r.actioncomment as "actionComment",
   r.submittername as "submitterName",
   r.submitterjobrole as "submitterJobRole",
+  COALESCE(r.reimbursable, true) as "reimbursable",
+  r.updatedat as "updatedAt",
+  r.createdat as "createdAt"
+`;
+
+// Excludes the receipt column to keep list queries small (receipts are base64 images)
+const REQUEST_SELECT_LIST = `
+  r.id,
+  r.storeid as "storeId",
+  r.userid as "userId",
+  r.category,
+  r.amount,
+  r.description,
+  r.status,
+  r.querycomment as "queryComment",
+  r.actioncomment as "actionComment",
+  r.submittername as "submitterName",
+  r.submitterjobrole as "submitterJobRole",
+  COALESCE(r.reimbursable, true) as "reimbursable",
   r.updatedat as "updatedAt",
   r.createdat as "createdAt"
 `;
@@ -100,13 +120,17 @@ export async function ensureSchema() {
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
+    sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
     sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`,
   ]);
 }
 
 async function ensureSchemaOnce() {
   if (!schemaReady) {
-    schemaReady = ensureSchema();
+    schemaReady = ensureSchema().catch((err) => {
+      schemaReady = null; // allow retry on next request
+      throw err;
+    });
   }
   await schemaReady;
 }
@@ -263,7 +287,7 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   const category = filters.category ?? null;
 
   const result = await sql.query(
-    `SELECT ${REQUEST_SELECT}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole", u.title as "requesterTitle",
+    `SELECT ${REQUEST_SELECT_LIST}, s.name as "storeName", u.name as "requesterName", u.role as "requesterRole", u.title as "requesterTitle",
             au.name as "actionedByName"
      FROM requests r
      JOIN stores s ON r.storeid = s.id
@@ -325,7 +349,13 @@ export async function updateRequestReceipt(requestId: number, receipt: string | 
   await sql`UPDATE requests SET receipt = ${receipt}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
 }
 
-export type AuditEntry = {
+export async function updateRequestReimbursable(requestId: number, reimbursable: boolean) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE requests SET reimbursable = ${reimbursable}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
+}
+
+
   id: number;
   action: string;
   comment: string | null;

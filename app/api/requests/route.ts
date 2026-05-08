@@ -62,8 +62,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ requests: requestsWithBudget });
   } catch (error) {
-    console.error('Requests API error:', error);
-    return NextResponse.json({ error: 'Failed to load requests.' }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Requests API error:', message, error);
+    return NextResponse.json({ error: 'Failed to load requests.', detail: message }, { status: 500 });
   }
 }
 

@@ -1,12 +1,41 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createNotification, deleteRequest, getRequestById, getUserById, performRequestAction, updateRequestReceipt } from '@/lib/db';
-import { sendRequestDecisionEmail } from '@/lib/notificationEmail';
+import { createNotification, deleteRequest, getRequestById, getUserById, performRequestAction, updateRequestReceipt, updateRequestReimbursable } from '@/lib/db';
+import { sendRequestDecisionEmail, sendReceiptToAccountant } from '@/lib/notificationEmail';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const session = (await getServerSession(authOptions)) as any;
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
+
+  const requestId = Number(params.id);
+  if (!requestId) {
+    return NextResponse.json({ error: 'Invalid request ID.' }, { status: 400 });
+  }
+
+  const record = await getRequestById(requestId);
+  if (!record) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
+  // Employees may only view their own requests
+  const role = session.user.role as string;
+  if (role === 'employee' && record.userId !== Number(session.user.id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  // Managers may only view requests from their store
+  if (role === 'manager' && record.storeId !== Number(session.user.storeId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  return NextResponse.json({ request: record });
+}
+
+
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
@@ -61,6 +90,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
         comment,
       });
     }
+
+    // Forward the receipt to the accountant when a request is approved
+    if (action === 'approved' && requestRecord.receipt) {
+      await sendReceiptToAccountant({
+        requestId: requestRecord.id,
+        storeName: requestRecord.storeName,
+        category: requestRecord.category,
+        amount: Number(requestRecord.amount),
+        requesterName: requestRecord.requesterName ?? requestRecord.submitterName ?? 'Unknown',
+        approvedAt: new Date().toISOString(),
+        receiptDataUrl: requestRecord.receipt,
+      });
+    }
   }
 
   return NextResponse.json({ request: requestRecord });
@@ -94,14 +136,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const body = await request.json();
-  const { receipt } = body as { receipt?: string | null };
+  const { receipt, reimbursable } = body as { receipt?: string | null; reimbursable?: boolean };
 
   if (receipt !== undefined && typeof receipt !== 'string' && receipt !== null) {
     return NextResponse.json({ error: 'Invalid receipt data.' }, { status: 400 });
   }
+  if (reimbursable !== undefined && typeof reimbursable !== 'boolean') {
+    return NextResponse.json({ error: 'Invalid reimbursable value.' }, { status: 400 });
+  }
+  // Only directors and super_admins may change the reimbursable flag
+  if (reimbursable !== undefined && !['director', 'super_admin'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   if (receipt !== undefined) {
     await updateRequestReceipt(requestId, receipt ?? null);
+  }
+  if (reimbursable !== undefined) {
+    await updateRequestReimbursable(requestId, reimbursable);
   }
 
   const updated = await getRequestById(requestId);

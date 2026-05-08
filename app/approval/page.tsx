@@ -26,6 +26,7 @@ type ApprovalRequest = {
   status: RequestStatus;
   queryComment?: string;
   actionedByName?: string | null;
+  reimbursable?: boolean;
 };
 
 const STATUS_STYLES: Record<RequestStatus, string> = {
@@ -45,6 +46,7 @@ export default function ApprovalPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [viewRequest, setViewRequest] = useState<ApprovalRequest | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ request: ApprovalRequest; action: 'approved' | 'rejected' } | null>(null);
+  const [confirmReimbursable, setConfirmReimbursable] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,6 +114,20 @@ export default function ApprovalPage() {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
+  async function openRequest(req: ApprovalRequest) {
+    setViewRequest(req);
+    try {
+      const res = await fetch(`/api/requests/${req.id}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = (await readJsonSafely(res)) as { request?: ApprovalRequest } | null;
+        if (data?.request) setViewRequest(data.request);
+      }
+    } catch {
+      // Non-critical: dialog is already open with list data
+    }
+  }
+
+
   const actionableInView = displayedRequests.filter((request) => request.status === 'pending' || request.status === 'queried');
   const allViewSelected = actionableInView.length > 0 && actionableInView.every((request) => selected.has(request.id));
 
@@ -158,11 +174,18 @@ export default function ApprovalPage() {
     if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to apply action'));
   }
 
-  async function handleAction(id: number, action: 'approved' | 'rejected') {
+  async function handleAction(id: number, action: 'approved' | 'rejected', reimbursable = true) {
     setError('');
     setConfirmAction(null);
     try {
       await performAction(id, action);
+      if (action === 'approved' && !reimbursable) {
+        await fetch(`/api/requests/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reimbursable: false }),
+        });
+      }
       await loadRequests();
       setSelected((prev) => {
         const next = new Set(prev);
@@ -350,17 +373,17 @@ export default function ApprovalPage() {
                           <TableCell className="py-3">
                             {isActionable ? (
                               <div className="flex flex-col gap-1.5">
-                                <button type="button" onClick={() => setConfirmAction({ request, action: 'approved' })} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
-                                <button type="button" onClick={() => setConfirmAction({ request, action: 'rejected' })} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
+                                <button type="button" onClick={() => { setConfirmReimbursable(true); setConfirmAction({ request, action: 'approved' }); }} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
+                                <button type="button" onClick={() => { setConfirmReimbursable(true); setConfirmAction({ request, action: 'rejected' }); }} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
                                 {request.status === 'pending' ? (
                                   <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
                                 ) : null}
-                                <button type="button" onClick={() => setViewRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
+                                <button type="button" onClick={() => openRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
                               </div>
                             ) : (
                               <div className="flex flex-col gap-1.5">
                                 <span className="text-xs text-slate-400 capitalize">— {request.status}</span>
-                                <button type="button" onClick={() => setViewRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
+                                <button type="button" onClick={() => openRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
                               </div>
                             )}
                           </TableCell>
@@ -414,11 +437,28 @@ export default function ApprovalPage() {
               <p><span className="font-medium">Category:</span> {confirmAction.request.category}</p>
               <p><span className="font-medium">Amount:</span> {formatCurrency(confirmAction.request.amount)}</p>
             </div>
+            {confirmAction.action === 'approved' && (
+              <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Include in payroll reimbursement</p>
+                  <p className="text-xs text-slate-500">Uncheck if paid via fuel card or another method.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={confirmReimbursable}
+                  onClick={() => setConfirmReimbursable((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${confirmReimbursable ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${confirmReimbursable ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            )}
             <div className="flex justify-end gap-3">
               <Button variant="secondary" type="button" onClick={() => setConfirmAction(null)}>Cancel</Button>
               <Button
                 type="button"
-                onClick={() => handleAction(confirmAction.request.id, confirmAction.action)}
+                onClick={() => handleAction(confirmAction.request.id, confirmAction.action, confirmReimbursable)}
                 className={confirmAction.action === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}
               >
                 {confirmAction.action === 'approved' ? 'Yes, approve' : 'Yes, reject'}
@@ -474,6 +514,39 @@ export default function ApprovalPage() {
                 </div>
               ) : null}
             </div>
+            {/* Reimbursable toggle — only shown for approved requests */}
+            {viewRequest.status === 'approved' && (
+              <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Include in payroll reimbursement</p>
+                  <p className="text-xs text-slate-500">Uncheck if this expense was paid via fuel card or another method and should not be reimbursed.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={viewRequest.reimbursable !== false}
+                  onClick={async () => {
+                    const next = viewRequest.reimbursable === false ? true : false;
+                    const res = await fetch(`/api/requests/${viewRequest.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ reimbursable: next }),
+                    });
+                    if (res.ok) {
+                      const data = (await readJsonSafely(res)) as { request?: ApprovalRequest } | null;
+                      const updated = data?.request;
+                      if (updated) {
+                        setViewRequest(updated);
+                        setRequests((prev) => prev.map((r) => r.id === updated.id ? { ...r, reimbursable: updated.reimbursable } : r));
+                      }
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${viewRequest.reimbursable !== false ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${viewRequest.reimbursable !== false ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            )}
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>
               <p className="mt-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-slate-700">{viewRequest.description || '—'}</p>

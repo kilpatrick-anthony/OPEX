@@ -229,8 +229,22 @@ export default function RequestsPage() {
     const openId = params.get('open');
     if (!openId) return;
     const found = requests.find((r) => r.id === Number(openId));
-    if (found) setSelectedRequest(found);
+    if (found) openRequest(found);
   }, [requests]);
+
+  async function openRequest(req: RequestRecord) {
+    setSelectedRequest(req);
+    try {
+      const res = await fetch(`/api/requests/${req.id}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = (await readJsonSafely(res)) as { request?: RequestRecord } | null;
+        if (data?.request) setSelectedRequest(data.request);
+      }
+    } catch {
+      // Non-critical: dialog is already open with list data
+    }
+  }
+
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -558,7 +572,7 @@ export default function RequestsPage() {
                         <TableCell>
                           <button
                             type="button"
-                            onClick={() => setSelectedRequest(request)}
+                            onClick={() => openRequest(request)}
                             className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition-colors"
                           >
                             View

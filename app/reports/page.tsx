@@ -33,6 +33,7 @@ type RequestRow = {
   storeName: string;
   requesterName: string;
   createdAt: string;
+  reimbursable?: boolean;
 };
 
 type DashboardPayload = {
@@ -103,6 +104,7 @@ function printPayrollReport(groups: PayrollGroup[], dateFrom: Date, dateTo: Date
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!w) return;
   const dateLabel = `${format(dateFrom, 'd MMM yyyy')} – ${format(dateTo, 'd MMM yyyy')}`;
+  const fmt = (v: number) => new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR'}).format(v);
   const rows = groups.map((g) => `
     <div style="page-break-inside:avoid;margin-bottom:32px">
       <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0ea5e9;padding-bottom:8px;margin-bottom:12px">
@@ -111,11 +113,11 @@ function printPayrollReport(groups: PayrollGroup[], dateFrom: Date, dateTo: Date
           <h2 style="margin:2px 0 0;font-size:18px;color:#0f172a">${g.name}</h2>
         </div>
         <div style="text-align:right">
-          <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Total Approved</span>
-          <p style="margin:2px 0 0;font-size:20px;font-weight:700;color:#10b981">${new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR'}).format(g.total)}</p>
+          <span style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Total for Reimbursement</span>
+          <p style="margin:2px 0 0;font-size:20px;font-weight:700;color:#10b981">${fmt(g.total)}</p>
         </div>
       </div>
-      ${g.approved.length === 0 ? '<p style="color:#94a3b8;font-size:13px">No approved expenses in this period.</p>' : `
+      ${g.reimbursable.length === 0 ? '<p style="color:#94a3b8;font-size:13px">No reimbursable expenses in this period.</p>' : `
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#f8fafc">
           <th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0">Date</th>
@@ -124,18 +126,30 @@ function printPayrollReport(groups: PayrollGroup[], dateFrom: Date, dateTo: Date
           <th style="padding:8px;text-align:right;border-bottom:1px solid #e2e8f0">Amount</th>
         </tr></thead>
         <tbody>
-          ${g.approved.map((r, i) => `<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+          ${g.reimbursable.map((r, i) => `<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
             <td style="padding:8px;border-bottom:1px solid #f1f5f9;white-space:nowrap">${format(new Date(r.createdAt),'d MMM yyyy')}</td>
             <td style="padding:8px;border-bottom:1px solid #f1f5f9">${r.category}</td>
             <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#475569">${r.description}</td>
-            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600">${new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR'}).format(r.amount)}</td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600">${fmt(r.amount)}</td>
           </tr>`).join('')}
           <tr style="background:#f0fdf4;font-weight:700">
-            <td colspan="3" style="padding:8px;border-top:2px solid #10b981">Total</td>
-            <td style="padding:8px;border-top:2px solid #10b981;text-align:right;color:#10b981">${new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR'}).format(g.total)}</td>
+            <td colspan="3" style="padding:8px;border-top:2px solid #10b981">Total for Reimbursement</td>
+            <td style="padding:8px;border-top:2px solid #10b981;text-align:right;color:#10b981">${fmt(g.total)}</td>
           </tr>
         </tbody>
       </table>`}
+      ${g.excluded.length > 0 ? `
+      <p style="margin:16px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8">Excluded from reimbursement (${g.excluded.length} item${g.excluded.length > 1 ? 's' : ''} — paid via card or other method)</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;opacity:0.6">
+        <tbody>
+          ${g.excluded.map((r) => `<tr>
+            <td style="padding:5px 8px;color:#94a3b8;white-space:nowrap">${format(new Date(r.createdAt),'d MMM yyyy')}</td>
+            <td style="padding:5px 8px;color:#94a3b8">${r.category}</td>
+            <td style="padding:5px 8px;color:#94a3b8">${r.description}</td>
+            <td style="padding:5px 8px;color:#94a3b8;text-align:right;text-decoration:line-through">${fmt(r.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
     </div>`).join('');
   w.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${dateLabel}</title>
     <style>*{box-sizing:border-box}body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px;max-width:860px;margin:0 auto}h1{font-size:22px;margin:0}@media print{body{padding:20px}}</style>
@@ -158,6 +172,8 @@ type PayrollGroup = {
   name: string;
   type: 'store' | 'employee';
   approved: RequestRow[];
+  reimbursable: RequestRow[];
+  excluded: RequestRow[];
   total: number;
   color: string;
 };
@@ -255,8 +271,10 @@ export default function ReportsPage() {
         entityRequests = dateFilteredRequests.filter((r) => r.userId === id);
       }
       const approved = entityRequests.filter((r) => r.status === 'approved');
-      const total    = approved.reduce((s, r) => s + r.amount, 0);
-      return { key, name, type: type as 'store' | 'employee', approved, total, color: ENTITY_PALETTE[idx % ENTITY_PALETTE.length] };
+      const reimbursable = approved.filter((r) => r.reimbursable !== false);
+      const excluded = approved.filter((r) => r.reimbursable === false);
+      const total    = reimbursable.reduce((s, r) => s + r.amount, 0);
+      return { key, name, type: type as 'store' | 'employee', approved, reimbursable, excluded, total, color: ENTITY_PALETTE[idx % ENTITY_PALETTE.length] };
     });
   }, [selectedEntityKeys, dateFilteredRequests, stores, fieldUsers]);
 
@@ -589,7 +607,7 @@ export default function ReportsPage() {
                     <p className="text-lg font-bold text-emerald-600">{formatCurrency(g.total)}</p>
                   </div>
                 </div>
-                {g.approved.length === 0 ? (
+                {g.reimbursable.length === 0 && g.excluded.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-slate-400">No approved expenses in this period.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -603,7 +621,7 @@ export default function ReportsPage() {
                         </tr>
                       </TableHeader>
                       <tbody>
-                        {g.approved.map((r) => (
+                        {g.reimbursable.map((r) => (
                           <TableRow key={r.id}>
                             <TableCell className="text-sm text-slate-500 whitespace-nowrap">
                               {format(new Date(r.createdAt), 'd MMM yyyy')}
@@ -615,8 +633,23 @@ export default function ReportsPage() {
                             <TableCell className="text-right font-semibold text-slate-900">{formatCurrency(r.amount)}</TableCell>
                           </TableRow>
                         ))}
+                        {g.excluded.map((r) => (
+                          <TableRow key={r.id} className="opacity-40">
+                            <TableCell className="text-sm text-slate-400 whitespace-nowrap line-through">
+                              {format(new Date(r.createdAt), 'd MMM yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-400 line-through">{r.category}</span>
+                            </TableCell>
+                            <TableCell className="max-w-xs text-sm text-slate-400 line-through">{r.description}</TableCell>
+                            <TableCell className="text-right text-sm text-slate-400 line-through">{formatCurrency(r.amount)}</TableCell>
+                          </TableRow>
+                        ))}
                         <TableRow>
-                          <TableCell colSpan={3} className="font-semibold text-slate-700">Total</TableCell>
+                          <TableCell colSpan={3} className="font-semibold text-slate-700">
+                            Total for reimbursement
+                            {g.excluded.length > 0 && <span className="ml-2 text-xs font-normal text-slate-400">({g.excluded.length} item{g.excluded.length > 1 ? 's' : ''} excluded)</span>}
+                          </TableCell>
                           <TableCell className="text-right font-bold text-emerald-600">{formatCurrency(g.total)}</TableCell>
                         </TableRow>
                       </tbody>
