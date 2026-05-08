@@ -200,7 +200,8 @@ export default function RequestsPage() {
             }
           }
         } else {
-          await loadRequests();
+          // Stores and requests are independent — load in parallel
+          await Promise.all([loadStores(), loadRequests()]);
         }
       } catch (err) {
         if (!cancelled) {

@@ -126,6 +126,9 @@ export async function ensureSchema() {
 }
 
 async function ensureSchemaOnce() {
+  // When SCHEMA_INITIALIZED=true, the DB schema is already up-to-date and we
+  // skip the expensive DDL migration batch on every cold start.
+  if (process.env.SCHEMA_INITIALIZED === 'true') return;
   if (!schemaReady) {
     schemaReady = ensureSchema().catch((err) => {
       schemaReady = null; // allow retry on next request
