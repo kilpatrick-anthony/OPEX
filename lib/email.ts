@@ -137,3 +137,102 @@ export async function sendNewRequestEmail(
     html,
   });
 }
+
+export async function sendWelcomeEmail(user: { name: string; email: string }, temporaryPassword: string): Promise<void> {
+  const transport = getTransport();
+  const from = process.env.SMTP_FROM ?? `OAKBERRY OPEX <${process.env.SMTP_USER}>`;
+  const appUrl = process.env.NEXTAUTH_URL ?? 'https://opex.oakberry.ie';
+  const loginUrl = `${appUrl}/login`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to OAKBERRY OPEX</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#6d2f8e;padding:28px 36px;">
+              <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">OAKBERRY Ireland</p>
+              <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Welcome to the OPEX Portal</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px 36px;">
+              <p style="margin:0 0 20px;color:#1e293b;font-size:16px;font-weight:600;">Hi ${user.name},</p>
+              <p style="margin:0 0 24px;color:#475569;font-size:15px;">
+                Your account has been created on the OAKBERRY Ireland OPEX expense portal.
+                You can use it to submit and track expense requests.
+              </p>
+
+              <!-- Credentials box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f0ff;border:1px solid #d8b4fe;border-radius:10px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 14px;color:#6d2f8e;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Your login details</p>
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;font-weight:600;padding-bottom:8px;padding-right:16px;white-space:nowrap;">Email</td>
+                        <td style="color:#1e293b;font-size:13px;font-family:monospace;padding-bottom:8px;">${user.email}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748b;font-size:13px;font-weight:600;padding-right:16px;white-space:nowrap;">Password</td>
+                        <td style="color:#1e293b;font-size:14px;font-weight:700;font-family:monospace;">${temporaryPassword}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px;color:#475569;font-size:14px;">
+                Please log in and change your password as soon as possible using the <strong>Forgot Password</strong> link on the login page.
+              </p>
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${loginUrl}"
+                       style="display:inline-block;background:#6d2f8e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:8px;">
+                      Log in to OPEX →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;padding:20px 36px;border-top:1px solid #e2e8f0;">
+              <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
+                OAKBERRY Ireland OPEX Portal · This is an automated notification
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  await transport.sendMail({
+    from,
+    to: `${user.name} <${user.email}>`,
+    subject: 'Your OAKBERRY OPEX account is ready',
+    html,
+  });
+}

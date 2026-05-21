@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { getFieldTeamUsers, updateUserBudget, createUser, deleteUser } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,10 @@ export async function POST(request: Request) {
     const hashed = await hashPassword(password);
     const user = await createUser({ name, email, password: hashed, role: 'field_team' as any, title, storeId: null });
     const { password: _pw, ...safeUser } = user as any;
+
+    // Send welcome email — fire-and-forget so a delivery failure doesn't block account creation
+    sendWelcomeEmail({ name, email }, password).catch(() => {});
+
     return NextResponse.json(safeUser, { status: 201 });
   } catch (err: any) {
     if (err?.message?.includes('unique') || err?.code === '23505') {
