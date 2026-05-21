@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Card } from '@/components/ui/card';
 import { MOCK_USERS, ROLE_LABELS, ROLE_COLORS } from '@/lib/mockUsers';
@@ -10,13 +10,6 @@ type StoreRecord = { id: number; name: string; budget: number };
 type FieldUser  = { id: number; name: string; title: string | null; budget: number };
 
 export default function AdminPage() {
-  const byRole = {
-    super_admin: MOCK_USERS.filter((u) => u.role === 'super_admin'),
-    director:    MOCK_USERS.filter((u) => u.role === 'director'),
-    field_team:  MOCK_USERS.filter((u) => u.role === 'field_team'),
-    store_staff: MOCK_USERS.filter((u) => u.role === 'store_staff'),
-  } as const;
-
   const [stores, setStores]       = useState<StoreRecord[]>([]);
   const [fieldUsers, setFieldUsers] = useState<FieldUser[]>([]);
   const [editingBudget, setEditingBudget] = useState<{ id: string; value: string } | null>(null);
@@ -35,6 +28,13 @@ export default function AdminPage() {
   const [addSaving, setAddSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'store' | 'user'; id: number; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const byRole = useMemo(() => ({
+    super_admin: MOCK_USERS.filter((u) => u.role === 'super_admin'),
+    director:    MOCK_USERS.filter((u) => u.role === 'director'),
+    field_team:  MOCK_USERS.filter((u) => u.role === 'field_team'),
+    store_staff: MOCK_USERS.filter((u) => u.role === 'store_staff' && stores.some((s) => s.name === u.store)),
+  }), [stores]);
 
   useEffect(() => {
     fetch('/api/stores', { cache: 'no-store' })
