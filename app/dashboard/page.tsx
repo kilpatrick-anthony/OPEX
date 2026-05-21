@@ -9,10 +9,11 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
+import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker';
 import { slugify } from '@/lib/mockData';
 import { useCurrentUser } from '@/lib/userContext';
 
-type DashboardPeriod = 'month' | 'last-month' | 'quarter';
+type DashboardPeriod = 'month' | 'week' | 'custom';
 
 type DashboardResponse = {
   totalBudget: number;
@@ -31,8 +32,8 @@ type DashboardResponse = {
 
 const PERIOD_OPTIONS: Array<{ label: string; value: DashboardPeriod }> = [
   { label: 'This month', value: 'month' },
-  { label: 'Last month', value: 'last-month' },
-  { label: 'Quarter', value: 'quarter' },
+  { label: 'This week', value: 'week' },
+  { label: 'Date range', value: 'custom' },
 ];
 
 const COLORS = ['#0ea5e9', '#0284c7', '#10b981', '#f59e0b', '#ef4444', '#7c3aed'];
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading: userLoading } = useCurrentUser();
   const [period, setPeriod] = useState<DashboardPeriod>('month');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingPipeline, setPendingPipeline] = useState(0);
@@ -52,8 +54,13 @@ export default function DashboardPage() {
     setError('');
 
     try {
+      let dashUrl = `/api/dashboard?period=${period}`;
+      if (period === 'custom' && customRange?.from && customRange?.to) {
+        dashUrl += `&from=${customRange.from.toISOString().split('T')[0]}&to=${customRange.to.toISOString().split('T')[0]}`;
+      }
+
       const [dashboardRes, pendingRes] = await Promise.all([
-        fetch(`/api/dashboard?period=${period}`, { cache: 'no-store' }),
+        fetch(dashUrl, { cache: 'no-store' }),
         fetch('/api/requests?status=pending', { cache: 'no-store' }),
       ]);
 
@@ -92,8 +99,9 @@ export default function DashboardPage() {
       router.replace('/requests');
       return;
     }
+    if (period === 'custom' && (!customRange?.from || !customRange?.to)) return;
     loadDashboard();
-  }, [period, user, userLoading, router]);
+  }, [period, customRange, user, userLoading, router]);
 
   if (userLoading || (user && user.role === 'store_staff')) {
     return (
@@ -120,7 +128,10 @@ export default function DashboardPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `opex-by-store-${period}.csv`);
+    const periodLabel = period === 'custom' && customRange?.from && customRange?.to
+      ? `${customRange.from.toISOString().split('T')[0]}-to-${customRange.to.toISOString().split('T')[0]}`
+      : period;
+    link.setAttribute('download', `opex-by-store-${periodLabel}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -164,11 +175,17 @@ export default function DashboardPage() {
                 key={option.value}
                 variant={option.value === period ? 'default' : 'secondary'}
                 type="button"
-                onClick={() => setPeriod(option.value)}
+                onClick={() => { setPeriod(option.value); if (option.value !== 'custom') setCustomRange(undefined); }}
               >
                 {option.label}
               </Button>
             ))}
+            {period === 'custom' && (
+              <DateRangePicker
+                range={customRange}
+                onChange={(r) => setCustomRange(r)}
+              />
+            )}
             <Button variant="secondary" type="button" onClick={exportCsv}>Export CSV</Button>
           </div>
         </div>

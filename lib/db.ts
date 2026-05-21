@@ -516,19 +516,17 @@ export async function performRequestAction(requestId: number, userId: number, ac
   return getRequestById(requestId);
 }
 
-export async function getDashboardData(period: 'month' | 'last-month' | 'quarter') {
+export async function getDashboardData(from: string, to: string) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const periodInterval = period === 'last-month' ? '1 month' : period === 'quarter' ? '3 months' : '1 month';
-  const periodEndOffset = period === 'last-month' ? '1 month' : '0 month';
 
   const totalBudget = await sql`SELECT COALESCE(SUM(budget), 0) AS total FROM stores`;
   const totalSpent = await sql`
     SELECT COALESCE(SUM(amount), 0) AS total
     FROM requests
     WHERE status = 'approved'
-      AND createdAt >= (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval))
-      AND createdAt < (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval) + (${periodInterval}::interval))
+      AND createdAt >= ${from}::date
+      AND createdAt < ${to}::date
   `;
   const byStore = await sql`
     SELECT s.name, COALESCE(SUM(r.amount), 0) as total
@@ -536,8 +534,8 @@ export async function getDashboardData(period: 'month' | 'last-month' | 'quarter
     LEFT JOIN requests r
       ON r.storeId = s.id
       AND r.status = 'approved'
-      AND r.createdAt >= (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval))
-      AND r.createdAt < (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval) + (${periodInterval}::interval))
+      AND r.createdAt >= ${from}::date
+      AND r.createdAt < ${to}::date
     GROUP BY s.id, s.name
     ORDER BY total DESC
   `;
@@ -545,8 +543,8 @@ export async function getDashboardData(period: 'month' | 'last-month' | 'quarter
     SELECT category, COALESCE(SUM(amount), 0) as total
     FROM requests
     WHERE status = 'approved'
-      AND createdAt >= (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval))
-      AND createdAt < (DATE_TRUNC('month', CURRENT_DATE) - (${periodEndOffset}::interval) + (${periodInterval}::interval))
+      AND createdAt >= ${from}::date
+      AND createdAt < ${to}::date
     GROUP BY category
     ORDER BY total DESC
   `;
@@ -556,11 +554,11 @@ export async function getDashboardData(period: 'month' | 'last-month' | 'quarter
      JOIN stores s ON r.storeid = s.id
      JOIN users u ON r.userid = u.id
      WHERE r.status = 'approved'
-       AND r.createdat >= (DATE_TRUNC('month', CURRENT_DATE) - ($1::interval))
-       AND r.createdat < (DATE_TRUNC('month', CURRENT_DATE) - ($1::interval) + ($2::interval))
+       AND r.createdat >= $1::date
+       AND r.createdat < $2::date
      ORDER BY r.amount DESC
      LIMIT 5`,
-    [periodEndOffset, periodInterval],
+    [from, to],
   );
 
   const budgetTotal = Number(totalBudget[0]?.total ?? 0);

@@ -17,8 +17,35 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const period = (url.searchParams.get('period') as 'month' | 'last-month' | 'quarter') || 'month';
-    const data = await getDashboardData(period);
+    const period = url.searchParams.get('period') || 'month';
+
+    let from: string;
+    let to: string;
+
+    if (period === 'custom') {
+      from = url.searchParams.get('from') || '';
+      to = url.searchParams.get('to') || '';
+      if (!from || !to) {
+        return NextResponse.json({ error: 'from and to are required for custom period' }, { status: 400 });
+      }
+    } else if (period === 'week') {
+      const now = new Date();
+      const day = now.getDay(); // 0 = Sun
+      const diff = day === 0 ? -6 : 1 - day; // rewind to Monday
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diff);
+      const nextMonday = new Date(monday);
+      nextMonday.setDate(monday.getDate() + 7);
+      from = monday.toISOString().split('T')[0];
+      to = nextMonday.toISOString().split('T')[0];
+    } else {
+      // 'month' (default)
+      const now = new Date();
+      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split('T')[0];
+    }
+
+    const data = await getDashboardData(from, to);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Dashboard API error:', error);
