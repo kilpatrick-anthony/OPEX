@@ -23,6 +23,19 @@ export default function AdminPage() {
   const [saving, setSaving]   = useState(false);
   const [saveError, setSaveError] = useState('');
 
+  // Add store
+  const [addingStore, setAddingStore] = useState(false);
+  const [addStoreForm, setAddStoreForm] = useState({ name: '', budget: '' });
+
+  // Add user
+  const [addingUser, setAddingUser] = useState(false);
+  const [addUserForm, setAddUserForm] = useState({ name: '', email: '', password: '', title: '' });
+
+  const [addError, setAddError] = useState('');
+  const [addSaving, setAddSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'store' | 'user'; id: number; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     fetch('/api/stores', { cache: 'no-store' })
       .then((r) => readJsonSafely(r))
@@ -91,6 +104,86 @@ export default function AdminPage() {
 
   function cancelEdit() { setEditingBudget(null); setSaveError(''); }
 
+  async function saveNewStore() {
+    const name = addStoreForm.name.trim();
+    const budget = Number(addStoreForm.budget);
+    if (!name) { setAddError('Store name is required.'); return; }
+    if (isNaN(budget) || budget < 0) { setAddError('Enter a valid budget.'); return; }
+    setAddSaving(true);
+    setAddError('');
+    try {
+      const res = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, budget }),
+      });
+      const payload = await readJsonSafely(res) as any;
+      if (!res.ok) { setAddError(payload?.error ?? 'Failed to create store.'); return; }
+      setStores((prev) => [...prev, payload as StoreRecord].sort((a, b) => a.name.localeCompare(b.name)));
+      setAddingStore(false);
+      setAddStoreForm({ name: '', budget: '' });
+    } catch {
+      setAddError('Network error — could not create store.');
+    } finally {
+      setAddSaving(false);
+    }
+  }
+
+  async function saveNewUser() {
+    const name = addUserForm.name.trim();
+    const email = addUserForm.email.trim();
+    const password = addUserForm.password;
+    const title = addUserForm.title.trim() || null;
+    if (!name || !email || !password) { setAddError('Name, email and password are required.'); return; }
+    setAddSaving(true);
+    setAddError('');
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, title }),
+      });
+      const payload = await readJsonSafely(res) as any;
+      if (!res.ok) { setAddError(payload?.error ?? 'Failed to create user.'); return; }
+      setFieldUsers((prev) => [...prev, { id: payload.id, name: payload.name, title: payload.title ?? null, budget: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
+      setAddingUser(false);
+      setAddUserForm({ name: '', email: '', password: '', title: '' });
+    } catch {
+      setAddError('Network error — could not create user.');
+    } finally {
+      setAddSaving(false);
+    }
+  }
+
+  async function confirmDeleteItem() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      const endpoint = confirmDelete.type === 'store' ? '/api/stores' : '/api/users';
+      const bodyKey  = confirmDelete.type === 'store' ? 'storeId' : 'userId';
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [bodyKey]: confirmDelete.id }),
+      });
+      if (!res.ok) {
+        const payload = await readJsonSafely(res) as any;
+        setSaveError(payload?.error ?? 'Failed to delete.');
+      } else {
+        if (confirmDelete.type === 'store') {
+          setStores((prev) => prev.filter((s) => s.id !== confirmDelete.id));
+        } else {
+          setFieldUsers((prev) => prev.filter((u) => u.id !== confirmDelete.id));
+        }
+      }
+    } catch {
+      setSaveError('Network error — could not delete.');
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -109,6 +202,10 @@ export default function AdminPage() {
               <span className="rounded-full bg-sky-50 px-3 py-0.5 text-xs font-semibold text-sky-700">Stores</span>
               <span className="text-sm font-semibold text-slate-800">Monthly Budgets</span>
               <span className="ml-auto text-xs text-slate-400">Click pencil to edit</span>
+              <button type="button" onClick={() => { setAddingStore(true); setAddError(''); }}
+                className="rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-700 transition-colors">
+                + Add Store
+              </button>
             </div>
             {saveError && (
               <div className="bg-rose-50 px-6 py-2 text-xs font-medium text-rose-600">{saveError}</div>
@@ -152,6 +249,11 @@ export default function AdminPage() {
                           title="Edit budget">
                           ✏️
                         </button>
+                        <button type="button" onClick={() => setConfirmDelete({ type: 'store', id: store.id, name: store.name })}
+                          className="rounded-full p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                          title="Delete store">
+                          🗑️
+                        </button>
                       </div>
                     )}
                   </div>
@@ -163,6 +265,44 @@ export default function AdminPage() {
                   {formatCurrency(stores.reduce((s, v) => s + v.budget, 0))}/mo
                 </span>
               </div>
+              {addingStore && (
+                <div className="border-t border-sky-100 bg-sky-50 px-6 py-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-sky-700">New Store</p>
+                  {addError && <p className="text-xs text-rose-600">{addError}</p>}
+                  <div className="flex flex-wrap gap-3">
+                    <input
+                      type="text"
+                      placeholder="Store name"
+                      autoFocus
+                      value={addStoreForm.name}
+                      onChange={(e) => setAddStoreForm((p) => ({ ...p, name: e.target.value }))}
+                      className="flex-1 min-w-[140px] rounded-xl border border-sky-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    />
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-slate-400">€</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        placeholder="Monthly budget"
+                        value={addStoreForm.budget}
+                        onChange={(e) => setAddStoreForm((p) => ({ ...p, budget: e.target.value }))}
+                        className="w-36 rounded-xl border border-sky-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={saveNewStore} disabled={addSaving}
+                      className="rounded-xl bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-60">
+                      {addSaving ? 'Saving…' : 'Create Store'}
+                    </button>
+                    <button type="button" onClick={() => { setAddingStore(false); setAddError(''); setAddStoreForm({ name: '', budget: '' }); }} disabled={addSaving}
+                      className="rounded-xl border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -172,6 +312,10 @@ export default function AdminPage() {
               <span className="rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-700">Field Team</span>
               <span className="text-sm font-semibold text-slate-800">Monthly Budgets</span>
               <span className="ml-auto text-xs text-slate-400">Click pencil to edit</span>
+              <button type="button" onClick={() => { setAddingUser(true); setAddError(''); }}
+                className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors">
+                + Add Person
+              </button>
             </div>
             <div className="divide-y divide-slate-50">
               {fieldUsers.length === 0 ? (
@@ -215,6 +359,11 @@ export default function AdminPage() {
                           title="Edit budget">
                           ✏️
                         </button>
+                        <button type="button" onClick={() => setConfirmDelete({ type: 'user', id: user.id, name: user.name })}
+                          className="rounded-full p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                          title="Remove person">
+                          🗑️
+                        </button>
                       </div>
                     )}
                   </div>
@@ -226,6 +375,53 @@ export default function AdminPage() {
                   {formatCurrency(fieldUsers.reduce((s, u) => s + u.budget, 0))}/mo
                 </span>
               </div>
+              {addingUser && (
+                <div className="border-t border-emerald-100 bg-emerald-50 px-6 py-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">New Field Team Member</p>
+                  {addError && <p className="text-xs text-rose-600">{addError}</p>}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      placeholder="Full name *"
+                      autoFocus
+                      value={addUserForm.name}
+                      onChange={(e) => setAddUserForm((p) => ({ ...p, name: e.target.value }))}
+                      className="rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Job title (optional)"
+                      value={addUserForm.title}
+                      onChange={(e) => setAddUserForm((p) => ({ ...p, title: e.target.value }))}
+                      className="rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email address *"
+                      value={addUserForm.email}
+                      onChange={(e) => setAddUserForm((p) => ({ ...p, email: e.target.value }))}
+                      className="rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Temporary password * (min 8 chars)"
+                      value={addUserForm.password}
+                      onChange={(e) => setAddUserForm((p) => ({ ...p, password: e.target.value }))}
+                      className="rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={saveNewUser} disabled={addSaving}
+                      className="rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                      {addSaving ? 'Saving…' : 'Create Person'}
+                    </button>
+                    <button type="button" onClick={() => { setAddingUser(false); setAddError(''); setAddUserForm({ name: '', email: '', password: '', title: '' }); }} disabled={addSaving}
+                      className="rounded-xl border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -277,6 +473,34 @@ export default function AdminPage() {
           ))}
         </div>
       </main>
+
+      {/* ── Confirm Delete Modal ──────────────────────────────────────── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-slate-900">
+              Remove {confirmDelete.type === 'store' ? 'Store' : 'Person'}?
+            </h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to permanently remove <span className="font-semibold text-slate-700">{confirmDelete.name}</span>?
+              {confirmDelete.type === 'store'
+                ? ' All requests associated with this store will also be deleted.'
+                : ' All requests and data for this person will also be deleted.'}
+            </p>
+            {saveError && <p className="mt-2 text-xs text-rose-600">{saveError}</p>}
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => { setConfirmDelete(null); setSaveError(''); }} disabled={deleting}
+                className="rounded-xl border border-slate-200 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                Cancel
+              </button>
+              <button type="button" onClick={confirmDeleteItem} disabled={deleting}
+                className="rounded-xl bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
+                {deleting ? 'Removing…' : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

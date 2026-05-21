@@ -453,51 +453,91 @@ export default function ReportsPage() {
         </div>
 
         {/* ── Payroll Report Builder ─────────────────────────────────────── */}
-        <div className="mt-10">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Payroll Report</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Build an expense summary for payroll
-              </p>
+        <div className="mt-12">
+          {/* Section header */}
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-sky-600 to-sky-500 px-8 py-6 text-white shadow-md">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-sky-200">Step-by-step</p>
+                <h2 className="mt-1 text-2xl font-bold">Payroll Report Builder</h2>
+                <p className="mt-2 text-sm text-sky-100 max-w-xl">
+                  Use this section to build the approved-expense summary used for payroll reimbursements.
+                  Follow the steps below carefully — <strong className="text-white">select stores and team members separately</strong>.
+                </p>
+              </div>
+              {hasPayroll && (
+                <Button
+                  type="button"
+                  onClick={() => printPayrollReport(payrollGroups, effectiveFrom, effectiveTo)}
+                  className="gap-2 bg-white text-sky-700 hover:bg-sky-50 shrink-0"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
+                  </svg>
+                  Print / Save Report
+                </Button>
+              )}
             </div>
-            {hasPayroll && (
-              <Button
-                type="button"
-                onClick={() => printPayrollReport(payrollGroups, effectiveFrom, effectiveTo)}
-                className="gap-2"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
-                </svg>
-                Print Report
-              </Button>
-            )}
           </div>
 
-          <Card className="space-y-5">
-            {/* Date range picker for payroll */}
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Date range</span>
-              <div className="flex flex-wrap gap-2">
+          {/* Important notice */}
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4">
+            <div className="flex gap-3">
+              <span className="mt-0.5 text-lg">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Important — Field Team: Enter your name only</p>
+                <p className="mt-1 text-sm text-amber-700">
+                  When submitting an expense request, please enter <strong>only your name</strong> in the name field.
+                  Do <strong>not</strong> add your store location or area alongside your name (e.g. don&apos;t write &quot;Emma Barrett – Cork&quot;).
+                  Location is captured separately via the store selector and entering it in the name field can cause duplicate or incorrect entries to appear in the payroll report.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Card className="divide-y divide-slate-100 overflow-hidden">
+
+            {/* Step 1 — Date range */}
+            <div className="px-8 py-6">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white shrink-0">1</span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Choose a date range</p>
+                  <p className="text-xs text-slate-500">Select the pay period you want to run the report for.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 {PERIOD_OPTIONS.map((opt) => (
                   <button key={opt.value}
                     onClick={() => { setPeriod(opt.value); setDateRange(undefined); }}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${!dateRange && opt.value === period ? 'bg-sky-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${!dateRange && opt.value === period ? 'bg-sky-600 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
                     {opt.label}
                   </button>
                 ))}
                 <DateRangePicker range={dateRange} onChange={setDateRange} />
               </div>
-              <span className="text-xs text-slate-400">{payrollDateLabel}</span>
+              <p className="mt-3 text-sm font-medium text-sky-700">
+                📅 Selected period: <span className="font-semibold">{payrollDateLabel}</span>
+              </p>
             </div>
 
-            {/* Entity selector */}
+            {/* Step 2 — Select entities */}
             {(stores.length > 0 || fieldUsers.length > 0) && (
-              <div className="space-y-3 border-t border-slate-100 pt-4">
+              <div className="px-8 py-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white shrink-0">2</span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Select stores and/or team members</p>
+                    <p className="text-xs text-slate-500">
+                      Click each store or team member you want included. You can select multiple.
+                      Use the quick-select dropdowns or click the buttons below.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Quick filter dropdowns */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick filter</span>
+                <div className="mb-5 flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick select</span>
                   <select
                     value=""
                     onChange={(e) => {
@@ -505,9 +545,9 @@ export default function ReportsPage() {
                       if (!val) return;
                       setSelectedEntityKeys([val]);
                     }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    <option value="">Select location…</option>
+                    <option value="">Jump to a location…</option>
                     {stores.map((s) => (
                       <option key={s.id} value={`store:${s.id}`}>{s.name}</option>
                     ))}
@@ -520,9 +560,9 @@ export default function ReportsPage() {
                         if (!val) return;
                         setSelectedEntityKeys([val]);
                       }}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
-                      <option value="">Select employee…</option>
+                      <option value="">Jump to a team member…</option>
                       {fieldUsers.map((u) => (
                         <option key={u.id} value={`employee:${u.id}`}>{u.name}</option>
                       ))}
@@ -534,14 +574,21 @@ export default function ReportsPage() {
                       ...stores.map((s) => `store:${s.id}`),
                       ...fieldUsers.map((u) => `employee:${u.id}`),
                     ])}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
                   >
                     Select all
                   </button>
+                  {selectedEntityKeys.length > 0 && (
+                    <button type="button" onClick={() => setSelectedEntityKeys([])}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
+                      Clear selection ({selectedEntityKeys.length})
+                    </button>
+                  )}
                 </div>
+
                 {stores.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Stores</p>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">🏪 Stores / Locations</p>
                     <div className="flex flex-wrap gap-2">
                       {stores.map((s) => {
                         const key = `store:${s.id}`;
@@ -549,9 +596,9 @@ export default function ReportsPage() {
                         const idx    = selectedEntityKeys.indexOf(key);
                         return (
                           <button key={key} type="button" onClick={() => toggleEntity(key)}
-                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+                            className={`rounded-full border px-4 py-2 text-sm font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
                             style={active ? { background: ENTITY_PALETTE[idx % ENTITY_PALETTE.length] } : {}}>
-                            {s.name}
+                            {active ? '✓ ' : ''}{s.name}
                           </button>
                         );
                       })}
@@ -559,8 +606,9 @@ export default function ReportsPage() {
                   </div>
                 )}
                 {fieldUsers.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Field Team</p>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">👤 Field Team Members</p>
+                    <p className="mb-3 text-xs text-slate-400">Select individual team members to see their personal expenses. Do not select a store AND the same person — this will double-count their expenses.</p>
                     <div className="flex flex-wrap gap-2">
                       {fieldUsers.map((u) => {
                         const key = `employee:${u.id}`;
@@ -568,32 +616,50 @@ export default function ReportsPage() {
                         const idx    = selectedEntityKeys.indexOf(key);
                         return (
                           <button key={key} type="button" onClick={() => toggleEntity(key)}
-                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+                            className={`rounded-full border px-4 py-2 text-sm font-medium transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
                             style={active ? { background: ENTITY_PALETTE[idx % ENTITY_PALETTE.length] } : {}}>
-                            {u.name}
+                            {active ? '✓ ' : ''}{u.name}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 )}
-                {selectedEntityKeys.length > 0 && (
-                  <button type="button" onClick={() => setSelectedEntityKeys([])}
-                    className="text-xs text-slate-400 hover:text-slate-600 underline">
-                    Clear selection
-                  </button>
-                )}
               </div>
             )}
 
-            {/* Payroll report preview */}
+            {/* Step 3 — Preview */}
+            <div className="px-8 py-6">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white shrink-0">3</span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Review and print</p>
+                  <p className="text-xs text-slate-500">Check the breakdown below, then use the &quot;Print / Save Report&quot; button above to export.</p>
+                </div>
+              </div>
+
             {!hasPayroll && (
-              <p className="py-4 text-center text-sm text-slate-400">
-                Select one or more stores or team members above to build a payroll report.
-              </p>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 py-10 text-center">
+                <p className="text-2xl">👆</p>
+                <p className="mt-2 text-sm font-medium text-slate-500">Select at least one store or team member in Step 2 to generate a preview.</p>
+              </div>
             )}
 
-            {hasPayroll && payrollGroups.map((g) => (
+            {hasPayroll && (
+              <div className="space-y-4">
+                {/* Summary totals bar */}
+                <div className="flex flex-wrap gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-5 py-4">
+                  <div className="mr-auto">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Total for reimbursement</p>
+                    <p className="text-2xl font-bold text-emerald-700">{formatCurrency(payrollGroups.reduce((s, g) => s + g.total, 0))}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-400">Period</p>
+                    <p className="text-sm font-semibold text-slate-700">{payrollDateLabel}</p>
+                  </div>
+                </div>
+
+                {payrollGroups.map((g) => (
               <div key={g.key} className="rounded-2xl border border-slate-100 overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4" style={{ borderLeft: `4px solid ${g.color}` }}>
                   <div>
@@ -603,7 +669,7 @@ export default function ReportsPage() {
                     <span className="font-semibold text-slate-900">{g.name}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-slate-400">Approved total</p>
+                    <p className="text-xs text-slate-400">For reimbursement</p>
                     <p className="text-lg font-bold text-emerald-600">{formatCurrency(g.total)}</p>
                   </div>
                 </div>
@@ -658,6 +724,9 @@ export default function ReportsPage() {
                 )}
               </div>
             ))}
+              </div>
+            )}
+            </div>
           </Card>
         </div>
 

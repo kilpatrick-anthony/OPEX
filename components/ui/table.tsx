@@ -21,8 +21,8 @@ export function TableHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function TableRow({ children }: { children: React.ReactNode }) {
-  return <tr className="border-b border-slate-200 last:border-none hover:bg-slate-50">{children}</tr>;
+export function TableRow({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <tr className={clsx('border-b border-slate-200 last:border-none hover:bg-slate-50', className)}>{children}</tr>;
 }
 
 export function TableCell({ className, children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

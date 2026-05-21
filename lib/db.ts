@@ -430,6 +430,30 @@ export async function updateUserBudget(userId: number, budget: number) {
   await sql`UPDATE users SET budget = ${budget} WHERE id = ${userId}`;
 }
 
+export async function createStore(name: string, budget: number): Promise<Store> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`INSERT INTO stores (name, budget) VALUES (${name.trim()}, ${budget}) RETURNING *`;
+  return result[0] as Store;
+}
+
+export async function deleteStore(storeId: number): Promise<void> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`DELETE FROM requests WHERE storeId = ${storeId}`;
+  await sql`DELETE FROM stores WHERE id = ${storeId}`;
+}
+
+export async function deleteUser(userId: number): Promise<void> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`DELETE FROM notifications WHERE userId = ${userId}`;
+  await sql`DELETE FROM approvals WHERE userId = ${userId}`;
+  await sql`DELETE FROM requests WHERE userId = ${userId}`;
+  await sql`DELETE FROM password_reset_tokens WHERE userId = ${userId}`;
+  await sql`DELETE FROM users WHERE id = ${userId}`;
+}
+
 export async function createPasswordResetToken(userId: number, token: string, expiresAt: Date) {
   await ensureSchemaOnce();
   const sql = getSql();
