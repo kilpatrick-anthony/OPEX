@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
-    if (!['director', 'super_admin', 'employee'].includes(session.user.role)) {
+    if (!['director', 'super_admin', 'employee', 'field_team'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -7,7 +7,7 @@ import { sendWelcomeEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
-const DASHBOARD_ROLES = ['super_admin', 'director', 'manager', 'employee'];
+const DASHBOARD_ROLES = ['super_admin', 'director', 'manager', 'employee', 'field_team'];
 
 export async function GET() {
   const session = (await getServerSession(authOptions)) as any;
