@@ -223,6 +223,13 @@ export default function RequestsPage() {
     loadRequests().catch(() => setError('Failed to refresh requests'));
   }, [statusFilter, storeFilter, user, isStoreStaff]);
 
+  // Pre-fill submitterName for field_team users
+  useEffect(() => {
+    if (user?.role === 'field_team' && user.name) {
+      setForm((prev) => ({ ...prev, submitterName: prev.submitterName || user.name }));
+    }
+  }, [user]);
+
   // Auto-open a specific request modal when ?open=ID is in the URL (e.g. clicking a notification).
   useEffect(() => {
     if (!requests.length) return;
@@ -306,7 +313,7 @@ export default function RequestsPage() {
         category: '',
         amount: '',
         description: '',
-        submitterName: '',
+        submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
         submitterJobRole: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
@@ -331,7 +338,7 @@ export default function RequestsPage() {
       category: request.category,
       amount: String(request.amount),
       description: request.description,
-      submitterName: '',
+      submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
       submitterJobRole: '',
     }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
