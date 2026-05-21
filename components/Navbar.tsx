@@ -51,7 +51,7 @@ export function Navbar() {
     router.push('/login');
   }
 
-  const canViewAnalytics = Boolean(user && user.role !== 'store_staff');
+  const canViewAnalytics = Boolean(user && user.role !== 'store_staff' && user.role !== 'field_team');
   const canViewForecast = user?.role === 'super_admin';
   const canViewAudit = user?.role === 'super_admin' || user?.role === 'director';
 

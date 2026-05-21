@@ -9,6 +9,7 @@ import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/userContext';
 
 const PERIOD_OPTIONS = [
   { label: 'Week', value: 'week' },
@@ -179,6 +180,9 @@ type PayrollGroup = {
 };
 
 export default function ReportsPage() {
+  const { user: currentUser } = useCurrentUser();
+  const isFieldTeam = currentUser?.role === 'field_team';
+
   const [period, setPeriod] = useState<Period>('month');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedEntityKeys, setSelectedEntityKeys] = useState<string[]>([]);
@@ -355,7 +359,7 @@ export default function ReportsPage() {
       <main className="container py-10">
 
         {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        {!isFieldTeam && <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-widest text-sky-600">OPEX Reporting</p>
             <h1 className="mt-1 text-3xl font-semibold text-slate-900">Network Reports</h1>
@@ -371,10 +375,10 @@ export default function ReportsPage() {
             <DateRangePicker range={dateRange} onChange={(r) => { setDateRange(r); }} />
             <Button variant="secondary" onClick={exportCsv}>Export CSV</Button>
           </div>
-        </div>
+        </div>}
 
         {/* ── KPI cards ─────────────────────────────────────────────────── */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {!isFieldTeam && <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Card className="p-5">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total approved spend</p>
             <p className="mt-3 text-3xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent)}</p>
@@ -391,10 +395,10 @@ export default function ReportsPage() {
             <p className="text-xs uppercase tracking-widest text-slate-500">Total requests</p>
             <p className="mt-3 text-3xl font-semibold text-slate-900">{requests.length}</p>
           </Card>
-        </div>
+        </div>}
 
         {/* ── Charts ────────────────────────────────────────────────────── */}
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        {!isFieldTeam && <div className="mt-6 grid gap-6 xl:grid-cols-2">
           <Card className="space-y-4">
             <p className="text-sm uppercase tracking-widest text-slate-500">Spend by store</p>
             <div className="h-72">
@@ -432,9 +436,9 @@ export default function ReportsPage() {
               ))}
             </div>
           </Card>
-        </div>
+        </div>}
 
-        <div className="mt-6">
+        {!isFieldTeam && <div className="mt-6">
           <Card className="space-y-4">
             <p className="text-sm uppercase tracking-widest text-slate-500">Approved spend trend (last 12 months)</p>
             <div className="h-72">
@@ -450,7 +454,7 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
           </Card>
-        </div>
+        </div>}
 
         {/* ── Payroll Report Builder ─────────────────────────────────────── */}
         <div className="mt-12">
@@ -731,7 +735,7 @@ export default function ReportsPage() {
         </div>
 
         {/* ── All requests table ─────────────────────────────────────────── */}
-        <div className="mt-6">
+        {!isFieldTeam && <div className="mt-6">
           <Card className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -800,7 +804,7 @@ export default function ReportsPage() {
               </Table>
             </div>
           </Card>
-        </div>
+        </div>}
       </main>
     </div>
   );
