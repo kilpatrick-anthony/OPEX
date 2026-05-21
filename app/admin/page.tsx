@@ -32,9 +32,9 @@ export default function AdminPage() {
   const byRole = useMemo(() => ({
     super_admin: MOCK_USERS.filter((u) => u.role === 'super_admin'),
     director:    MOCK_USERS.filter((u) => u.role === 'director'),
-    field_team:  MOCK_USERS.filter((u) => u.role === 'field_team'),
+    field_team:  MOCK_USERS.filter((u) => u.role === 'field_team' && fieldUsers.some((f) => f.name === u.name)),
     store_staff: MOCK_USERS.filter((u) => u.role === 'store_staff' && stores.some((s) => s.name === u.store)),
-  }), [stores]);
+  }), [stores, fieldUsers]);
 
   useEffect(() => {
     fetch('/api/stores', { cache: 'no-store' })
