@@ -7,6 +7,7 @@ import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Navbar } from '@/components/Navbar';
 import { Dialog } from '@/components/ui/dialog';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
+import { parseReceiptList } from '@/lib/receipts';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
 
@@ -51,6 +52,9 @@ export default function ApprovalPage() {
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [savingAmount, setSavingAmount] = useState(false);
 
   async function loadStores() {
     const response = await fetch('/api/stores', { cache: 'no-store' });
@@ -230,6 +234,36 @@ export default function ApprovalPage() {
       await loadRequests();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send query');
+    }
+  }
+
+  async function handleSaveAmount(id: number) {
+    if (!editAmount || Number(editAmount) <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
+
+    setSavingAmount(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(editAmount) }),
+      });
+      const payload = await readJsonSafely(res);
+      if (!res.ok) throw new Error(getApiErrorMessage(res, payload, 'Failed to update amount'));
+      const updated = (payload as any)?.request as ApprovalRequest | undefined;
+      if (updated) {
+        setViewRequest(updated);
+        setRequests((prev) => prev.map((r) => r.id === updated.id ? { ...r, amount: updated.amount } : r));
+      }
+      setEditingAmount(false);
+      setEditAmount('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update amount');
+    } finally {
+      setSavingAmount(false);
     }
   }
 
@@ -468,7 +502,7 @@ export default function ApprovalPage() {
         )}
       </Dialog>
 
-      <Dialog open={!!viewRequest} title="Request details" description="Full information for this expenditure request." onClose={() => setViewRequest(null)}>
+      <Dialog open={!!viewRequest} title="Request details" description="Full information for this expenditure request." onClose={() => { setViewRequest(null); setEditingAmount(false); setEditAmount(''); }}>
         {viewRequest && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -478,7 +512,18 @@ export default function ApprovalPage() {
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Amount</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(viewRequest.amount)}</p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-800">{formatCurrency(viewRequest.amount)}</p>
+                  {viewRequest.status === 'pending' || viewRequest.status === 'queried' ? (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingAmount(true); setEditAmount(String(viewRequest.amount)); }}
+                      className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                    >
+                      Edit
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Category</p>
@@ -514,6 +559,38 @@ export default function ApprovalPage() {
                 </div>
               ) : null}
             </div>
+            {editingAmount ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Amount (€)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                  />
+                </label>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingAmount}
+                    onClick={() => handleSaveAmount(viewRequest.id)}
+                    className="rounded-xl bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+                  >
+                    {savingAmount ? 'Saving…' : 'Save Amount'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingAmount(false); setEditAmount(''); }}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-white"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {/* Reimbursable toggle — only shown for approved requests */}
             {viewRequest.status === 'approved' && (
               <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
@@ -551,16 +628,21 @@ export default function ApprovalPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Description</p>
               <p className="mt-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-slate-700">{viewRequest.description || '—'}</p>
             </div>
-            {viewRequest.receipt ? (
+            {parseReceiptList(viewRequest.receipt).length > 0 ? (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Receipt</p>
-                <button
-                  type="button"
-                  onClick={() => openReceiptInNewTab(viewRequest.receipt!)}
-                  className="mt-1 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 transition-colors"
-                >
-                  View / Download Receipt
-                </button>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Receipts</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {parseReceiptList(viewRequest.receipt).map((receipt, index) => (
+                    <button
+                      key={`${receipt.slice(0, 32)}-${index}`}
+                      type="button"
+                      onClick={() => openReceiptInNewTab(receipt)}
+                      className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                    >
+                      View / Download Receipt {index + 1}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
             {viewRequest.queryComment ? (

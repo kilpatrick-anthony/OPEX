@@ -87,7 +87,8 @@ export async function sendReceiptToAccountant(data: {
   amount: number;
   requesterName: string;
   approvedAt: string;
-  receiptDataUrl: string;
+  receiptDataUrl?: string;
+  receiptDataUrls?: string[];
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -97,12 +98,6 @@ export async function sendReceiptToAccountant(data: {
 
   const accountantRecipients = accountantEmail.split(',').map((e) => e.trim()).filter(Boolean);
 
-  // Parse the data URL: "data:<mime>;base64,<data>"
-  const match = data.receiptDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
-  if (!match) return;
-  const [, mime, base64Content] = match;
-
-  // Derive a sensible file extension
   const extMap: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/jpg': 'jpg',
@@ -111,8 +106,22 @@ export async function sendReceiptToAccountant(data: {
     'image/webp': 'webp',
     'application/pdf': 'pdf',
   };
-  const ext = extMap[mime] ?? 'bin';
-  const filename = `receipt-${data.requestId}.${ext}`;
+  const receiptDataUrls = data.receiptDataUrls?.length ? data.receiptDataUrls : data.receiptDataUrl ? [data.receiptDataUrl] : [];
+  const attachments = receiptDataUrls
+    .map((receiptDataUrl, index) => {
+      const match = receiptDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+      if (!match) return null;
+      const [, mime, base64Content] = match;
+      const ext = extMap[mime] ?? 'bin';
+      const suffix = receiptDataUrls.length > 1 ? `-${index + 1}` : '';
+      return {
+        filename: `receipt-${data.requestId}${suffix}.${ext}`,
+        content: base64Content,
+      };
+    })
+    .filter((item): item is { filename: string; content: string } => Boolean(item));
+
+  if (attachments.length === 0) return;
 
   const amount = new Intl.NumberFormat('en-IE', {
     style: 'currency',
@@ -129,7 +138,7 @@ export async function sendReceiptToAccountant(data: {
   const html = `
     <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
       <p>Hi,</p>
-      <p>An OPEX expense has been approved. The receipt is attached to this email.</p>
+      <p>An OPEX expense has been approved. The receipt${attachments.length === 1 ? ' is' : 's are'} attached to this email.</p>
       <table style="border-collapse: collapse; width: 100%; max-width: 480px;">
         <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Request ID</td><td style="padding: 6px 0; font-weight: 600;">#${data.requestId}</td></tr>
         <tr><td style="padding: 6px 12px 6px 0; color: #64748b; font-size: 13px;">Store</td><td style="padding: 6px 0; font-weight: 600;">${data.storeName}</td></tr>
@@ -153,13 +162,7 @@ export async function sendReceiptToAccountant(data: {
       to: accountantRecipients,
       subject,
       html,
-      attachments: [
-        {
-          filename,
-          content: base64Content,
-        },
-      ],
+      attachments,
     }),
   });
 }
-

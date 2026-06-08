@@ -352,6 +352,12 @@ export async function updateRequestReceipt(requestId: number, receipt: string | 
   await sql`UPDATE requests SET receipt = ${receipt}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
 }
 
+export async function updateRequestAmount(requestId: number, amount: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE requests SET amount = ${amount}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
+}
+
 export async function updateRequestReimbursable(requestId: number, reimbursable: boolean) {
   await ensureSchemaOnce();
   const sql = getSql();

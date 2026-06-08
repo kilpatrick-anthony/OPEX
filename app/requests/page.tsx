@@ -10,6 +10,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { formatCurrency, getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/userContext';
 import { REQUEST_CATEGORIES } from '@/lib/categories';
+import { parseReceiptList } from '@/lib/receipts';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected' | 'queried';
 
@@ -64,7 +65,7 @@ export default function RequestsPage() {
     submitterJobRole: '',
   });
 
-  const [receiptDataUrl, setReceiptDataUrl] = useState<string>('');
+  const [receiptDataUrls, setReceiptDataUrls] = useState<string[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
 
   const [error, setError] = useState('');
@@ -75,9 +76,12 @@ export default function RequestsPage() {
 
   // Receipt editing inside the view dialog
   const [editingReceipt, setEditingReceipt] = useState(false);
-  const [editReceiptDataUrl, setEditReceiptDataUrl] = useState('');
+  const [editReceiptDataUrls, setEditReceiptDataUrls] = useState<string[]>([]);
   const [editReceiptKey, setEditReceiptKey] = useState(0);
   const [savingReceipt, setSavingReceipt] = useState(false);
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [savingAmount, setSavingAmount] = useState(false);
 
   function openReceiptInNewTab(receipt: string) {    const [header, data] = receipt.split(',');
     const mime = header.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
@@ -111,7 +115,7 @@ export default function RequestsPage() {
       const res = await fetch(`/api/requests/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receipt: editReceiptDataUrl || null }),
+        body: JSON.stringify({ receipts: editReceiptDataUrls }),
       });
       const payload = await readJsonSafely(res);
       if (!res.ok) throw new Error(getApiErrorMessage(res, payload, 'Failed to update receipt'));
@@ -121,7 +125,7 @@ export default function RequestsPage() {
         setRequests((prev) => prev.map((r) => r.id === id ? { ...r, receipt: updated.receipt ?? null } : r));
       }
       setEditingReceipt(false);
-      setEditReceiptDataUrl('');
+      setEditReceiptDataUrls([]);
       setEditReceiptKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update receipt');
@@ -131,16 +135,51 @@ export default function RequestsPage() {
   }
 
   function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) { setReceiptDataUrl(''); return; }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Receipt file must be under 5 MB.');
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) { setReceiptDataUrls([]); return; }
+    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+      setError('Each receipt file must be under 5 MB.');
       e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setReceiptDataUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read receipt file'));
+      reader.readAsDataURL(file);
+    })))
+      .then(setReceiptDataUrls)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to read receipt files'));
+  }
+
+  async function handleSaveAmount(id: number) {
+    if (!editAmount || Number(editAmount) <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
+
+    setSavingAmount(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(editAmount) }),
+      });
+      const payload = await readJsonSafely(res);
+      if (!res.ok) throw new Error(getApiErrorMessage(res, payload, 'Failed to update amount'));
+      const updated = (payload as any)?.request;
+      if (updated) {
+        setSelectedRequest(updated);
+        setRequests((prev) => prev.map((r) => r.id === id ? { ...r, amount: updated.amount } : r));
+      }
+      setEditingAmount(false);
+      setEditAmount('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update amount');
+    } finally {
+      setSavingAmount(false);
+    }
   }
 
   const isStoreStaff = user?.role === 'store_staff';
@@ -294,7 +333,7 @@ export default function RequestsPage() {
           category: form.category,
           amount: Number(form.amount),
           description: form.description.trim(),
-          receipt: receiptDataUrl || undefined,
+          receipts: receiptDataUrls,
           submitterName: isStoreLevelUser ? form.submitterName.trim() : undefined,
           submitterJobRole: isStoreLevelUser ? form.submitterJobRole : undefined,
         }),
@@ -306,7 +345,7 @@ export default function RequestsPage() {
       }
 
       setSuccess('Request submitted successfully and is pending approval.');
-      setReceiptDataUrl('');
+      setReceiptDataUrls([]);
       setFileInputKey((k) => k + 1);
       setForm((prev) => ({
         ...prev,
@@ -486,10 +525,14 @@ export default function RequestsPage() {
                 <input
                   key={fileInputKey}
                   type="file"
+                  multiple
                   accept="image/*,application/pdf"
                   onChange={handleReceiptChange}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal file:mr-3 file:rounded-xl file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700 hover:file:bg-sky-100"
                 />
+                {receiptDataUrls.length > 0 ? (
+                  <span className="text-xs font-normal text-slate-500">{receiptDataUrls.length} receipt{receiptDataUrls.length === 1 ? '' : 's'} selected</span>
+                ) : null}
               </label>
 
               {error ? <p className="text-sm text-rose-600">{error}</p> : null}
@@ -637,7 +680,7 @@ export default function RequestsPage() {
           open
           title={`Request #${selectedRequest.id} — ${selectedRequest.storeName}`}
           description="Request details"
-          onClose={() => { setSelectedRequest(null); setDeleteConfirm(false); setEditingReceipt(false); setEditReceiptDataUrl(''); }}
+          onClose={() => { setSelectedRequest(null); setDeleteConfirm(false); setEditingReceipt(false); setEditReceiptDataUrls([]); setEditingAmount(false); setEditAmount(''); }}
           className="max-w-2xl"
         >
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 space-y-1">
@@ -646,71 +689,140 @@ export default function RequestsPage() {
               <p><span className="font-medium text-slate-800">Submitted by:</span> {selectedRequest.submitterName} · {selectedRequest.submitterJobRole}</p>
             ) : null}
             <p><span className="font-medium text-slate-800">Category:</span> {selectedRequest.category}</p>
-            <p><span className="font-medium text-slate-800">Amount:</span> {formatCurrency(selectedRequest.amount)}</p>
-            <p><span className="font-medium text-slate-800">Status:</span> {selectedRequest.status}</p>
-            <p><span className="font-medium text-slate-800">Description:</span> {selectedRequest.description}</p>
-            {selectedRequest.receipt ? (
-              <p>
-                <span className="font-medium text-slate-800">Receipt:</span>{' '}
+            <div className="flex flex-wrap items-center gap-2">
+              <p><span className="font-medium text-slate-800">Amount:</span> {formatCurrency(selectedRequest.amount)}</p>
+              {selectedRequest.status === 'pending' || selectedRequest.status === 'queried' ? (
                 <button
                   type="button"
-                  onClick={() => openReceiptInNewTab(selectedRequest.receipt!)}
-                  className="text-sky-600 hover:underline"
+                  onClick={() => { setEditingAmount(true); setEditAmount(String(selectedRequest.amount)); }}
+                  className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                 >
-                  View / Download
+                  Edit
                 </button>
-              </p>
+              ) : null}
+            </div>
+            <p><span className="font-medium text-slate-800">Status:</span> {selectedRequest.status}</p>
+            <p><span className="font-medium text-slate-800">Description:</span> {selectedRequest.description}</p>
+            {parseReceiptList(selectedRequest.receipt).length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                <span className="font-medium text-slate-800">Receipts:</span>
+                {parseReceiptList(selectedRequest.receipt).map((receipt, index) => (
+                  <button
+                    key={`${receipt.slice(0, 32)}-${index}`}
+                    type="button"
+                    onClick={() => openReceiptInNewTab(receipt)}
+                    className="text-sky-600 hover:underline"
+                  >
+                    View / Download {index + 1}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
+
+          {editingAmount ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <label className="block text-sm font-medium text-slate-700">
+                Amount (€)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal"
+                />
+              </label>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  disabled={savingAmount}
+                  onClick={() => handleSaveAmount(selectedRequest.id)}
+                  className="rounded-xl bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+                >
+                  {savingAmount ? 'Saving…' : 'Save Amount'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditingAmount(false); setEditAmount(''); }}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {/* Receipt upload / update */}
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
             {!editingReceipt ? (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-slate-600">
-                  {selectedRequest.receipt ? 'Update the attached receipt.' : 'No receipt attached yet.'}
+                  {parseReceiptList(selectedRequest.receipt).length > 0 ? 'Update the attached receipts.' : 'No receipts attached yet.'}
                 </p>
                 <button
                   type="button"
-                  onClick={() => setEditingReceipt(true)}
+                  onClick={() => { setEditReceiptDataUrls(parseReceiptList(selectedRequest.receipt)); setEditingReceipt(true); }}
                   className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
                 >
-                  {selectedRequest.receipt ? 'Replace Receipt' : 'Upload Receipt'}
+                  {parseReceiptList(selectedRequest.receipt).length > 0 ? 'Edit Receipts' : 'Upload Receipts'}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-slate-700">Upload a receipt (image or PDF, max 5 MB)</p>
+                <p className="text-sm font-medium text-slate-700">Upload receipts (image or PDF, max 5 MB each)</p>
                 <input
                   key={editReceiptKey}
                   type="file"
+                  multiple
                   accept="image/*,application/pdf"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) { setEditReceiptDataUrl(''); return; }
-                    if (file.size > 5 * 1024 * 1024) {
-                      setError('Receipt file must be under 5 MB.');
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length === 0) return;
+                    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+                      setError('Each receipt file must be under 5 MB.');
                       e.target.value = '';
                       return;
                     }
-                    const reader = new FileReader();
-                    reader.onload = () => setEditReceiptDataUrl(reader.result as string);
-                    reader.readAsDataURL(file);
+                    Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.onerror = () => reject(new Error('Failed to read receipt file'));
+                      reader.readAsDataURL(file);
+                    })))
+                      .then((nextReceipts) => setEditReceiptDataUrls((current) => [...current, ...nextReceipts]))
+                      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to read receipt files'));
                   }}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm file:mr-3 file:rounded-xl file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700 hover:file:bg-sky-100"
                 />
+                {editReceiptDataUrls.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {editReceiptDataUrls.map((receipt, index) => (
+                      <span key={`${receipt.slice(0, 32)}-${index}`} className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                        Receipt {index + 1}
+                        <button
+                          type="button"
+                          onClick={() => setEditReceiptDataUrls((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                          className="font-semibold text-rose-600 hover:text-rose-700"
+                        >
+                          Remove
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    disabled={savingReceipt || !editReceiptDataUrl}
+                    disabled={savingReceipt}
                     onClick={() => handleSaveReceipt(selectedRequest.id)}
                     className="rounded-xl bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
                   >
-                    {savingReceipt ? 'Saving…' : 'Save Receipt'}
+                    {savingReceipt ? 'Saving…' : 'Save Receipts'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setEditingReceipt(false); setEditReceiptDataUrl(''); setEditReceiptKey((k) => k + 1); }}
+                    onClick={() => { setEditingReceipt(false); setEditReceiptDataUrls([]); setEditReceiptKey((k) => k + 1); }}
                     className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     Cancel

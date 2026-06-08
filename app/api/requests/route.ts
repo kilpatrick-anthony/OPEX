@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import { insertRequest, queryRequests, getStoreRemainingBudget, getStores, getDirectorEmails, getAllStoreRemainingBudgets } from '@/lib/db';
 import { REQUEST_CATEGORIES } from '@/lib/categories';
 import { sendNewRequestEmail } from '@/lib/email';
+import { serializeReceiptList } from '@/lib/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,12 @@ export async function POST(request: Request) {
   const category = body.category?.trim();
   const amount = Number(body.amount);
   const description = body.description?.trim();
-  const receipt = body.receipt || null;
+  const receipts = Array.isArray(body.receipts)
+    ? body.receipts.filter((item: unknown): item is string => typeof item === 'string')
+    : body.receipt
+      ? [body.receipt]
+      : [];
+  const receipt = serializeReceiptList(receipts);
   const submitterName = body.submitterName?.trim() || null;
   const submitterJobRole = body.submitterJobRole?.trim() || null;
 
@@ -111,7 +117,7 @@ export async function POST(request: Request) {
     category,
     amount,
     description,
-    receipt,
+    receipt: receipt || undefined,
     submitterName: submitterName || undefined,
     submitterJobRole: submitterJobRole || undefined,
   });

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createNotification, deleteRequest, getRequestById, getUserById, performRequestAction, updateRequestReceipt, updateRequestReimbursable } from '@/lib/db';
+import { createNotification, deleteRequest, getRequestById, getUserById, performRequestAction, updateRequestAmount, updateRequestReceipt, updateRequestReimbursable } from '@/lib/db';
 import { sendRequestDecisionEmail, sendReceiptToAccountant } from '@/lib/notificationEmail';
+import { parseReceiptList, serializeReceiptList } from '@/lib/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,7 +93,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     // Forward the receipt to the accountant when a request is approved
-    if (action === 'approved' && requestRecord.receipt) {
+    const receipts = parseReceiptList(requestRecord.receipt);
+    if (action === 'approved' && receipts.length > 0) {
       await sendReceiptToAccountant({
         requestId: requestRecord.id,
         storeName: requestRecord.storeName,
@@ -100,7 +102,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         amount: Number(requestRecord.amount),
         requesterName: requestRecord.requesterName ?? requestRecord.submitterName ?? 'Unknown',
         approvedAt: new Date().toISOString(),
-        receiptDataUrl: requestRecord.receipt,
+        receiptDataUrls: receipts,
       });
     }
   }
@@ -135,21 +137,53 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Invalid request ID.' }, { status: 400 });
   }
 
+  const existing = await getRequestById(requestId);
+  if (!existing) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
+  const role = session.user.role as string;
+  if (role === 'employee' && existing.userId !== Number(session.user.id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (role === 'manager' && existing.storeId !== Number(session.user.storeId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const body = await request.json();
-  const { receipt, reimbursable } = body as { receipt?: string | null; reimbursable?: boolean };
+  const { receipt, receipts, reimbursable, amount } = body as {
+    receipt?: string | null;
+    receipts?: string[] | null;
+    reimbursable?: boolean;
+    amount?: number;
+  };
 
   if (receipt !== undefined && typeof receipt !== 'string' && receipt !== null) {
     return NextResponse.json({ error: 'Invalid receipt data.' }, { status: 400 });
   }
+  if (receipts !== undefined && receipts !== null && (!Array.isArray(receipts) || receipts.some((item) => typeof item !== 'string'))) {
+    return NextResponse.json({ error: 'Invalid receipt data.' }, { status: 400 });
+  }
   if (reimbursable !== undefined && typeof reimbursable !== 'boolean') {
     return NextResponse.json({ error: 'Invalid reimbursable value.' }, { status: 400 });
+  }
+  if (amount !== undefined && (!Number.isFinite(Number(amount)) || Number(amount) <= 0)) {
+    return NextResponse.json({ error: 'Invalid amount.' }, { status: 400 });
   }
   // Only directors and super_admins may change the reimbursable flag
   if (reimbursable !== undefined && !['director', 'super_admin'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (receipt !== undefined) {
+  if (amount !== undefined) {
+    if (!['pending', 'queried'].includes(existing.status)) {
+      return NextResponse.json({ error: 'Only pending or queried request amounts can be edited.' }, { status: 400 });
+    }
+    await updateRequestAmount(requestId, Number(amount));
+  }
+  if (receipts !== undefined) {
+    await updateRequestReceipt(requestId, serializeReceiptList(receipts ?? []));
+  } else if (receipt !== undefined) {
     await updateRequestReceipt(requestId, receipt ?? null);
   }
   if (reimbursable !== undefined) {
