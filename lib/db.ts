@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import type { OakerAnswer, OakerMode, OakerQuestionStats, OakerRating } from '@/lib/oaker';
 
 function makeSql() {
   const connectionString = process.env.DATABASE_URL;
@@ -69,6 +70,34 @@ export type NotificationRecord = {
   createdAt: string;
 };
 
+export type OakerInspectionRecord = {
+  id: number;
+  storeId: number;
+  storeName: string;
+  userId: number;
+  inspectorName: string;
+  mode: OakerMode;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  rating: OakerRating;
+  notes: string | null;
+  createdAt: string;
+  submittedAt: string;
+};
+
+export type OakerResponseRecord = {
+  id: number;
+  inspectionId: number;
+  questionId: number;
+  section: string;
+  standard: string;
+  weighting: number;
+  answer: OakerAnswer;
+  comments: string | null;
+  photos: string[];
+};
+
 const REQUEST_SELECT = `
   r.id,
   r.storeid as "storeId",
@@ -114,6 +143,8 @@ export async function ensureSchema() {
     sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS oaker_responses (id SERIAL PRIMARY KEY, inspectionId INTEGER NOT NULL, questionId INTEGER NOT NULL, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, answer TEXT NOT NULL, comments TEXT, photos TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ]);
   await Promise.all([
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`,
@@ -520,6 +551,172 @@ export async function performRequestAction(requestId: number, userId: number, ac
   await sql`UPDATE requests SET status = ${validStatus}, actionComment = ${comment || null}, queryComment = ${action === 'queried' ? comment : null}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
   await sql`INSERT INTO approvals (requestId, userId, action, comment) VALUES (${requestId}, ${userId}, ${action}, ${comment || null})`;
   return getRequestById(requestId);
+}
+
+export async function createOakerInspection(data: {
+  storeId: number;
+  userId: number;
+  mode: OakerMode;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  rating: OakerRating;
+  notes?: string | null;
+  responses: Array<{
+    questionId: number;
+    section: string;
+    standard: string;
+    weighting: number;
+    answer: OakerAnswer;
+    comments?: string | null;
+    photos?: string[];
+  }>;
+}) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`
+    INSERT INTO oaker_inspections (storeId, userId, mode, score, maxScore, percentage, rating, notes)
+    VALUES (${data.storeId}, ${data.userId}, ${data.mode}, ${data.score}, ${data.maxScore}, ${data.percentage}, ${data.rating}, ${data.notes ?? null})
+    RETURNING id
+  `;
+  const inspectionId = Number(result[0].id);
+
+  for (const response of data.responses) {
+    await sql`
+      INSERT INTO oaker_responses (inspectionId, questionId, section, standard, weighting, answer, comments, photos)
+      VALUES (
+        ${inspectionId},
+        ${response.questionId},
+        ${response.section},
+        ${response.standard},
+        ${response.weighting},
+        ${response.answer},
+        ${response.comments ?? null},
+        ${JSON.stringify(response.photos ?? [])}
+      )
+    `;
+  }
+
+  return getOakerInspectionById(inspectionId);
+}
+
+export async function getOakerInspectionById(id: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const inspections = await sql.query(
+    `SELECT
+       i.id,
+       i.storeid as "storeId",
+       s.name as "storeName",
+       i.userid as "userId",
+       u.name as "inspectorName",
+       i.mode,
+       i.score,
+       i.maxscore as "maxScore",
+       i.percentage,
+       i.rating,
+       i.notes,
+       i.createdat as "createdAt",
+       i.submittedat as "submittedAt"
+     FROM oaker_inspections i
+     JOIN stores s ON s.id = i.storeid
+     JOIN users u ON u.id = i.userid
+     WHERE i.id = $1`,
+    [id],
+  );
+  const inspection = inspections[0] as OakerInspectionRecord | undefined;
+  if (!inspection) return undefined;
+
+  const responses = await sql.query(
+    `SELECT
+       id,
+       inspectionid as "inspectionId",
+       questionid as "questionId",
+       section,
+       standard,
+       weighting,
+       answer,
+       comments,
+       photos
+     FROM oaker_responses
+     WHERE inspectionid = $1
+     ORDER BY questionid`,
+    [id],
+  );
+
+  return {
+    ...inspection,
+    score: Number(inspection.score),
+    maxScore: Number(inspection.maxScore),
+    percentage: Number(inspection.percentage),
+    responses: responses.map((response: any) => ({
+      ...response,
+      weighting: Number(response.weighting),
+      photos: typeof response.photos === 'string' ? JSON.parse(response.photos || '[]') : [],
+    })) as OakerResponseRecord[],
+  };
+}
+
+export async function getOakerInspections(filters: { storeId?: number; role: string; userStoreId?: number | null }, limit = 50): Promise<OakerInspectionRecord[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const isManager = filters.role === 'manager';
+  const storeId = filters.storeId ?? null;
+  const userStoreId = filters.userStoreId ?? null;
+  const result = await sql.query(
+    `SELECT
+       i.id,
+       i.storeid as "storeId",
+       s.name as "storeName",
+       i.userid as "userId",
+       u.name as "inspectorName",
+       i.mode,
+       i.score,
+       i.maxscore as "maxScore",
+       i.percentage,
+       i.rating,
+       i.notes,
+       i.createdat as "createdAt",
+       i.submittedat as "submittedAt"
+     FROM oaker_inspections i
+     JOIN stores s ON s.id = i.storeid
+     JOIN users u ON u.id = i.userid
+     WHERE ($1 = false OR i.storeid = $2)
+       AND ($3::int IS NULL OR i.storeid = $3)
+     ORDER BY i.submittedat DESC
+     LIMIT $4`,
+    [isManager, userStoreId, storeId, limit],
+  );
+
+  return result.map((item: any) => ({
+    ...item,
+    score: Number(item.score),
+    maxScore: Number(item.maxScore),
+    percentage: Number(item.percentage),
+  })) as OakerInspectionRecord[];
+}
+
+export async function getOakerQuestionStats(storeId?: number): Promise<OakerQuestionStats[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql.query(
+    `SELECT
+       r.questionid as "questionId",
+       COUNT(*) FILTER (WHERE r.answer IN ('no', 'capex'))::int as "failureCount",
+       COUNT(*) FILTER (WHERE r.answer IN ('no', 'capex') AND i.storeid = $1)::int as "storeFailureCount",
+       COUNT(*) FILTER (WHERE r.answer IN ('no', 'capex') AND i.storeid = $1 AND i.submittedat >= NOW() - INTERVAL '60 days')::int as "recentFailureCount"
+     FROM oaker_responses r
+     JOIN oaker_inspections i ON i.id = r.inspectionid
+     GROUP BY r.questionid
+     ORDER BY "failureCount" DESC`,
+    [storeId ?? null],
+  );
+  return result.map((item: any) => ({
+    questionId: Number(item.questionId),
+    failureCount: Number(item.failureCount ?? 0),
+    storeFailureCount: Number(item.storeFailureCount ?? 0),
+    recentFailureCount: Number(item.recentFailureCount ?? 0),
+  }));
 }
 
 export async function getDashboardData(from: string, to: string) {

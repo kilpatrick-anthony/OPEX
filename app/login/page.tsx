@@ -6,6 +6,21 @@ import { signIn, useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
+type PortalKey = 'opex' | 'oaker';
+
+const PORTALS: Record<PortalKey, { title: string; subtitle: string; route: string }> = {
+  opex: {
+    title: 'OPEX Portal',
+    subtitle: 'Operational Expenditure',
+    route: '/requests',
+  },
+  oaker: {
+    title: 'OAKER Experience',
+    subtitle: 'Store Standards',
+    route: '/oaker',
+  },
+};
+
 export default function LoginPage() {
   const { status } = useSession();
   const router = useRouter();
@@ -14,8 +29,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPortal, setSelectedPortal] = useState<PortalKey>('opex');
 
-  async function resolveHomeRoute() {
+  async function resolveHomeRoute(portal: PortalKey = selectedPortal) {
+    if (portal === 'oaker') return PORTALS.oaker.route;
+
     try {
       const response = await fetch('/api/auth/me', { cache: 'no-store' });
       if (!response.ok) return '/requests';
@@ -34,9 +52,20 @@ export default function LoginPage() {
     }
   }
 
+  function choosePortal(portal: PortalKey) {
+    setSelectedPortal(portal);
+    window.localStorage.setItem('oakberry-selected-portal', portal);
+  }
+
+  useEffect(() => {
+    const portal = window.localStorage.getItem('oakberry-selected-portal');
+    if (portal === 'oaker') setSelectedPortal('oaker');
+  }, []);
+
   useEffect(() => {
     if (status !== 'authenticated') return;
-    resolveHomeRoute().then((route) => router.replace(route));
+    const portal = window.localStorage.getItem('oakberry-selected-portal') === 'oaker' ? 'oaker' : 'opex';
+    resolveHomeRoute(portal).then((route) => router.replace(route));
   }, [status, router]);
 
   if (status === 'authenticated') return null;
@@ -50,7 +79,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: false,
-      callbackUrl: '/requests',
+      callbackUrl: PORTALS[selectedPortal].route,
     });
 
     setSubmitting(false);
@@ -60,7 +89,8 @@ export default function LoginPage() {
       return;
     }
 
-    const route = await resolveHomeRoute();
+    window.localStorage.setItem('oakberry-selected-portal', selectedPortal);
+    const route = await resolveHomeRoute(selectedPortal);
     router.push(route);
   }
 
@@ -84,8 +114,8 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 leading-tight">OPEX Portal</h2>
-              <p className="text-xs text-slate-400">Operational Expenditure</p>
+              <h2 className="text-lg font-semibold text-slate-900 leading-tight">{PORTALS[selectedPortal].title}</h2>
+              <p className="text-xs text-slate-400">{PORTALS[selectedPortal].subtitle}</p>
             </div>
           </div>
 
@@ -154,8 +184,8 @@ export default function LoginPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           {/* OPEX — active */}
-          <div className="flex items-center gap-4 rounded-2xl px-5 py-4 transition-all cursor-default"
-            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
+          <button type="button" onClick={() => choosePortal('opex')} className="flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all hover:bg-white/15"
+            style={{ background: selectedPortal === 'opex' ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)', border: selectedPortal === 'opex' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)' }}>
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
               style={{ background: 'rgba(255,255,255,0.2)' }}>
               <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -170,26 +200,26 @@ export default function LoginPage() {
               style={{ background: 'rgba(16,185,129,0.25)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
               Active
             </span>
-          </div>
+          </button>
 
-          {/* OAKER Experience — coming soon */}
-          <div className="flex items-center gap-4 rounded-2xl px-5 py-4 opacity-60"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
+          {/* OAKER Experience — active */}
+          <button type="button" onClick={() => choosePortal('oaker')} className="flex items-center gap-4 rounded-2xl px-5 py-4 text-left transition-all hover:bg-white/15"
+            style={{ background: selectedPortal === 'oaker' ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)', border: selectedPortal === 'oaker' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)' }}>
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-              style={{ background: 'rgba(255,255,255,0.1)' }}>
-              <svg className="h-5 w-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+              style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white/80">OAKER Experience</p>
-              <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>Team &amp; Culture</p>
+              <p className="text-sm font-bold text-white">OAKER Experience</p>
+              <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>Store Standards</p>
             </div>
             <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
-              Soon
+              style={{ background: 'rgba(16,185,129,0.25)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+              Active
             </span>
-          </div>
+          </button>
 
           {/* Recruitment Hub — coming soon */}
           <div className="flex items-center gap-4 rounded-2xl px-5 py-4 opacity-60"
