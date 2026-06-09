@@ -43,7 +43,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
+    <div className="flex min-h-[100svh] items-center justify-center px-4 py-6 sm:py-12" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 60%, #3a1750 100%)' }}>
       <div className="w-full max-w-lg">
         <div className="mb-5 text-center">
           <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 w-auto drop-shadow-lg md:h-20" />

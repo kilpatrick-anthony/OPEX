@@ -123,6 +123,7 @@ export default function OakerDashboardPage() {
       router.replace('/login');
       return;
     }
+    window.scrollTo({ top: 0, left: 0 });
     loadDashboard();
   }, [user, userLoading, router]);
 
@@ -232,11 +233,11 @@ export default function OakerDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <OakerNavbar />
-      <main className="container py-6 md:py-10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
+      <main className="container w-full overflow-hidden py-6 md:py-10">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-widest text-emerald-600">OAKER Experience</p>
-            <h1 className="mt-1 text-3xl font-semibold text-slate-900">OAKER Experience Dashboard</h1>
+            <h1 className="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">OAKER Experience Dashboard</h1>
             <p className="mt-1 max-w-3xl text-sm text-slate-500">
               Estate-level scoring, store ranking, and standards signals from the latest OAKER Experience checks.
             </p>
@@ -246,8 +247,8 @@ export default function OakerDashboardPage() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+        <div className="mt-8 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Estate score</p>
             <p className="mt-3 text-4xl font-semibold text-slate-900">{estateAverage.toFixed(1)}%</p>
             <p className="mt-2 text-sm text-slate-500">Latest score across {latestByStore.length} stores</p>
@@ -255,13 +256,13 @@ export default function OakerDashboardPage() {
           <button
             type="button"
             onClick={() => openStoreGroup('OAKER Expert stores', 'Stores currently scoring at or above 90%.', storesForRating('OAKER Expert'))}
-            className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
+            className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
           >
             <p className="text-xs uppercase tracking-widest text-slate-500">Expert stores</p>
             <p className="mt-3 text-4xl font-semibold text-emerald-600">{expertCount}</p>
             <p className="mt-2 text-sm text-slate-500">At or above 90%</p>
           </button>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Checks this month</p>
             <p className="mt-3 text-4xl font-semibold text-sky-600">{recentInspections.length}</p>
             <p className="mt-2 text-sm text-slate-500">Rolling 30-day activity</p>
@@ -269,7 +270,7 @@ export default function OakerDashboardPage() {
           <button
             type="button"
             onClick={() => openStoreGroup('Watchlist stores', 'Stores currently scoring below 75%.', storesForRating('Critical / Rising OAKER'))}
-            className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-lg"
+            className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-lg"
           >
             <p className="text-xs uppercase tracking-widest text-slate-500">Watchlist</p>
             <p className="mt-3 text-4xl font-semibold text-amber-600">{risingCount}</p>
@@ -277,8 +278,8 @@ export default function OakerDashboardPage() {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card title="OAKER Score Trend" description="Average score by inspection month." className="space-y-4">
+        <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <Card title="OAKER Score Trend" description="Average score by inspection month." className="min-w-0 space-y-4">
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -292,7 +293,7 @@ export default function OakerDashboardPage() {
             </div>
           </Card>
 
-          <Card title="Rating Mix" description="Current store distribution." className="space-y-4">
+          <Card title="Rating Mix" description="Current store distribution." className="min-w-0 space-y-4">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -336,10 +337,10 @@ export default function OakerDashboardPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <Card title="Store League Table" description="Latest score by store." className="space-y-4">
-            <div className="overflow-x-auto">
-              <Table>
+        <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[1fr_1fr]">
+          <Card title="Store League Table" description="Latest score by store." className="min-w-0 space-y-4">
+            <div className="-mx-2 overflow-x-auto px-2">
+              <Table className="min-w-[560px]">
                 <TableHeader>
                   <tr>
                     <th className="px-4 py-3 text-left">Rank</th>
@@ -366,7 +367,7 @@ export default function OakerDashboardPage() {
             </div>
           </Card>
 
-          <Card title="Momentum Watch" description="Movement versus each store's previous check." className="space-y-4">
+          <Card title="Momentum Watch" description="Movement versus each store's previous check." className="min-w-0 space-y-4">
             <div className="grid gap-3">
               {topMover ? (
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
@@ -383,9 +384,9 @@ export default function OakerDashboardPage() {
                 </div>
               ) : (
                 needsAttention.map((inspection) => (
-                  <div key={inspection.id} className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-amber-950">{inspection.storeName}</p>
+                  <div key={inspection.id} className="min-w-0 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <p className="min-w-0 font-semibold text-amber-950">{inspection.storeName}</p>
                       <p className="text-lg font-bold text-amber-700">{inspection.percentage.toFixed(1)}%</p>
                     </div>
                     <p className="mt-1 text-xs text-amber-700">Latest check on {formatDate(inspection.submittedAt)}</p>
@@ -396,8 +397,8 @@ export default function OakerDashboardPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-          <Card title="Check Mix" description="Full Experience versus Express checks." className="space-y-4">
+        <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+          <Card title="Check Mix" description="Full Experience versus Express checks." className="min-w-0 space-y-4">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={modeMix} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -415,9 +416,9 @@ export default function OakerDashboardPage() {
             </div>
           </Card>
 
-          <Card title="Recent Checks" description="Latest submitted OAKER activity." className="space-y-4">
-            <div className="overflow-x-auto">
-              <Table>
+          <Card title="Recent Checks" description="Latest submitted OAKER activity." className="min-w-0 space-y-4">
+            <div className="-mx-2 overflow-x-auto px-2">
+              <Table className="min-w-[640px]">
                 <TableHeader>
                   <tr>
                     <th className="px-4 py-3 text-left">Store</th>
@@ -443,16 +444,16 @@ export default function OakerDashboardPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+        <div className="mt-6 grid min-w-0 gap-4 md:grid-cols-3">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Stores tracked</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">{stores.length}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total checks</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">{inspections.length}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Latest check</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">{latestInspection ? formatDate(latestInspection.submittedAt) : 'None'}</p>
           </div>
