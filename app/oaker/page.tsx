@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -117,13 +117,16 @@ export default function OakerDashboardPage() {
     }
   }
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, []);
+
   useEffect(() => {
     if (userLoading) return;
     if (!user) {
       router.replace('/login');
       return;
     }
-    window.scrollTo({ top: 0, left: 0 });
     loadDashboard();
   }, [user, userLoading, router]);
 
@@ -233,7 +236,7 @@ export default function OakerDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <OakerNavbar />
-      <main className="container w-full overflow-hidden py-6 md:py-10">
+      <main className="container w-full overflow-hidden pb-6 pt-8 md:py-10">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm uppercase tracking-widest text-emerald-600">OAKER Experience</p>
