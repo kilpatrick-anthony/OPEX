@@ -58,17 +58,17 @@ export default function PortalPage() {
   return (
     <div className="min-h-screen px-4 py-8" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 58%, #3a1750 100%)' }}>
       <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-center">
-        <div className="mb-8 grid items-center gap-5 md:grid-cols-[1fr_auto_1fr]">
-          <p className="text-left text-sm font-medium leading-6 text-white/70">
+        <div className="mb-8 grid items-center gap-5 text-center md:grid-cols-[1fr_auto_1fr] md:text-left">
+          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 w-auto drop-shadow-lg md:order-2" />
+          <p className="text-sm font-medium leading-6 text-white/70 md:order-1">
             Hi {user.name},
             <br />
             select where you want to work today.
           </p>
-          <img src="/oakberry-logo.png" alt="OAKBERRY" className="mx-auto h-14 w-auto drop-shadow-lg" />
           <button
             type="button"
             onClick={logout}
-            className="justify-self-start rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white md:justify-self-end"
+            className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white md:order-3 md:block md:justify-self-end"
           >
             Sign out
           </button>
@@ -101,6 +101,14 @@ export default function PortalPage() {
             );
           })}
         </div>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="mx-auto mt-8 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white md:hidden"
+        >
+          Sign out
+        </button>
       </main>
     </div>
   );
