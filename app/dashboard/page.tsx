@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
@@ -103,6 +103,14 @@ export default function DashboardPage() {
     loadDashboard();
   }, [period, customRange, user, userLoading, router]);
 
+  const gaugeValue = useMemo(() => {
+    if (!dashboard || dashboard.totalBudget <= 0) return 0;
+    return Math.min((dashboard.totalSpent / dashboard.totalBudget) * 100, 100);
+  }, [dashboard]);
+
+  const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
+  const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
+
   if (userLoading || (user && user.role === 'store_staff')) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -111,14 +119,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const gaugeValue = useMemo(() => {
-    if (!dashboard || dashboard.totalBudget <= 0) return 0;
-    return Math.min((dashboard.totalSpent / dashboard.totalBudget) * 100, 100);
-  }, [dashboard]);
-
-  const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
-  const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
 
   function exportCsv() {
     if (!dashboard) return;

@@ -82,6 +82,8 @@ export type OakerInspectionRecord = {
   percentage: number;
   rating: OakerRating;
   notes: string | null;
+  reportPath?: string | null;
+  reportText?: string | null;
   createdAt: string;
   submittedAt: string;
 };
@@ -143,7 +145,7 @@ export async function ensureSchema() {
     sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-    sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS oaker_responses (id SERIAL PRIMARY KEY, inspectionId INTEGER NOT NULL, questionId INTEGER NOT NULL, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, answer TEXT NOT NULL, comments TEXT, photos TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ]);
   await Promise.all([
@@ -152,6 +154,10 @@ export async function ensureSchema() {
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`,
+    sql`CREATE UNIQUE INDEX IF NOT EXISTS oaker_inspections_importkey_idx ON oaker_inspections (importKey)`,
     sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`,
   ]);
 }
@@ -616,6 +622,8 @@ export async function getOakerInspectionById(id: number) {
        i.percentage,
        i.rating,
        i.notes,
+       i.reportpath as "reportPath",
+       i.reporttext as "reportText",
        i.createdat as "createdAt",
        i.submittedat as "submittedAt"
      FROM oaker_inspections i
@@ -676,6 +684,8 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
        i.percentage,
        i.rating,
        i.notes,
+       i.reportpath as "reportPath",
+       i.reporttext as "reportText",
        i.createdat as "createdAt",
        i.submittedat as "submittedAt"
      FROM oaker_inspections i

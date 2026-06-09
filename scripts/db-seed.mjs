@@ -8,7 +8,7 @@ if (!process.env.DATABASE_URL) {
 const sql = neon(process.env.DATABASE_URL);
 
 const stores = [
-  'Anne Street',
+  'South Anne Street',
   'Arnotts',
   'Blackrock',
   'Field',
@@ -41,7 +41,7 @@ const fieldTeam = [
 ];
 
 const storeAccounts = [
-  { storeName: 'Anne Street',      email: 'annestreet@oakberry.ie',     password: 'Annestreet2026!',      title: 'Store Manager' },
+  { storeName: 'South Anne Street', email: 'annestreet@oakberry.ie',     password: 'Annestreet2026!',      title: 'Store Manager' },
   { storeName: 'Arnotts',          email: 'arnotts@oakberry.ie',        password: 'Arnotts2026!',         title: 'Store Manager' },
   { storeName: 'Blackrock',        email: 'blackrock@oakberry.ie',      password: 'Blackrock2026!',       title: 'Store Manager' },
   { storeName: 'Cork',             email: 'cork@oakberry.ie',           password: 'Cork2026!',            title: 'Store Manager' },

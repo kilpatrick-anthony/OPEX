@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createOakerInspection, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
+import { createOakerInspection, getDirectorEmails, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
+import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
 import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, OAKER_QUESTIONS, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,20 @@ export const dynamic = 'force-dynamic';
 function normalizeRole(role: string | undefined) {
   return ['employee', 'manager', 'director', 'super_admin'].includes(role || '') ? role! : 'employee';
 }
+
+const CURRENT_OAKER_STORES = new Set([
+  'arnotts',
+  'blackrock',
+  'cork',
+  'dundalk',
+  'dun laoghaire',
+  'hansfield',
+  'kildare village',
+  'maynooth',
+  'nutgrove',
+  'south anne street',
+  'swords pavilions',
+]);
 
 export async function GET(request: Request) {
   const session = (await getServerSession(authOptions)) as any;
@@ -20,21 +35,19 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedStoreId = url.searchParams.get('storeId');
   const parsedStoreId = requestedStoreId && /^\d+$/.test(requestedStoreId) ? Number(requestedStoreId) : undefined;
-  const storeId = role === 'manager' ? Number(session.user.storeId) : parsedStoreId;
+  const storeId = parsedStoreId;
   const mode = url.searchParams.get('mode') === 'express' ? 'express' : 'experience';
-
-  if (role === 'manager' && !session.user.storeId) {
-    return NextResponse.json({ error: 'Store account is missing a store assignment.' }, { status: 403 });
-  }
+  const limitParam = Number(url.searchParams.get('limit'));
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 500) : 50;
 
   const [stores, inspections, stats] = await Promise.all([
     getStores(),
-    getOakerInspections({ role, userStoreId: session.user.storeId, storeId }),
+    getOakerInspections({ role: 'employee', storeId }, limit),
     getOakerQuestionStats(storeId),
   ]);
 
   const visibleStores = stores
-    .filter((store) => store.name.trim().toLowerCase() !== 'nutgrove')
+    .filter((store) => CURRENT_OAKER_STORES.has(store.name.trim().toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
   const questions = getOakerQuestions(mode, stats);
   const latestByStore = new Map<number, (typeof inspections)[number]>();
@@ -43,9 +56,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    stores: role === 'manager'
-      ? visibleStores.filter((store) => store.id === Number(session.user.storeId))
-      : visibleStores,
+    stores: visibleStores,
     inspections,
     latestByStore: Array.from(latestByStore.values()),
     template: {
@@ -63,11 +74,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   }
 
-  const role = normalizeRole(session.user.role);
   const body = await request.json().catch(() => ({}));
   const mode: OakerMode = body.mode === 'express' ? 'express' : 'experience';
   const requestedStoreId = Number(body.storeId);
-  const storeId = role === 'manager' ? Number(session.user.storeId) : requestedStoreId;
+  const storeId = requestedStoreId;
   const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
   const incomingResponses = Array.isArray(body.responses) ? body.responses : [];
 
@@ -117,6 +127,12 @@ export async function POST(request: Request) {
     ...score,
     responses: cleanResponses,
   });
+
+  if (inspection) {
+    getDirectorEmails()
+      .then((directors) => sendOakerCheckCompletedEmail(inspection, directors))
+      .catch((err) => console.error('Failed to send OAKER check completion email:', err));
+  }
 
   return NextResponse.json({ inspection }, { status: 201 });
 }

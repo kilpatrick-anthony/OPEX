@@ -100,7 +100,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }
 
   function logout() {
-    signOut({ callbackUrl: '/login' });
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('oakberry-selected-portal');
+    }
+    signOut({ redirect: false, callbackUrl: '/login' })
+      .finally(() => {
+        if (typeof window !== 'undefined') window.location.assign('/login');
+      });
   }
 
   return (

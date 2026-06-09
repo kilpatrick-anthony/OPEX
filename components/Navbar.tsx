@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
 import { canAccess, ROLE_LABELS } from '@/lib/mockUsers';
 import { PlatformSwitcher } from '@/components/PlatformSwitcher';
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useCurrentUser();
   const [unreadCount, setUnreadCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,7 +48,6 @@ export function Navbar() {
 
   function handleLogout() {
     logout();
-    router.push('/login');
   }
 
   const canViewAnalytics = Boolean(user && user.role !== 'store_staff' && user.role !== 'field_team');

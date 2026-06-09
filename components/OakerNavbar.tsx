@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
 import { ROLE_LABELS } from '@/lib/mockUsers';
 import { PlatformSwitcher } from '@/components/PlatformSwitcher';
 
 export function OakerNavbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -17,13 +16,13 @@ export function OakerNavbar() {
 
   function handleLogout() {
     logout();
-    router.push('/login');
   }
 
   const navItems = [
-    { href: '/oaker', label: 'Dashboard', activePath: '/oaker' },
-    { href: '/oaker', label: 'Checks', activePath: '/oaker/checks' },
-    { href: '/oaker', label: 'Reports', activePath: '/oaker/reports' },
+    { href: '/oaker', label: 'Dashboard', activePath: '/oaker', exact: true },
+    { href: '/oaker/stores', label: 'Stores', activePath: '/oaker/stores' },
+    { href: '/oaker/reports', label: 'Reports', activePath: '/oaker/reports' },
+    { href: '/oaker/checks', label: 'New Check', activePath: '/oaker/checks' },
   ];
 
   return (
@@ -34,7 +33,7 @@ export function OakerNavbar() {
 
         <nav className="hidden md:flex flex-wrap items-center gap-1 text-sm">
           {navItems.map((item) => {
-            const active = pathname === item.activePath || pathname.startsWith(item.activePath + '/');
+            const active = item.exact ? pathname === item.activePath : pathname === item.activePath || pathname.startsWith(item.activePath + '/');
             return (
               <Link key={item.label} href={item.href}
                 className={`rounded-full px-4 py-1.5 font-medium transition-all ${active ? 'text-[#4a1f60] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
@@ -95,7 +94,7 @@ export function OakerNavbar() {
           )}
           <nav className="flex flex-col px-3 pt-2">
             {navItems.map((item) => {
-              const active = pathname === item.activePath || pathname.startsWith(item.activePath + '/');
+              const active = item.exact ? pathname === item.activePath : pathname === item.activePath || pathname.startsWith(item.activePath + '/');
               return (
                 <Link key={item.label} href={item.href}
                   className={`rounded-xl px-4 py-3 text-sm font-medium transition-all ${active ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
