@@ -464,6 +464,8 @@ export async function getDirectorEmails(): Promise<{ name: string; email: string
   return result as { name: string; email: string }[];
 }
 
+const DEFAULT_OAKER_EMAIL_RECIPIENTS = 'OAKER Inbox <info@oakberry.ie>';
+
 function parseEmailRecipient(rawRecipient: string): { name: string; email: string } | null {
   const trimmed = rawRecipient.trim();
   if (!trimmed) return null;
@@ -487,7 +489,12 @@ function getConfiguredOakerRecipients(): { name: string; email: string }[] {
 }
 
 export async function getOakerEmailRecipients(): Promise<{ name: string; email: string }[]> {
-  const recipients = [...(await getDirectorEmails()), ...getConfiguredOakerRecipients()];
+  const defaultOakerRecipient = parseEmailRecipient(DEFAULT_OAKER_EMAIL_RECIPIENTS);
+  const recipients = [
+    ...(await getDirectorEmails()),
+    ...(defaultOakerRecipient ? [defaultOakerRecipient] : []),
+    ...getConfiguredOakerRecipients(),
+  ];
   const uniqueRecipients = new Map<string, { name: string; email: string }>();
 
   for (const recipient of recipients) {
