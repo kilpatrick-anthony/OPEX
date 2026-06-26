@@ -45,6 +45,15 @@ type OakerPayload = {
   latestByStore?: Inspection[];
 };
 
+type EmailPayload = {
+  emailStatus?: {
+    sent: boolean;
+    provider?: string;
+    recipientCount: number;
+    reason?: string;
+  };
+};
+
 function formatDate(dateText: string) {
   return new Date(dateText).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -57,8 +66,10 @@ export default function OakerReportsPage() {
   const [modeFilter, setModeFilter] = useState<'all' | OakerMode>('all');
   const [selectedReport, setSelectedReport] = useState<InspectionDetail | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [emailingReportId, setEmailingReportId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (userLoading) return;
@@ -112,6 +123,26 @@ export default function OakerReportsPage() {
     }
   }
 
+  async function emailReport(id: number) {
+    setEmailingReportId(id);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await fetch(`/api/oaker/${id}/email`, { method: 'POST' });
+      const payload = (await readJsonSafely(response)) as EmailPayload | null;
+      if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to email report'));
+      if (payload?.emailStatus?.sent) {
+        setSuccess(`Report email queued for ${payload.emailStatus.recipientCount} recipient${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
+      } else {
+        setError(`Report email was not sent (${payload?.emailStatus?.reason ?? 'unknown reason'}).`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to email report');
+    } finally {
+      setEmailingReportId(null);
+    }
+  }
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -132,6 +163,7 @@ export default function OakerReportsPage() {
         </div>
 
         {error ? <p className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
+        {success ? <p className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</p> : null}
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
@@ -196,6 +228,14 @@ export default function OakerReportsPage() {
                           <a href={`/api/oaker/${inspection.id}/pdf`} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">
                             Download PDF
                           </a>
+                          <button
+                            type="button"
+                            onClick={() => emailReport(inspection.id)}
+                            disabled={emailingReportId === inspection.id}
+                            className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:pointer-events-none disabled:opacity-60"
+                          >
+                            {emailingReportId === inspection.id ? 'Emailing...' : 'Email report'}
+                          </button>
                           {inspection.reportPath ? (
                             <a href={inspection.reportPath} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">
                               Original PDF
@@ -242,6 +282,14 @@ export default function OakerReportsPage() {
 
             <div className="flex flex-wrap gap-2">
               <a href={`/api/oaker/${selectedReport.id}/pdf`} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white">Download generated PDF</a>
+              <button
+                type="button"
+                onClick={() => emailReport(selectedReport.id)}
+                disabled={emailingReportId === selectedReport.id}
+                className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {emailingReportId === selectedReport.id ? 'Emailing...' : 'Email report'}
+              </button>
               {selectedReport.reportPath ? <a href={selectedReport.reportPath} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-700">Open original PDF</a> : null}
             </div>
 
