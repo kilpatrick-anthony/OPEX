@@ -313,11 +313,11 @@ function loadLogoImage(): PdfImage | null {
 function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfImage | null) {
   rect(page, 0, 704, PAGE_WIDTH, 88, BRAND_PURPLE);
   rect(page, 0, 704, PAGE_WIDTH, 5, BRAND_GREEN);
-  if (logo) image(page, logo.name, MARGIN, 735, 170, 34);
-  else text(page, 'OAKBERRY', MARGIN, 748, { size: 20, bold: true, fill: WHITE });
-  text(page, 'OAKER Experience Check Report', MARGIN, 710, { size: 20, bold: true, fill: WHITE });
-  text(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, 360, 748, { size: 11, bold: true, fill: WHITE });
-  text(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', 360, 728, { size: 9, fill: WHITE });
+  if (logo) image(page, logo.name, MARGIN, 746, 150, 30);
+  else text(page, 'OAKBERRY', MARGIN, 752, { size: 20, bold: true, fill: WHITE });
+  text(page, 'OAKER Experience Check Report', 230, 752, { size: 17, bold: true, fill: WHITE });
+  text(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', 230, 732, { size: 9, fill: WHITE });
+  text(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, 230, 716, { size: 10, bold: true, fill: WHITE });
 }
 
 function addFooter(page: PdfPage, pageNumber: number) {
@@ -365,12 +365,12 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
   text(page, `${inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience'} completed by ${inspection.inspectorName}`, MARGIN, y, { size: 11, fill: SLATE_600 });
   y -= 17;
   text(page, submittedAt, MARGIN, y, { size: 10, fill: SLATE_600 });
-  y -= 48;
+  y -= 88;
 
   const cardW = 160;
   const cardH = 74;
   const cards = [
-    { label: 'Score', value: `${inspection.percentage.toFixed(1)}%`, fill: BRAND_GREEN },
+    { label: 'Score', value: `${inspection.percentage.toFixed(1)}%`, fill: ratingColor(inspection.rating) },
     { label: 'Rating', value: inspection.rating, fill: ratingColor(inspection.rating) },
     { label: 'Points', value: `${inspection.score}/${inspection.maxScore}`, fill: BRAND_PURPLE },
   ];
