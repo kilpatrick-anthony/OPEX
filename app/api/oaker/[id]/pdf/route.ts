@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
 
-  const pdf = buildOakerCheckPdf(inspection);
+  const pdf = await buildOakerCheckPdf(inspection);
   const filename = `oaker-check-${inspection.id}-${inspection.storeName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
 
   return new NextResponse(pdf, {

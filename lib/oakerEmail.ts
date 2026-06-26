@@ -1,4 +1,8 @@
 import nodemailer from 'nodemailer';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { inflateSync, deflateSync } from 'node:zlib';
+import sharp from 'sharp';
 import type { OakerAnswer, OakerMode } from '@/lib/oaker';
 
 export type OakerEmailInspection = {
@@ -19,8 +23,39 @@ export type OakerEmailInspection = {
     weighting: number;
     answer: OakerAnswer;
     comments: string | null;
+    photos?: string[];
   }>;
 };
+
+type PdfImage = {
+  name: string;
+  width: number;
+  height: number;
+  data: Buffer;
+  filter: 'DCTDecode' | 'FlateDecode';
+};
+
+type PdfPage = {
+  commands: string[];
+};
+
+type ParsedPng = {
+  width: number;
+  height: number;
+  data: Buffer;
+};
+
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+const MARGIN = 42;
+const BRAND_PURPLE = [0.43, 0.18, 0.56] as const;
+const BRAND_GREEN = [0.06, 0.65, 0.51] as const;
+const SLATE_900 = [0.06, 0.09, 0.16] as const;
+const SLATE_600 = [0.29, 0.33, 0.41] as const;
+const SLATE_100 = [0.95, 0.97, 0.98] as const;
+const WHITE = [1, 1, 1] as const;
+const PDF_PHOTO_MAX_WIDTH = 900;
+const PDF_PHOTO_QUALITY = 76;
 
 function getTransport() {
   const host = process.env.SMTP_HOST;
@@ -51,6 +86,7 @@ function escapeHtml(value: string) {
 
 function pdfString(value: string) {
   return value
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, '?')
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)')
@@ -76,7 +112,220 @@ function wrapText(text: string, maxLength = 92) {
   return lines.length ? lines : [''];
 }
 
-function buildReportLines(inspection: OakerEmailInspection) {
+function wrapTextForWidth(text: string, width: number, fontSize: number) {
+  return wrapText(text, Math.max(18, Math.floor(width / (fontSize * 0.52))));
+}
+
+function num(value: number) {
+  return Number(value.toFixed(3)).toString();
+}
+
+function color(values: readonly number[]) {
+  return values.map(num).join(' ');
+}
+
+function rect(page: PdfPage, x: number, y: number, width: number, height: number, fill: readonly number[]) {
+  page.commands.push(`${color(fill)} rg ${num(x)} ${num(y)} ${num(width)} ${num(height)} re f`);
+}
+
+function strokeRect(page: PdfPage, x: number, y: number, width: number, height: number, stroke: readonly number[]) {
+  page.commands.push(`${color(stroke)} RG ${num(x)} ${num(y)} ${num(width)} ${num(height)} re S`);
+}
+
+function text(
+  page: PdfPage,
+  value: string,
+  x: number,
+  y: number,
+  options: { size?: number; bold?: boolean; fill?: readonly number[] } = {},
+) {
+  const size = options.size ?? 10;
+  const font = options.bold ? 'F2' : 'F1';
+  const fill = options.fill ?? SLATE_900;
+  page.commands.push(`BT /${font} ${num(size)} Tf ${color(fill)} rg ${num(x)} ${num(y)} Td (${pdfString(value)}) Tj ET`);
+}
+
+function image(page: PdfPage, name: string, x: number, y: number, width: number, height: number) {
+  page.commands.push(`q ${num(width)} 0 0 ${num(height)} ${num(x)} ${num(y)} cm /${name} Do Q`);
+}
+
+function answerLabel(answer: OakerAnswer) {
+  if (answer === 'yes') return 'Yes';
+  if (answer === 'no') return 'No';
+  return 'Capex';
+}
+
+function answerColor(answer: OakerAnswer) {
+  if (answer === 'yes') return [0.06, 0.65, 0.51] as const;
+  if (answer === 'no') return [0.9, 0.11, 0.23] as const;
+  return [0.96, 0.62, 0.04] as const;
+}
+
+function ratingColor(rating: string) {
+  if (rating === 'Green') return [0.06, 0.65, 0.51] as const;
+  if (rating === 'Amber') return [0.96, 0.62, 0.04] as const;
+  if (rating === 'Red') return [0.9, 0.11, 0.23] as const;
+  return BRAND_PURPLE;
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = /^data:([^;,]+);base64,(.+)$/i.exec(dataUrl);
+  if (!match) return null;
+  return { mime: match[1].toLowerCase(), data: Buffer.from(match[2], 'base64') };
+}
+
+function parseJpegDimensions(data: Buffer) {
+  let offset = 2;
+  while (offset < data.length) {
+    if (data[offset] !== 0xff) break;
+    const marker = data[offset + 1];
+    const length = data.readUInt16BE(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xc3) {
+      return {
+        height: data.readUInt16BE(offset + 5),
+        width: data.readUInt16BE(offset + 7),
+      };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function paethPredictor(a: number, b: number, c: number) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function parsePng(data: Buffer): ParsedPng | null {
+  const signature = data.subarray(0, 8).toString('hex');
+  if (signature !== '89504e470d0a1a0a') return null;
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idat: Buffer[] = [];
+
+  while (offset < data.length) {
+    const length = data.readUInt32BE(offset);
+    const type = data.subarray(offset + 4, offset + 8).toString('ascii');
+    const chunk = data.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = chunk.readUInt32BE(0);
+      height = chunk.readUInt32BE(4);
+      bitDepth = chunk[8];
+      colorType = chunk[9];
+      const interlace = chunk[12];
+      if (bitDepth !== 8 || interlace !== 0 || ![2, 6].includes(colorType)) return null;
+    }
+    if (type === 'IDAT') idat.push(chunk);
+    if (type === 'IEND') break;
+    offset += length + 12;
+  }
+
+  const channels = colorType === 6 ? 4 : 3;
+  const stride = width * channels;
+  const raw = inflateSync(Buffer.concat(idat));
+  const rgb = Buffer.alloc(width * height * 3);
+  const previous = Buffer.alloc(stride);
+  const current = Buffer.alloc(stride);
+  let rawOffset = 0;
+  let rgbOffset = 0;
+
+  for (let row = 0; row < height; row += 1) {
+    const filter = raw[rawOffset];
+    rawOffset += 1;
+    raw.copy(current, 0, rawOffset, rawOffset + stride);
+    rawOffset += stride;
+
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= channels ? current[i - channels] : 0;
+      const up = previous[i];
+      const upLeft = i >= channels ? previous[i - channels] : 0;
+      if (filter === 1) current[i] = (current[i] + left) & 255;
+      if (filter === 2) current[i] = (current[i] + up) & 255;
+      if (filter === 3) current[i] = (current[i] + Math.floor((left + up) / 2)) & 255;
+      if (filter === 4) current[i] = (current[i] + paethPredictor(left, up, upLeft)) & 255;
+    }
+
+    for (let x = 0; x < width; x += 1) {
+      const pixel = x * channels;
+      const alpha = colorType === 6 ? current[pixel + 3] / 255 : 1;
+      rgb[rgbOffset] = Math.round(current[pixel] * alpha + 255 * (1 - alpha));
+      rgb[rgbOffset + 1] = Math.round(current[pixel + 1] * alpha + 255 * (1 - alpha));
+      rgb[rgbOffset + 2] = Math.round(current[pixel + 2] * alpha + 255 * (1 - alpha));
+      rgbOffset += 3;
+    }
+
+    current.copy(previous);
+  }
+
+  return { width, height, data: deflateSync(rgb) };
+}
+
+function createImageFromBuffer(name: string, data: Buffer, mime?: string): PdfImage | null {
+  if (mime?.includes('jpeg') || mime?.includes('jpg') || data.subarray(0, 2).toString('hex') === 'ffd8') {
+    const dimensions = parseJpegDimensions(data);
+    if (!dimensions) return null;
+    return { name, width: dimensions.width, height: dimensions.height, data, filter: 'DCTDecode' };
+  }
+
+  if (mime?.includes('png') || data.subarray(0, 8).toString('hex') === '89504e470d0a1a0a') {
+    const png = parsePng(data);
+    if (!png) return null;
+    return { name, width: png.width, height: png.height, data: png.data, filter: 'FlateDecode' };
+  }
+
+  return null;
+}
+
+async function createEvidenceImage(name: string, data: Buffer): Promise<PdfImage | null> {
+  try {
+    const resized = await sharp(data, { failOn: 'none' })
+      .rotate()
+      .resize({
+        width: PDF_PHOTO_MAX_WIDTH,
+        height: PDF_PHOTO_MAX_WIDTH,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: PDF_PHOTO_QUALITY, mozjpeg: true })
+      .toBuffer();
+    return createImageFromBuffer(name, resized, 'image/jpeg');
+  } catch (err) {
+    console.error('Failed to prepare OAKER PDF evidence image:', err);
+    return null;
+  }
+}
+
+function loadLogoImage(): PdfImage | null {
+  const logoPath = join(process.cwd(), 'public', 'oakberry-logo.png');
+  if (!existsSync(logoPath)) return null;
+  return createImageFromBuffer('Logo', readFileSync(logoPath), 'image/png');
+}
+
+function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfImage | null) {
+  rect(page, 0, 704, PAGE_WIDTH, 88, BRAND_PURPLE);
+  rect(page, 0, 704, PAGE_WIDTH, 5, BRAND_GREEN);
+  if (logo) image(page, logo.name, MARGIN, 735, 170, 34);
+  else text(page, 'OAKBERRY', MARGIN, 748, { size: 20, bold: true, fill: WHITE });
+  text(page, 'OAKER Experience Check Report', MARGIN, 710, { size: 20, bold: true, fill: WHITE });
+  text(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, 360, 748, { size: 11, bold: true, fill: WHITE });
+  text(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', 360, 728, { size: 9, fill: WHITE });
+}
+
+function addFooter(page: PdfPage, pageNumber: number) {
+  text(page, 'OAKBERRY Ireland OPEX Portal', MARGIN, 24, { size: 8, fill: SLATE_600 });
+  text(page, `Page ${pageNumber}`, PAGE_WIDTH - MARGIN - 38, 24, { size: 8, fill: SLATE_600 });
+}
+
+async function buildStyledPdf(inspection: OakerEmailInspection) {
   const submittedAt = new Date(inspection.submittedAt).toLocaleString('en-IE', {
     day: 'numeric',
     month: 'long',
@@ -84,23 +333,63 @@ function buildReportLines(inspection: OakerEmailInspection) {
     hour: '2-digit',
     minute: '2-digit',
   });
+  const pages: PdfPage[] = [];
+  const images = new Map<string, PdfImage>();
+  const logo = loadLogoImage();
+  if (logo) images.set(logo.name, logo);
+  let imageCount = logo ? 1 : 0;
 
-  const lines = [
-    'OAKER Experience Check Report',
-    '',
-    `Store: ${inspection.storeName}`,
-    `Inspector: ${inspection.inspectorName}`,
-    `Check type: ${inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience'}`,
-    `Submitted: ${submittedAt}`,
-    `Score: ${inspection.percentage.toFixed(1)}% (${inspection.score} of ${inspection.maxScore})`,
-    `Rating: ${inspection.rating}`,
-    '',
+  function addPage() {
+    const page = { commands: [] as string[] };
+    pages.push(page);
+    addHeader(page, inspection, logo);
+    addFooter(page, pages.length);
+    return page;
+  }
+
+  async function addPhoto(dataUrl: string) {
+    const parsed = parseDataUrl(dataUrl);
+    if (!parsed) return null;
+    imageCount += 1;
+    const pdfImage = await createEvidenceImage(`Photo${imageCount}`, parsed.data);
+    if (!pdfImage) return null;
+    images.set(pdfImage.name, pdfImage);
+    return pdfImage;
+  }
+
+  let page = addPage();
+  let y = 662;
+
+  text(page, inspection.storeName, MARGIN, y, { size: 26, bold: true, fill: SLATE_900 });
+  y -= 25;
+  text(page, `${inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience'} completed by ${inspection.inspectorName}`, MARGIN, y, { size: 11, fill: SLATE_600 });
+  y -= 17;
+  text(page, submittedAt, MARGIN, y, { size: 10, fill: SLATE_600 });
+  y -= 48;
+
+  const cardW = 160;
+  const cardH = 74;
+  const cards = [
+    { label: 'Score', value: `${inspection.percentage.toFixed(1)}%`, fill: BRAND_GREEN },
+    { label: 'Rating', value: inspection.rating, fill: ratingColor(inspection.rating) },
+    { label: 'Points', value: `${inspection.score}/${inspection.maxScore}`, fill: BRAND_PURPLE },
   ];
+  cards.forEach((card, index) => {
+    const x = MARGIN + index * (cardW + 18);
+    rect(page, x, y, cardW, cardH, card.fill);
+    text(page, card.label, x + 14, y + 48, { size: 9, bold: true, fill: WHITE });
+    text(page, card.value, x + 14, y + 18, { size: 23, bold: true, fill: WHITE });
+  });
+  y -= 42;
 
   if (inspection.notes?.trim()) {
-    lines.push('Overall notes:');
-    lines.push(...wrapText(inspection.notes.trim(), 92));
-    lines.push('');
+    y -= 58;
+    rect(page, MARGIN, y - 8, PAGE_WIDTH - MARGIN * 2, 76, SLATE_100);
+    text(page, 'Overall report notes', MARGIN + 14, y + 45, { size: 12, bold: true, fill: SLATE_900 });
+    wrapTextForWidth(inspection.notes.trim(), PAGE_WIDTH - MARGIN * 2 - 28, 9).slice(0, 3).forEach((line, index) => {
+      text(page, line, MARGIN + 14, y + 26 - index * 13, { size: 9, fill: SLATE_600 });
+    });
+    y -= 40;
   }
 
   const grouped = inspection.responses.reduce<Record<string, typeof inspection.responses>>((acc, response) => {
@@ -110,72 +399,119 @@ function buildReportLines(inspection: OakerEmailInspection) {
   }, {});
 
   for (const [section, responses] of Object.entries(grouped)) {
-    lines.push(section);
-    lines.push('-'.repeat(Math.min(section.length, 90)));
-    for (const response of responses) {
-      const answer = response.answer === 'yes' ? 'Yes' : response.answer === 'no' ? 'No' : 'Capex';
-      lines.push(`#${response.questionId} [${answer}] ${response.weighting} pts`);
-      lines.push(...wrapText(response.standard, 92));
-      if (response.comments?.trim()) {
-        lines.push(...wrapText(`Comments: ${response.comments.trim()}`, 92));
-      }
-      lines.push('');
+    if (y < 135) {
+      page = addPage();
+      y = 660;
     }
+    rect(page, MARGIN, y, PAGE_WIDTH - MARGIN * 2, 28, BRAND_PURPLE);
+    text(page, section, MARGIN + 12, y + 9, { size: 11, bold: true, fill: WHITE });
+    y -= 18;
+
+    for (const response of responses) {
+      const standardLines = wrapTextForWidth(response.standard, 360, 9);
+      const commentLines = response.comments?.trim() ? wrapTextForWidth(`Comment: ${response.comments.trim()}`, 392, 8) : [];
+      const photoImages = (await Promise.all((response.photos ?? []).slice(0, 4).map(addPhoto))).filter((item): item is PdfImage => Boolean(item));
+      const photoRows = photoImages.length > 0 ? Math.ceil(photoImages.length / 2) : 0;
+      const rowHeight = Math.max(76, 46 + standardLines.length * 12 + commentLines.length * 11 + photoRows * 104);
+
+      if (y - rowHeight < 55) {
+        page = addPage();
+        y = 660;
+      }
+
+      rect(page, MARGIN, y - rowHeight, PAGE_WIDTH - MARGIN * 2, rowHeight - 8, [0.99, 0.99, 1]);
+      strokeRect(page, MARGIN, y - rowHeight, PAGE_WIDTH - MARGIN * 2, rowHeight - 8, [0.88, 0.91, 0.95]);
+      text(page, `#${response.questionId}`, MARGIN + 12, y - 25, { size: 9, bold: true, fill: SLATE_600 });
+      rect(page, MARGIN + 54, y - 34, 58, 20, answerColor(response.answer));
+      text(page, answerLabel(response.answer), MARGIN + 64, y - 28, { size: 8, bold: true, fill: WHITE });
+      text(page, `${response.weighting} pts`, PAGE_WIDTH - MARGIN - 55, y - 25, { size: 8, bold: true, fill: SLATE_600 });
+
+      standardLines.forEach((line, index) => {
+        text(page, line, MARGIN + 12, y - 50 - index * 12, { size: 9, fill: SLATE_900 });
+      });
+      let textY = y - 52 - standardLines.length * 12;
+      commentLines.forEach((line, index) => {
+        text(page, line, MARGIN + 12, textY - index * 11, { size: 8, fill: SLATE_600 });
+      });
+      textY -= commentLines.length * 11;
+
+      photoImages.forEach((photo, index) => {
+        const thumbW = 116;
+        const thumbH = 88;
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+        const x = MARGIN + 12 + col * (thumbW + 12);
+        const photoY = textY - 96 - row * 104;
+        rect(page, x, photoY, thumbW, thumbH, WHITE);
+        strokeRect(page, x, photoY, thumbW, thumbH, [0.88, 0.91, 0.95]);
+        const scale = Math.min(thumbW / photo.width, thumbH / photo.height);
+        const drawW = photo.width * scale;
+        const drawH = photo.height * scale;
+        image(page, photo.name, x + (thumbW - drawW) / 2, photoY + (thumbH - drawH) / 2, drawW, drawH);
+      });
+
+      y -= rowHeight;
+    }
+    y -= 10;
   }
 
-  return lines;
+  return buildPdf(pages, Array.from(images.values()));
 }
 
-function buildPdf(lines: string[]) {
-  const pageLineLimit = 48;
-  const pages: string[][] = [];
-  for (let index = 0; index < lines.length; index += pageLineLimit) {
-    pages.push(lines.slice(index, index + pageLineLimit));
+function buildPdf(pages: PdfPage[], images: PdfImage[]) {
+  const objects: Array<string | Buffer> = [];
+  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
+  objects.push('');
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+
+  const imageObjectIds = new Map<string, number>();
+  for (const pdfImage of images) {
+    const objectId = objects.length + 1;
+    imageObjectIds.set(pdfImage.name, objectId);
+    const colorSpace = '/DeviceRGB';
+    const decodeParms = pdfImage.filter === 'FlateDecode' ? '' : '';
+    objects.push(Buffer.concat([
+      Buffer.from(`<< /Type /XObject /Subtype /Image /Width ${pdfImage.width} /Height ${pdfImage.height} /ColorSpace ${colorSpace} /BitsPerComponent 8 /Filter /${pdfImage.filter}${decodeParms} /Length ${pdfImage.data.length} >>\nstream\n`, 'utf8'),
+      pdfImage.data,
+      Buffer.from('\nendstream', 'utf8'),
+    ]));
   }
 
-  const objects: string[] = [];
-  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
+  const pageObjectIds: number[] = [];
+  for (const page of pages) {
+    const content = page.commands.join('\n');
+    const contentObjectId = objects.length + 2;
+    const pageObjectId = objects.length + 1;
+    pageObjectIds.push(pageObjectId);
+    const xObjects = images.map((pdfImage) => `/${pdfImage.name} ${imageObjectIds.get(pdfImage.name)} 0 R`).join(' ');
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << ${xObjects} >> >> /Contents ${contentObjectId} 0 R >>`);
+    objects.push(`<< /Length ${Buffer.byteLength(content, 'utf8')} >>\nstream\n${content}\nendstream`);
+  }
 
-  const pageRefs = pages.map((_, index) => `${3 + index * 2} 0 R`).join(' ');
-  objects.push(`<< /Type /Pages /Kids [${pageRefs}] /Count ${pages.length} >>`);
+  objects[1] = `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pages.length} >>`;
 
-  pages.forEach((pageLines, pageIndex) => {
-    const pageObjectId = 3 + pageIndex * 2;
-    const contentObjectId = pageObjectId + 1;
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> /Contents ${contentObjectId} 0 R >>`);
-
-    const commands: string[] = [];
-    let y = 750;
-    pageLines.forEach((line, lineIndex) => {
-      const isTitle = pageIndex === 0 && lineIndex === 0;
-      const font = isTitle ? 'F2' : 'F1';
-      const size = isTitle ? 16 : 10;
-      commands.push(`BT /${font} ${size} Tf 50 ${y} Td (${pdfString(line)}) Tj ET`);
-      y -= isTitle ? 24 : 14;
-    });
-    const stream = commands.join('\n');
-    objects.push(`<< /Length ${Buffer.byteLength(stream, 'utf8')} >>\nstream\n${stream}\nendstream`);
-  });
-
-  const parts = ['%PDF-1.4\n'];
+  const parts: Buffer[] = [Buffer.from('%PDF-1.4\n', 'utf8')];
   const offsets = [0];
   objects.forEach((object, index) => {
-    offsets.push(Buffer.byteLength(parts.join(''), 'utf8'));
-    parts.push(`${index + 1} 0 obj\n${object}\nendobj\n`);
+    offsets.push(Buffer.concat(parts).length);
+    parts.push(Buffer.from(`${index + 1} 0 obj\n`, 'utf8'));
+    parts.push(Buffer.isBuffer(object) ? object : Buffer.from(object, 'utf8'));
+    parts.push(Buffer.from('\nendobj\n', 'utf8'));
   });
-  const xrefOffset = Buffer.byteLength(parts.join(''), 'utf8');
-  parts.push(`xref\n0 ${objects.length + 1}\n`);
-  parts.push('0000000000 65535 f \n');
+  const xrefOffset = Buffer.concat(parts).length;
+  parts.push(Buffer.from(`xref\n0 ${objects.length + 1}\n`, 'utf8'));
+  parts.push(Buffer.from('0000000000 65535 f \n', 'utf8'));
   offsets.slice(1).forEach((offset) => {
-    parts.push(`${String(offset).padStart(10, '0')} 00000 n \n`);
+    parts.push(Buffer.from(`${String(offset).padStart(10, '0')} 00000 n \n`, 'utf8'));
   });
-  parts.push(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+  parts.push(Buffer.from(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`, 'utf8'));
 
-  return Buffer.from(parts.join(''), 'utf8');
+  return Buffer.concat(parts);
 }
 
-export function buildOakerCheckPdf(inspection: OakerEmailInspection) {
-  return buildPdf(buildReportLines(inspection));
+export async function buildOakerCheckPdf(inspection: OakerEmailInspection) {
+  return buildStyledPdf(inspection);
 }
 
 export async function sendOakerCheckCompletedEmail(
@@ -214,7 +550,7 @@ export async function sendOakerCheckCompletedEmail(
     </div>
   `;
 
-  const pdf = buildOakerCheckPdf(inspection);
+  const pdf = await buildOakerCheckPdf(inspection);
 
   await transport.sendMail({
     from,
