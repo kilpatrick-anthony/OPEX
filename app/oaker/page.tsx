@@ -258,10 +258,10 @@ export default function OakerDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => openStoreGroup('Green stores', 'Stores currently scoring at or above 90%.', storesForRating('Green'))}
+            onClick={() => openStoreGroup('Green Rated Stores', 'Stores currently scoring at or above 90%.', storesForRating('Green'))}
             className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-500">Green stores</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Green Rated Stores</p>
             <p className="mt-3 text-4xl font-semibold text-emerald-600">{expertCount}</p>
             <p className="mt-2 text-sm text-slate-500">At or above 90%</p>
           </button>
@@ -272,10 +272,10 @@ export default function OakerDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => openStoreGroup('Red stores', 'Stores currently scoring below 75%.', storesForRating('Red'))}
+            onClick={() => openStoreGroup('Red Rated Stores', 'Stores currently scoring below 75%.', storesForRating('Red'))}
             className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-500">Red stores</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Red Rated Stores</p>
             <p className="mt-3 text-4xl font-semibold text-rose-600">{risingCount}</p>
             <p className="mt-2 text-sm text-slate-500">Stores below 75%</p>
           </button>
@@ -309,7 +309,7 @@ export default function OakerDashboardPage() {
                     paddingAngle={4}
                     onClick={(entry) => {
                       if (!entry?.rating) return;
-                      openStoreGroup(`${entry.name} stores`, `Stores currently in the ${entry.name} rating group.`, storesForRating(entry.rating));
+                      openStoreGroup(`${entry.name} Rated Stores`, `Stores currently in the ${entry.name} rating group.`, storesForRating(entry.rating));
                     }}
                     cursor="pointer"
                   >
@@ -326,7 +326,7 @@ export default function OakerDashboardPage() {
                 <button
                   key={item.name}
                   type="button"
-                  onClick={() => openStoreGroup(`${item.name} stores`, `Stores currently in the ${item.name} rating group.`, storesForRating(item.rating))}
+                  onClick={() => openStoreGroup(`${item.name} Rated Stores`, `Stores currently in the ${item.name} rating group.`, storesForRating(item.rating))}
                   className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-left text-sm transition hover:bg-slate-100"
                 >
                   <span className="flex items-center gap-2 font-medium text-slate-700">

@@ -124,9 +124,12 @@ export async function POST(request: Request) {
   });
 
   if (inspection) {
-    getSuperAdminEmails()
-      .then((superAdmins) => sendOakerCheckCompletedEmail(inspection, superAdmins))
-      .catch((err) => console.error('Failed to send OAKER check completion email:', err));
+    try {
+      const superAdmins = await getSuperAdminEmails();
+      await sendOakerCheckCompletedEmail(inspection, superAdmins);
+    } catch (err) {
+      console.error('Failed to send OAKER check completion email:', err);
+    }
   }
 
   return NextResponse.json({ inspection }, { status: 201 });
