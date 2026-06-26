@@ -464,6 +464,13 @@ export async function getDirectorEmails(): Promise<{ name: string; email: string
   return result as { name: string; email: string }[];
 }
 
+export async function getSuperAdminEmails(): Promise<{ name: string; email: string }[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`SELECT name, email FROM users WHERE role = 'super_admin' ORDER BY name`;
+  return result as { name: string; email: string }[];
+}
+
 export async function deleteRequest(requestId: number) {
   await ensureSchemaOnce();
   const sql = getSql();

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createOakerInspection, getDirectorEmails, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
+import { createOakerInspection, getOakerInspections, getOakerQuestionStats, getStores, getSuperAdminEmails } from '@/lib/db';
 import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
 import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, OAKER_QUESTIONS, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
 
@@ -124,8 +124,8 @@ export async function POST(request: Request) {
   });
 
   if (inspection) {
-    getDirectorEmails()
-      .then((directors) => sendOakerCheckCompletedEmail(inspection, directors))
+    getSuperAdminEmails()
+      .then((superAdmins) => sendOakerCheckCompletedEmail(inspection, superAdmins))
       .catch((err) => console.error('Failed to send OAKER check completion email:', err));
   }
 
