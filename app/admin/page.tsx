@@ -11,10 +11,22 @@ type StoreRecord = {
   name: string;
   budget: number;
   managerUserId?: number | null;
+  managerName?: string | null;
   managerEmail?: string | null;
+  managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
 };
 type FieldUser  = { id: number; name: string; email: string; title: string | null; budget: number; portalAccess: PortalKey[] };
+type AccountEditor = {
+  type: 'store' | 'user';
+  userId: number;
+  storeId?: number;
+  name: string;
+  email: string;
+  title: string;
+  password: string;
+  sendWelcomeEmail: boolean;
+};
 
 export default function AdminPage() {
   const [stores, setStores]       = useState<StoreRecord[]>([]);
@@ -42,6 +54,9 @@ export default function AdminPage() {
   const [accessSavingId, setAccessSavingId] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'store' | 'user'; id: number; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [accountEditor, setAccountEditor] = useState<AccountEditor | null>(null);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountError, setAccountError] = useState('');
 
   useEffect(() => {
     fetch('/api/stores', { cache: 'no-store' })
@@ -140,6 +155,91 @@ export default function AdminPage() {
       setSaveError('Network error - portal access not saved.');
     } finally {
       setAccessSavingId(null);
+    }
+  }
+
+  function openUserDetails(user: FieldUser) {
+    setAccountEditor({
+      type: 'user',
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      title: user.title ?? '',
+      password: '',
+      sendWelcomeEmail: false,
+    });
+    setAccountError('');
+  }
+
+  function openStoreLoginDetails(store: StoreRecord) {
+    if (!store.managerUserId) return;
+    setAccountEditor({
+      type: 'store',
+      userId: store.managerUserId,
+      storeId: store.id,
+      name: store.managerName ?? store.name,
+      email: store.managerEmail ?? '',
+      title: store.managerTitle ?? '',
+      password: '',
+      sendWelcomeEmail: false,
+    });
+    setAccountError('');
+  }
+
+  async function saveAccountDetails() {
+    if (!accountEditor) return;
+    const name = accountEditor.name.trim();
+    const email = accountEditor.email.trim().toLowerCase();
+    const title = accountEditor.title.trim();
+    const password = accountEditor.password;
+
+    if (!name || !email) {
+      setAccountError('Name and email are required.');
+      return;
+    }
+    if ((password || accountEditor.sendWelcomeEmail) && password.length < 8) {
+      setAccountError('Enter a temporary password of at least 8 characters.');
+      return;
+    }
+
+    setAccountSaving(true);
+    setAccountError('');
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: accountEditor.userId,
+          name,
+          email,
+          title,
+          password: password || undefined,
+          sendWelcomeEmail: accountEditor.sendWelcomeEmail,
+        }),
+      });
+      const payload = await readJsonSafely(res) as any;
+      if (!res.ok) {
+        setAccountError(payload?.error ?? 'Failed to save user details.');
+        return;
+      }
+
+      if (accountEditor.type === 'user') {
+        setFieldUsers((prev) => prev.map((user) => (
+          user.id === accountEditor.userId ? { ...user, name, email, title: title || null } : user
+        )));
+      } else if (accountEditor.storeId) {
+        setStores((prev) => prev.map((store) => (
+          store.id === accountEditor.storeId
+            ? { ...store, managerName: name, managerEmail: email, managerTitle: title || null }
+            : store
+        )));
+      }
+
+      setAccountEditor(null);
+    } catch {
+      setAccountError('Network error - user details not saved.');
+    } finally {
+      setAccountSaving(false);
     }
   }
 
@@ -357,6 +457,13 @@ export default function AdminPage() {
                           title="Edit budget">
                           Edit
                         </button>
+                        {store.managerUserId && (
+                          <button type="button" onClick={() => openStoreLoginDetails(store)}
+                            className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-100 hover:text-sky-600 transition-colors"
+                            title="Edit login details">
+                            Details
+                          </button>
+                        )}
                         <button type="button" onClick={() => setConfirmDelete({ type: 'store', id: store.id, name: store.name })}
                           className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
                           title="Delete store">
@@ -507,6 +614,11 @@ export default function AdminPage() {
                           title="Edit budget">
                           Edit
                         </button>
+                        <button type="button" onClick={() => openUserDetails(user)}
+                          className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-100 hover:text-emerald-600 transition-colors"
+                          title="Edit user details">
+                          Details
+                        </button>
                         <button type="button" onClick={() => setConfirmDelete({ type: 'user', id: user.id, name: user.name })}
                           className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
                           title="Remove person">
@@ -638,6 +750,88 @@ export default function AdminPage() {
         </div>
 
       </main>
+
+      {/* ── Account Details Modal ───────────────────────────────────────── */}
+      {accountEditor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-slate-900">
+                Edit {accountEditor.type === 'store' ? 'Store Login' : 'User Details'}
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Update profile details, set a new temporary password, or re-send the welcome email.
+              </p>
+            </div>
+
+            {accountError && <p className="mb-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">{accountError}</p>}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Name
+                <input
+                  type="text"
+                  value={accountEditor.name}
+                  onChange={(e) => setAccountEditor((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Email
+                <input
+                  type="email"
+                  value={accountEditor.email}
+                  onChange={(e) => setAccountEditor((prev) => prev ? { ...prev, email: e.target.value } : null)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Job title
+                <input
+                  type="text"
+                  value={accountEditor.title}
+                  onChange={(e) => setAccountEditor((prev) => prev ? { ...prev, title: e.target.value } : null)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                New temporary password
+                <input
+                  type="text"
+                  value={accountEditor.password}
+                  onChange={(e) => setAccountEditor((prev) => prev ? { ...prev, password: e.target.value } : null)}
+                  placeholder="Leave blank to keep current"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={accountEditor.sendWelcomeEmail}
+                onChange={(e) => setAccountEditor((prev) => prev ? { ...prev, sendWelcomeEmail: e.target.checked } : null)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block font-semibold text-slate-800">Re-issue welcome email</span>
+                <span className="block text-xs text-slate-500">Requires a new temporary password because the current password cannot be read back.</span>
+              </span>
+            </label>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => { setAccountEditor(null); setAccountError(''); }} disabled={accountSaving}
+                className="rounded-xl border border-slate-200 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                Cancel
+              </button>
+              <button type="button" onClick={saveAccountDetails} disabled={accountSaving}
+                className="rounded-xl bg-sky-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60">
+                {accountSaving ? 'Saving...' : 'Save Details'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Confirm Delete Modal ──────────────────────────────────────── */}
       {confirmDelete && (

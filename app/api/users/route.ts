@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getFieldTeamUsers, updateUserBudget, updateUserPortalAccess, createUser, deleteUser } from '@/lib/db';
+import { getFieldTeamUsers, updateUserBudget, updateUserPortalAccess, updateUserProfile, updateUserPassword, createUser, deleteUser } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { sendWelcomeEmail } from '@/lib/email';
 import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, serializePortalAccess } from '@/lib/portalAccess';
@@ -46,7 +46,54 @@ export async function PATCH(request: Request) {
     await updateUserPortalAccess(userId, portalAccess);
   }
 
-  return NextResponse.json({ ok: true });
+  const password = typeof body.password === 'string' ? body.password : '';
+  if ('password' in body || body.sendWelcomeEmail) {
+    if (!password) {
+      return NextResponse.json({ error: 'Enter a temporary password to reset or re-send login details.' }, { status: 400 });
+    }
+    if (password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 });
+    }
+  }
+
+  let updatedUser: Awaited<ReturnType<typeof updateUserProfile>> | undefined;
+  if ('name' in body || 'email' in body || 'title' in body) {
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null;
+
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 });
+    }
+
+    try {
+      updatedUser = await updateUserProfile(userId, { name, email, title });
+    } catch (err: any) {
+      if (err?.message?.includes('unique') || err?.code === '23505') {
+        return NextResponse.json({ error: 'An account with that email already exists.' }, { status: 409 });
+      }
+      return NextResponse.json({ error: 'Failed to update user details.' }, { status: 500 });
+    }
+  }
+
+  if ('password' in body || body.sendWelcomeEmail) {
+    const hashed = await hashPassword(password);
+    await updateUserPassword(userId, hashed);
+
+    if (body.sendWelcomeEmail) {
+      const emailName = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : updatedUser?.name;
+      const emailAddress = typeof body.email === 'string' && body.email.trim() ? body.email.trim().toLowerCase() : updatedUser?.email;
+      if (!emailName || !emailAddress) {
+        return NextResponse.json({ error: 'Name and email are required to send login details.' }, { status: 400 });
+      }
+      sendWelcomeEmail({ name: emailName, email: emailAddress }, password).catch(() => {});
+    }
+  }
+
+  return NextResponse.json({ ok: true, user: updatedUser });
 }
 
 export async function POST(request: Request) {

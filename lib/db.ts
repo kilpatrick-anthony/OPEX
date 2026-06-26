@@ -27,7 +27,9 @@ export type Store = {
   name: string;
   budget: number;
   managerUserId?: number | null;
+  managerName?: string | null;
   managerEmail?: string | null;
+  managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
 };
 
@@ -227,6 +229,19 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   await sql`UPDATE users SET password = ${passwordHash} WHERE id = ${userId}`;
 }
 
+export async function updateUserProfile(userId: number, data: { name: string; email: string; title?: string | null }) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`
+    UPDATE users
+    SET name = ${data.name}, email = ${data.email.toLowerCase()}, title = ${data.title ?? null}
+    WHERE id = ${userId}
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+  `;
+  const user = result[0] as (Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] }) | undefined;
+  return user ? { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) } : undefined;
+}
+
 function normalizeUserPortalAccess(value: unknown): PortalKey[] {
   const serialized = serializePortalAccess(value ?? DEFAULT_PORTAL_ACCESS);
   return serialized.split(',') as PortalKey[];
@@ -255,11 +270,13 @@ export async function getStores() {
       s.name,
       s.budget,
       u.id as "managerUserId",
+      u.name as "managerName",
       u.email as "managerEmail",
+      u.title as "managerTitle",
       u.portalaccess as "managerPortalAccess"
     FROM stores s
     LEFT JOIN LATERAL (
-      SELECT id, email, portalaccess
+      SELECT id, name, email, title, portalaccess
       FROM users
       WHERE role = 'manager' AND storeid = s.id
       ORDER BY id
