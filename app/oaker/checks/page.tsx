@@ -74,6 +74,16 @@ type OakerPayload = {
   };
 };
 
+type SubmitPayload = {
+  inspection?: Inspection;
+  emailStatus?: {
+    sent: boolean;
+    provider?: string;
+    recipientCount: number;
+    reason?: string;
+  };
+};
+
 const ANSWER_LABELS: Record<OakerAnswer, string> = {
   yes: 'Yes',
   no: 'No',
@@ -384,9 +394,13 @@ export default function OakerPage() {
           })),
         }),
       });
-      const payload = await readJsonSafely(response);
+      const payload = await readJsonSafely(response) as SubmitPayload;
       if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to submit OAKER check'));
-      setSuccess('OAKER check submitted successfully.');
+      if (payload.emailStatus?.sent) {
+        setSuccess(`OAKER check submitted successfully. Email sent to ${payload.emailStatus.recipientCount} super admin${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
+      } else {
+        setSuccess(`OAKER check submitted successfully, but the email was not sent (${payload.emailStatus?.reason ?? 'unknown reason'}).`);
+      }
       setActive(false);
       setResponses({});
       setNotes('');

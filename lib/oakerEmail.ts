@@ -75,6 +75,13 @@ function getTransport() {
   });
 }
 
+type OakerEmailSendResult = {
+  sent: boolean;
+  provider?: 'resend' | 'smtp';
+  recipientCount: number;
+  reason?: string;
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -553,10 +560,11 @@ export async function buildOakerCheckPdf(inspection: OakerEmailInspection) {
 export async function sendOakerCheckCompletedEmail(
   inspection: OakerEmailInspection,
   recipients: { name: string; email: string }[],
-) {
-  if (recipients.length === 0) return;
+): Promise<OakerEmailSendResult> {
+  if (recipients.length === 0) {
+    return { sent: false, recipientCount: 0, reason: 'no_recipients' };
+  }
 
-  const transport = getTransport();
   const from = process.env.SMTP_FROM ?? `OAKBERRY OPEX <${process.env.SMTP_USER}>`;
   const subject = `OAKER Experience Check Completed - ${inspection.storeName} - ${inspection.percentage.toFixed(1)}%`;
   const appUrl = process.env.NEXTAUTH_URL ?? 'https://opex.oakberry.ie';
@@ -592,6 +600,41 @@ export async function sendOakerCheckCompletedEmail(
   `;
 
   const pdf = await buildOakerCheckPdf(inspection);
+  const filename = `oaker-check-${inspection.id}-${inspection.storeName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.EMAIL_FROM;
+  const recipientEmails = recipients.map((recipient) => recipient.email);
+
+  if (resendApiKey && resendFrom) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: resendFrom,
+        to: recipientEmails,
+        subject,
+        html,
+        attachments: [
+          {
+            filename,
+            content: pdf.toString('base64'),
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => '');
+      throw new Error(`Resend OAKER email failed with ${response.status}: ${message.slice(0, 300)}`);
+    }
+
+    return { sent: true, provider: 'resend', recipientCount: recipients.length };
+  }
+
+  const transport = getTransport();
 
   await transport.sendMail({
     from,
@@ -600,10 +643,12 @@ export async function sendOakerCheckCompletedEmail(
     html,
     attachments: [
       {
-        filename: `oaker-check-${inspection.id}-${inspection.storeName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`,
+        filename,
         content: pdf,
         contentType: 'application/pdf',
       },
     ],
   });
+
+  return { sent: true, provider: 'smtp', recipientCount: recipients.length };
 }

@@ -123,14 +123,28 @@ export async function POST(request: Request) {
     responses: cleanResponses,
   });
 
+  let emailStatus: { sent: boolean; provider?: string; recipientCount: number; reason?: string } = {
+    sent: false,
+    recipientCount: 0,
+    reason: 'not_attempted',
+  };
+
   if (inspection) {
     try {
       const superAdmins = await getSuperAdminEmails();
-      await sendOakerCheckCompletedEmail(inspection, superAdmins);
+      emailStatus = { sent: false, recipientCount: superAdmins.length, reason: 'attempting' };
+      emailStatus = await sendOakerCheckCompletedEmail(inspection, superAdmins);
+      console.info('OAKER completion email status:', emailStatus);
     } catch (err) {
       console.error('Failed to send OAKER check completion email:', err);
+      const message = err instanceof Error ? err.message : '';
+      emailStatus = {
+        sent: false,
+        recipientCount: emailStatus.recipientCount,
+        reason: message.includes('SMTP_HOST') ? 'email_config_missing' : message.includes('Resend') ? 'email_provider_error' : 'send_failed',
+      };
     }
   }
 
-  return NextResponse.json({ inspection }, { status: 201 });
+  return NextResponse.json({ inspection, emailStatus }, { status: 201 });
 }
