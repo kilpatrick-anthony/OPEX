@@ -79,7 +79,6 @@ type SubmitPayload = {
   emailStatus?: {
     sent: boolean;
     provider?: string;
-    providerMessageId?: string;
     recipientCount: number;
     reason?: string;
   };
