@@ -214,9 +214,9 @@ function excelDateToIso(value, monthIndex) {
 }
 
 function ratingFor(percentage) {
-  if (percentage >= 90) return 'OAKER Expert';
-  if (percentage >= 75) return 'Classic OAKER';
-  return 'Critical / Rising OAKER';
+  if (percentage >= 90) return 'Green';
+  if (percentage >= 75) return 'Amber';
+  return 'Red';
 }
 
 function parseOverview(entries) {

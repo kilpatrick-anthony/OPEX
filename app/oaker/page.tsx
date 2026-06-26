@@ -57,15 +57,15 @@ type StoreGroup = {
 };
 
 const RATING_STYLES: Record<string, string> = {
-  'OAKER Expert': 'bg-emerald-50 text-emerald-700',
-  'Classic OAKER': 'bg-sky-50 text-sky-700',
-  'Critical / Rising OAKER': 'bg-rose-50 text-rose-700',
+  Green: 'bg-emerald-50 text-emerald-700',
+  Amber: 'bg-amber-50 text-amber-700',
+  Red: 'bg-rose-50 text-rose-700',
 };
 
 const RATING_COLORS: Record<string, string> = {
-  'OAKER Expert': '#10b981',
-  'Classic OAKER': '#0ea5e9',
-  'Critical / Rising OAKER': '#f59e0b',
+  Green: '#10b981',
+  Amber: '#f59e0b',
+  Red: '#f43f5e',
 };
 
 const SECTION_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6'];
@@ -162,9 +162,9 @@ export default function OakerDashboardPage() {
   }, [inspections]);
 
   const ratingMix = useMemo(() => [
-    { name: 'Expert', value: expertCount, color: RATING_COLORS['OAKER Expert'], rating: 'OAKER Expert' },
-    { name: 'Classic', value: classicCount, color: RATING_COLORS['Classic OAKER'], rating: 'Classic OAKER' },
-    { name: 'Rising', value: risingCount, color: RATING_COLORS['Critical / Rising OAKER'], rating: 'Critical / Rising OAKER' },
+    { name: 'Green', value: expertCount, color: RATING_COLORS.Green, rating: 'Green' },
+    { name: 'Amber', value: classicCount, color: RATING_COLORS.Amber, rating: 'Amber' },
+    { name: 'Red', value: risingCount, color: RATING_COLORS.Red, rating: 'Red' },
   ], [expertCount, classicCount, risingCount]);
 
   const modeMix = useMemo(() => {
@@ -258,10 +258,10 @@ export default function OakerDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => openStoreGroup('OAKER Expert stores', 'Stores currently scoring at or above 90%.', storesForRating('OAKER Expert'))}
+            onClick={() => openStoreGroup('Green stores', 'Stores currently scoring at or above 90%.', storesForRating('Green'))}
             className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-500">Expert stores</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Green stores</p>
             <p className="mt-3 text-4xl font-semibold text-emerald-600">{expertCount}</p>
             <p className="mt-2 text-sm text-slate-500">At or above 90%</p>
           </button>
@@ -272,11 +272,11 @@ export default function OakerDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => openStoreGroup('Watchlist stores', 'Stores currently scoring below 75%.', storesForRating('Critical / Rising OAKER'))}
-            className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-lg"
+            onClick={() => openStoreGroup('Red stores', 'Stores currently scoring below 75%.', storesForRating('Red'))}
+            className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg"
           >
-            <p className="text-xs uppercase tracking-widest text-slate-500">Watchlist</p>
-            <p className="mt-3 text-4xl font-semibold text-amber-600">{risingCount}</p>
+            <p className="text-xs uppercase tracking-widest text-slate-500">Red stores</p>
+            <p className="mt-3 text-4xl font-semibold text-rose-600">{risingCount}</p>
             <p className="mt-2 text-sm text-slate-500">Stores below 75%</p>
           </button>
         </div>

@@ -1,6 +1,6 @@
 export type OakerMode = 'experience' | 'express';
 export type OakerAnswer = 'yes' | 'no' | 'capex';
-export type OakerRating = 'OAKER Expert' | 'Classic OAKER' | 'Critical / Rising OAKER';
+export type OakerRating = 'Green' | 'Amber' | 'Red';
 
 export type OakerQuestion = {
   id: number;
@@ -88,9 +88,9 @@ export const OAKER_QUESTIONS: OakerQuestion[] = [
 ];
 
 export function calculateOakerRating(percentage: number): OakerRating {
-  if (percentage >= 90) return 'OAKER Expert';
-  if (percentage >= 75) return 'Classic OAKER';
-  return 'Critical / Rising OAKER';
+  if (percentage >= 90) return 'Green';
+  if (percentage >= 75) return 'Amber';
+  return 'Red';
 }
 
 export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] = []): OakerQuestion[] {

@@ -87,9 +87,9 @@ const ANSWER_STYLES: Record<OakerAnswer, string> = {
 };
 
 const RATING_STYLES: Record<string, string> = {
-  'OAKER Expert': 'bg-emerald-50 text-emerald-700',
-  'Classic OAKER': 'bg-sky-50 text-sky-700',
-  'Critical / Rising OAKER': 'bg-rose-50 text-rose-700',
+  Green: 'bg-emerald-50 text-emerald-700',
+  Amber: 'bg-amber-50 text-amber-700',
+  Red: 'bg-rose-50 text-rose-700',
 };
 
 const DRAFT_KEY = 'oaker-check-draft-v1';
@@ -249,6 +249,14 @@ export default function OakerPage() {
     loadOaker(mode, storeId).catch(() => setError('Failed to refresh OAKER template'));
   }, [mode, storeId]);
 
+  function scrollToPageTitle(behavior: ScrollBehavior = 'smooth') {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        pageTitleRef.current?.scrollIntoView({ block: 'start', behavior });
+      });
+    });
+  }
+
   useEffect(() => {
     if (!active) return;
     window.requestAnimationFrame(() => {
@@ -384,6 +392,7 @@ export default function OakerPage() {
       setNotes('');
       discardDraft();
       await loadOaker(mode, storeId);
+      scrollToPageTitle();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit OAKER check');
     } finally {
@@ -669,6 +678,13 @@ export default function OakerPage() {
                     {link.section} · {link.done}/{link.total}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentIndex(questions.length)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isReportStep ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                >
+                  Report notes · Submit
+                </button>
               </div>
             </Card>
           </div>
