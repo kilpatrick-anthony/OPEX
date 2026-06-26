@@ -152,6 +152,7 @@ export default function OakerPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const isReportStep = questions.length > 0 && currentIndex >= questions.length;
   const currentQuestion = questions[currentIndex];
   const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? EMPTY_RESPONSE : null;
   const completedCount = questions.filter((question) => responses[question.id]?.answer).length;
@@ -173,15 +174,6 @@ export default function OakerPage() {
       });
       return links;
     }, []);
-  }, [questions, responses]);
-
-  const sectionSummary = useMemo(() => {
-    return questions.reduce<Record<string, { total: number; done: number }>>((acc, question) => {
-      if (!acc[question.section]) acc[question.section] = { total: 0, done: 0 };
-      acc[question.section].total += 1;
-      if (responses[question.id]?.answer) acc[question.section].done += 1;
-      return acc;
-    }, {});
   }, [questions, responses]);
 
   const reportSections = useMemo(() => {
@@ -350,7 +342,7 @@ export default function OakerPage() {
     }
     setResponses(hydrateDraftResponses(draft.responses ?? {}));
     setNotes(draft.notes ?? '');
-    setCurrentIndex(Math.min(Math.max(draft.currentIndex ?? 0, 0), draftQuestions.length - 1));
+    setCurrentIndex(Math.min(Math.max(draft.currentIndex ?? 0, 0), draftQuestions.length));
     setActive(true);
   }
 
@@ -517,7 +509,7 @@ export default function OakerPage() {
               </button>
             </div>
           </div>
-        ) : currentQuestion && currentResponse ? (
+        ) : isReportStep || (currentQuestion && currentResponse) ? (
           <div className="mx-auto max-w-3xl space-y-4">
             <div ref={pageTitleRef} className="flex scroll-mt-28 flex-col gap-2">
               <p className="text-sm uppercase tracking-widest text-sky-600">Store standards</p>
@@ -533,13 +525,59 @@ export default function OakerPage() {
             <div ref={activeQuestionRef} className="flex scroll-mt-6 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div>
                 <p className="text-xs uppercase tracking-wide text-sky-600">{selectedStoreName} · {mode === 'express' ? 'Express' : 'Full Experience'}</p>
-                <p className="text-sm font-semibold text-slate-900">Question {currentIndex + 1} of {questions.length}</p>
+                <p className="text-sm font-semibold text-slate-900">{isReportStep ? 'Report and submit' : `Question ${currentIndex + 1} of ${questions.length}`}</p>
               </div>
               <button type="button" onClick={() => setActive(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
                 Exit
               </button>
             </div>
 
+            {isReportStep ? (
+              <Card className="space-y-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Report</p>
+                  <h2 className="mt-2 text-xl font-semibold leading-snug text-slate-900">Overall report notes</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Add the overall summary before submitting the completed check.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Answered</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCount}/{questions.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Yes</p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-700">{questions.filter((question) => responses[question.id]?.answer === 'yes').length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Actions</p>
+                    <p className="mt-1 text-2xl font-semibold text-rose-700">{questions.filter((question) => responses[question.id]?.answer && responses[question.id]?.answer !== 'yes').length}</p>
+                  </div>
+                </div>
+
+                <label className="block text-sm font-medium text-slate-700">
+                  Overall report notes
+                  <textarea
+                    rows={5}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal"
+                    placeholder="Required improvements, clear actions, and what should be checked on follow-up."
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setCurrentIndex(Math.max(0, questions.length - 1))}>
+                    Previous
+                  </Button>
+                  <Button type="button" onClick={submitCheck} disabled={submitting}>
+                    {submitting ? 'Submitting...' : 'Submit Check'}
+                  </Button>
+                </div>
+              </Card>
+            ) : currentQuestion && currentResponse ? (
             <Card className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{currentQuestion.section}</span>
@@ -605,34 +643,16 @@ export default function OakerPage() {
                 </div>
               ) : null}
 
-              {currentIndex === questions.length - 1 ? (
-                <label className="block text-sm font-medium text-slate-700">
-                  Overall report notes
-                  <textarea
-                    rows={4}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal"
-                    placeholder="Required improvements, clear actions, and what should be checked on follow-up."
-                  />
-                </label>
-              ) : null}
-
               <div className="flex items-center justify-between gap-3 pt-2">
                 <Button type="button" variant="secondary" onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))} disabled={currentIndex === 0}>
                   Previous
                 </Button>
-                {currentIndex === questions.length - 1 ? (
-                  <Button type="button" onClick={submitCheck} disabled={submitting}>
-                    {submitting ? 'Submitting...' : 'Submit Check'}
-                  </Button>
-                ) : (
-                  <Button type="button" onClick={() => setCurrentIndex((index) => Math.min(questions.length - 1, index + 1))}>
-                    Next
-                  </Button>
-                )}
+                <Button type="button" onClick={() => setCurrentIndex((index) => Math.min(questions.length, index + 1))}>
+                  Next
+                </Button>
               </div>
             </Card>
+            ) : null}
 
             <Card title="Check Progress" description={`${completedCount} of ${questions.length} answered.`}>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -644,18 +664,10 @@ export default function OakerPage() {
                     key={link.section}
                     type="button"
                     onClick={() => setCurrentIndex(link.index)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${currentQuestion.section === link.section ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${currentQuestion?.section === link.section ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                   >
                     {link.section} · {link.done}/{link.total}
                   </button>
-                ))}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {Object.entries(sectionSummary).map(([section, summary]) => (
-                  <div key={section} className="rounded-2xl bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-800">{section}</p>
-                    <p className="text-xs text-slate-500">{summary.done} of {summary.total} complete</p>
-                  </div>
                 ))}
               </div>
             </Card>
