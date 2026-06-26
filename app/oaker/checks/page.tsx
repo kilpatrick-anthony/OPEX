@@ -57,7 +57,7 @@ type CheckDraft = {
   storeId: string;
   mode: OakerMode;
   currentIndex: number;
-  responses: Record<number, ResponseState>;
+  responses: Record<number, Omit<ResponseState, 'photos'> & { photos?: string[] }>;
   notes: string;
   updatedAt: string;
 };
@@ -93,6 +93,9 @@ const RATING_STYLES: Record<string, string> = {
 };
 
 const DRAFT_KEY = 'oaker-check-draft-v1';
+const EMPTY_RESPONSE: ResponseState = { answer: '', comments: '', photos: [] };
+const MAX_PHOTO_SIZE_MB = 10;
+const MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024;
 
 function formatScore(inspection: Inspection) {
   return `${inspection.percentage.toFixed(1)}%`;
@@ -105,6 +108,24 @@ function readFiles(files: File[]) {
     reader.onerror = () => reject(new Error('Failed to read photo'));
     reader.readAsDataURL(file);
   })));
+}
+
+function createDraftResponses(responses: Record<number, ResponseState>): CheckDraft['responses'] {
+  return Object.fromEntries(
+    Object.entries(responses).map(([questionId, response]) => [
+      questionId,
+      { answer: response.answer, comments: response.comments },
+    ]),
+  );
+}
+
+function hydrateDraftResponses(responses: CheckDraft['responses']): Record<number, ResponseState> {
+  return Object.fromEntries(
+    Object.entries(responses).map(([questionId, response]) => [
+      questionId,
+      { answer: response.answer, comments: response.comments, photos: [] },
+    ]),
+  );
 }
 
 export default function OakerPage() {
@@ -131,7 +152,7 @@ export default function OakerPage() {
   const [success, setSuccess] = useState('');
 
   const currentQuestion = questions[currentIndex];
-  const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? { answer: '', comments: '', photos: [] } : null;
+  const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? EMPTY_RESPONSE : null;
   const completedCount = questions.filter((question) => responses[question.id]?.answer).length;
   const failedWithoutPhotoCount = questions.filter((question) => {
     const response = responses[question.id];
@@ -252,7 +273,7 @@ export default function OakerPage() {
       storeId,
       mode,
       currentIndex,
-      responses,
+      responses: createDraftResponses(responses),
       notes,
       updatedAt: new Date().toISOString(),
     };
@@ -277,8 +298,8 @@ export default function OakerPage() {
   async function handlePhotoChange(questionId: number, e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
-    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
-      setError('Each photo must be under 5 MB.');
+    if (files.some((file) => file.size > MAX_PHOTO_SIZE_BYTES)) {
+      setError(`Each photo must be under ${MAX_PHOTO_SIZE_MB} MB.`);
       e.target.value = '';
       return;
     }
@@ -323,7 +344,7 @@ export default function OakerPage() {
       setError('Could not resume this saved check because the questions are no longer available.');
       return;
     }
-    setResponses(draft.responses ?? {});
+    setResponses(hydrateDraftResponses(draft.responses ?? {}));
     setNotes(draft.notes ?? '');
     setCurrentIndex(Math.min(Math.max(draft.currentIndex ?? 0, 0), draftQuestions.length - 1));
     setActive(true);
@@ -509,31 +530,14 @@ export default function OakerPage() {
             {error ? <p className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
             {success ? <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</p> : null}
 
-            <div className="sticky top-[72px] z-30 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-sky-600">{selectedStoreName} · {mode === 'express' ? 'Express' : 'Full Experience'}</p>
-                  <p className="text-sm font-semibold text-slate-900">Question {currentIndex + 1} of {questions.length}</p>
-                </div>
-                <button type="button" onClick={() => setActive(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-                  Exit
-                </button>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-sky-600">{selectedStoreName} · {mode === 'express' ? 'Express' : 'Full Experience'}</p>
+                <p className="text-sm font-semibold text-slate-900">Question {currentIndex + 1} of {questions.length}</p>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-sky-500" style={{ width: `${(completedCount / questions.length) * 100}%` }} />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {sectionJumpLinks.map((link) => (
-                  <button
-                    key={link.section}
-                    type="button"
-                    onClick={() => setCurrentIndex(link.index)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${currentQuestion.section === link.section ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    {link.section} · {link.done}/{link.total}
-                  </button>
-                ))}
-              </div>
+              <button type="button" onClick={() => setActive(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                Exit
+              </button>
             </div>
 
             <Card className="space-y-5">
@@ -574,6 +578,7 @@ export default function OakerPage() {
               <label className="block text-sm font-medium text-slate-700">
                 Photos
                 <input
+                  key={currentQuestion.id}
                   type="file"
                   accept="image/*"
                   capture="environment"
@@ -621,6 +626,21 @@ export default function OakerPage() {
             </Card>
 
             <Card title="Check Progress" description={`${completedCount} of ${questions.length} answered.`}>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-sky-500" style={{ width: `${(completedCount / questions.length) * 100}%` }} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sectionJumpLinks.map((link) => (
+                  <button
+                    key={link.section}
+                    type="button"
+                    onClick={() => setCurrentIndex(link.index)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${currentQuestion.section === link.section ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {link.section} · {link.done}/{link.total}
+                  </button>
+                ))}
+              </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {Object.entries(sectionSummary).map(([section, summary]) => (
                   <div key={section} className="rounded-2xl bg-slate-50 px-4 py-3">
