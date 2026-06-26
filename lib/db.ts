@@ -851,6 +851,13 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
   })) as OakerInspectionRecord[];
 }
 
+export async function deleteOakerInspection(inspectionId: number) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql.query('DELETE FROM oaker_responses WHERE inspectionid = $1', [inspectionId]);
+  await sql.query('DELETE FROM oaker_inspections WHERE id = $1', [inspectionId]);
+}
+
 export async function getOakerQuestionStats(storeId?: number): Promise<OakerQuestionStats[]> {
   await ensureSchemaOnce();
   const sql = getSql();

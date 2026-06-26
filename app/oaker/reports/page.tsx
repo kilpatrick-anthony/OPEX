@@ -67,11 +67,14 @@ export default function OakerReportsPage() {
   const [selectedReport, setSelectedReport] = useState<InspectionDetail | null>(null);
   const [emailReportTarget, setEmailReportTarget] = useState<Inspection | InspectionDetail | null>(null);
   const [recipientInput, setRecipientInput] = useState('');
+  const [deleteReportTarget, setDeleteReportTarget] = useState<Inspection | InspectionDetail | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [emailingReportId, setEmailingReportId] = useState<number | null>(null);
+  const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const canDeleteReports = user?.role === 'super_admin';
 
   useEffect(() => {
     if (userLoading) return;
@@ -169,6 +172,29 @@ export default function OakerReportsPage() {
       setError(err instanceof Error ? err.message : 'Failed to email report');
     } finally {
       setEmailingReportId(null);
+    }
+  }
+
+  async function deleteReport() {
+    if (!deleteReportTarget) return;
+
+    const id = deleteReportTarget.id;
+    setDeletingReportId(id);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await fetch(`/api/oaker/${id}`, { method: 'DELETE' });
+      const payload = (await readJsonSafely(response)) as { error?: string } | null;
+      if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to delete report'));
+
+      setInspections((current) => current.filter((inspection) => inspection.id !== id));
+      setSelectedReport((current) => (current?.id === id ? null : current));
+      setDeleteReportTarget(null);
+      setSuccess('OAKER check deleted.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete report');
+    } finally {
+      setDeletingReportId(null);
     }
   }
 
@@ -270,6 +296,16 @@ export default function OakerReportsPage() {
                               Original PDF
                             </a>
                           ) : null}
+                          {canDeleteReports ? (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteReportTarget(inspection)}
+                              disabled={deletingReportId === inspection.id}
+                              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:pointer-events-none disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -320,6 +356,16 @@ export default function OakerReportsPage() {
                 {emailingReportId === selectedReport.id ? 'Emailing...' : 'Email report'}
               </button>
               {selectedReport.reportPath ? <a href={selectedReport.reportPath} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-700">Open original PDF</a> : null}
+              {canDeleteReports ? (
+                <button
+                  type="button"
+                  onClick={() => setDeleteReportTarget(selectedReport)}
+                  disabled={deletingReportId === selectedReport.id}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  Delete check
+                </button>
+              ) : null}
             </div>
 
             {selectedReport.notes ? (
@@ -393,6 +439,42 @@ export default function OakerReportsPage() {
               </button>
             </div>
           </form>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={!!deleteReportTarget}
+        title="Delete Check"
+        description={deleteReportTarget ? `${deleteReportTarget.storeName} · ${formatDate(deleteReportTarget.submittedAt)}` : ''}
+        onClose={() => {
+          if (deletingReportId) return;
+          setDeleteReportTarget(null);
+        }}
+      >
+        {deleteReportTarget ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              This will permanently remove the OAKER check and its responses from the system.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteReportTarget(null)}
+                disabled={deletingReportId === deleteReportTarget.id}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:pointer-events-none disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteReport}
+                disabled={deletingReportId === deleteReportTarget.id}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {deletingReportId === deleteReportTarget.id ? 'Deleting...' : 'Delete check'}
+              </button>
+            </div>
+          </div>
         ) : null}
       </Dialog>
     </div>
