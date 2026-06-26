@@ -113,11 +113,6 @@ export async function POST(request: Request) {
   }
 
   const cleanResponses = responses as NonNullable<(typeof responses)[number]>[];
-  const failedWithoutPhoto = cleanResponses.find((response) => response.answer !== 'yes' && response.photos.length === 0);
-  if (failedWithoutPhoto) {
-    return NextResponse.json({ error: `Please add at least one photo for question ${failedWithoutPhoto.questionId}.` }, { status: 400 });
-  }
-
   const score = scoreOakerResponses(cleanResponses);
   const inspection = await createOakerInspection({
     storeId,
