@@ -78,6 +78,7 @@ function getTransport() {
 type OakerEmailSendResult = {
   sent: boolean;
   provider?: 'resend' | 'smtp';
+  providerMessageId?: string;
   recipientCount: number;
   reason?: string;
 };
@@ -153,7 +154,7 @@ function text(
 }
 
 function approxTextWidth(value: string, size: number, bold = false) {
-  return value.length * size * (bold ? 0.56 : 0.52);
+  return value.length * size * (bold ? 0.48 : 0.5);
 }
 
 function textRight(
@@ -346,9 +347,8 @@ function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfIm
   rect(page, 0, 704, PAGE_WIDTH, 5, BRAND_GREEN);
   if (logo) image(page, logo.name, MARGIN, 746, 150, 30);
   else text(page, 'OAKBERRY', MARGIN, 752, { size: 20, bold: true, fill: WHITE });
-  textRight(page, 'OAKER Experience Check Report', PAGE_WIDTH - MARGIN, 755, { size: 17, bold: true, fill: WHITE });
-  textRight(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', PAGE_WIDTH - MARGIN, 736, { size: 9, fill: WHITE });
-  textRight(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, PAGE_WIDTH - MARGIN, 721, { size: 10, bold: true, fill: WHITE });
+  textRight(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', PAGE_WIDTH - MARGIN, 748, { size: 13, bold: true, fill: WHITE });
+  textRight(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, PAGE_WIDTH - MARGIN, 728, { size: 11, bold: true, fill: WHITE });
 }
 
 function addFooter(page: PdfPage, pageNumber: number, inspection: OakerEmailInspection) {
@@ -631,7 +631,8 @@ export async function sendOakerCheckCompletedEmail(
       throw new Error(`Resend OAKER email failed with ${response.status}: ${message.slice(0, 300)}`);
     }
 
-    return { sent: true, provider: 'resend', recipientCount: recipients.length };
+    const result = await response.json().catch(() => ({})) as { id?: string };
+    return { sent: true, provider: 'resend', providerMessageId: result.id, recipientCount: recipients.length };
   }
 
   const transport = getTransport();

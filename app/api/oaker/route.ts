@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     responses: cleanResponses,
   });
 
-  let emailStatus: { sent: boolean; provider?: string; recipientCount: number; reason?: string } = {
+  let emailStatus: { sent: boolean; provider?: string; providerMessageId?: string; recipientCount: number; reason?: string } = {
     sent: false,
     recipientCount: 0,
     reason: 'not_attempted',

@@ -79,6 +79,7 @@ type SubmitPayload = {
   emailStatus?: {
     sent: boolean;
     provider?: string;
+    providerMessageId?: string;
     recipientCount: number;
     reason?: string;
   };
@@ -397,7 +398,7 @@ export default function OakerPage() {
       const payload = await readJsonSafely(response) as SubmitPayload;
       if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to submit OAKER check'));
       if (payload.emailStatus?.sent) {
-        setSuccess(`OAKER check submitted successfully. Email sent to ${payload.emailStatus.recipientCount} super admin${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
+        setSuccess(`OAKER check submitted successfully. Email queued for ${payload.emailStatus.recipientCount} super admin${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
       } else {
         setSuccess(`OAKER check submitted successfully, but the email was not sent (${payload.emailStatus?.reason ?? 'unknown reason'}).`);
       }
@@ -592,11 +593,18 @@ export default function OakerPage() {
                 </label>
 
                 <div className="flex items-center justify-between gap-3 pt-2">
-                  <Button type="button" variant="secondary" onClick={() => setCurrentIndex(Math.max(0, questions.length - 1))}>
+                  <Button type="button" variant="secondary" onClick={() => setCurrentIndex(Math.max(0, questions.length - 1))} disabled={submitting}>
                     Previous
                   </Button>
                   <Button type="button" onClick={submitCheck} disabled={submitting}>
-                    {submitting ? 'Submitting...' : 'Submit Check'}
+                    {submitting ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-white" aria-hidden="true" />
+                        Submitting
+                      </span>
+                    ) : (
+                      'Submit Check'
+                    )}
                   </Button>
                 </div>
               </Card>
