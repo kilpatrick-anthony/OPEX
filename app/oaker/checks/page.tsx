@@ -131,6 +131,7 @@ function hydrateDraftResponses(responses: CheckDraft['responses']): Record<numbe
 export default function OakerPage() {
   const router = useRouter();
   const pageTitleRef = useRef<HTMLDivElement | null>(null);
+  const activeQuestionRef = useRef<HTMLDivElement | null>(null);
   const { user, isLoading } = useCurrentUser();
   const [stores, setStores] = useState<Store[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
@@ -154,10 +155,6 @@ export default function OakerPage() {
   const currentQuestion = questions[currentIndex];
   const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? EMPTY_RESPONSE : null;
   const completedCount = questions.filter((question) => responses[question.id]?.answer).length;
-  const failedWithoutPhotoCount = questions.filter((question) => {
-    const response = responses[question.id];
-    return response?.answer && response.answer !== 'yes' && response.photos.length === 0;
-  }).length;
 
   const selectedStoreName = stores.find((store) => String(store.id) === storeId)?.name ?? '';
   const canChooseStore = user?.role === 'director' || user?.role === 'super_admin';
@@ -268,6 +265,13 @@ export default function OakerPage() {
   }, [active]);
 
   useEffect(() => {
+    if (!active) return;
+    window.requestAnimationFrame(() => {
+      activeQuestionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }, [active, currentIndex]);
+
+  useEffect(() => {
     if (!active || !storeId || questions.length === 0) return;
     const nextDraft: CheckDraft = {
       storeId,
@@ -360,10 +364,6 @@ export default function OakerPage() {
     setSuccess('');
     if (completedCount !== questions.length) {
       setError('Please answer every question before submitting.');
-      return;
-    }
-    if (failedWithoutPhotoCount > 0) {
-      setError('Please add at least one photo for every No or Capex answer.');
       return;
     }
 
@@ -530,7 +530,7 @@ export default function OakerPage() {
             {error ? <p className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
             {success ? <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</p> : null}
 
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div ref={activeQuestionRef} className="flex scroll-mt-6 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div>
                 <p className="text-xs uppercase tracking-wide text-sky-600">{selectedStoreName} · {mode === 'express' ? 'Express' : 'Full Experience'}</p>
                 <p className="text-sm font-semibold text-slate-900">Question {currentIndex + 1} of {questions.length}</p>
@@ -603,10 +603,19 @@ export default function OakerPage() {
                     </div>
                   ))}
                 </div>
-              ) : currentResponse.answer && currentResponse.answer !== 'yes' ? (
-                <p className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-700">
-                  Please add at least one photo for No or Capex answers.
-                </p>
+              ) : null}
+
+              {currentIndex === questions.length - 1 ? (
+                <label className="block text-sm font-medium text-slate-700">
+                  Overall report notes
+                  <textarea
+                    rows={4}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal"
+                    placeholder="Required improvements, clear actions, and what should be checked on follow-up."
+                  />
+                </label>
               ) : null}
 
               <div className="flex items-center justify-between gap-3 pt-2">
@@ -649,16 +658,6 @@ export default function OakerPage() {
                   </div>
                 ))}
               </div>
-              <label className="block text-sm font-medium text-slate-700">
-                Overall report notes
-                <textarea
-                  rows={4}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal"
-                  placeholder="Required improvements, clear actions, and what should be checked on follow-up."
-                />
-              </label>
             </Card>
           </div>
         ) : null}
