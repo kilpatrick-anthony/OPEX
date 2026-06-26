@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getDirectorEmails, getOakerInspectionById } from '@/lib/db';
+import { getOakerEmailRecipients, getOakerInspectionById } from '@/lib/db';
 import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
 
-  const recipients = await getDirectorEmails();
+  const recipients = await getOakerEmailRecipients();
   const emailStatus = await sendOakerCheckCompletedEmail(inspection, recipients);
   return NextResponse.json({ emailStatus });
 }

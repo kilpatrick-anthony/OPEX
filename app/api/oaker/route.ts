@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createOakerInspection, getDirectorEmails, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
+import { createOakerInspection, getOakerEmailRecipients, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
 import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
 import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, OAKER_QUESTIONS, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
 
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
 
   if (inspection) {
     try {
-      const recipients = await getDirectorEmails();
+      const recipients = await getOakerEmailRecipients();
       emailStatus = { sent: false, recipientCount: recipients.length, reason: 'attempting' };
       emailStatus = await sendOakerCheckCompletedEmail(inspection, recipients);
       console.info('OAKER completion email status:', emailStatus);

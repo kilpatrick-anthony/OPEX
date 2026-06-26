@@ -464,6 +464,42 @@ export async function getDirectorEmails(): Promise<{ name: string; email: string
   return result as { name: string; email: string }[];
 }
 
+function parseEmailRecipient(rawRecipient: string): { name: string; email: string } | null {
+  const trimmed = rawRecipient.trim();
+  if (!trimmed) return null;
+
+  const namedMatch = trimmed.match(/^(.*?)\s*<([^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)>$/);
+  const email = (namedMatch?.[2] ?? trimmed).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+
+  const rawName = namedMatch?.[1]?.trim().replace(/^["']|["']$/g, '');
+  return {
+    name: rawName || email,
+    email,
+  };
+}
+
+function getConfiguredOakerRecipients(): { name: string; email: string }[] {
+  return (process.env.OAKER_EMAIL_RECIPIENTS ?? '')
+    .split(',')
+    .map(parseEmailRecipient)
+    .filter((recipient): recipient is { name: string; email: string } => recipient !== null);
+}
+
+export async function getOakerEmailRecipients(): Promise<{ name: string; email: string }[]> {
+  const recipients = [...(await getDirectorEmails()), ...getConfiguredOakerRecipients()];
+  const uniqueRecipients = new Map<string, { name: string; email: string }>();
+
+  for (const recipient of recipients) {
+    uniqueRecipients.set(recipient.email.toLowerCase(), {
+      ...recipient,
+      email: recipient.email.toLowerCase(),
+    });
+  }
+
+  return Array.from(uniqueRecipients.values());
+}
+
 export async function getSuperAdminEmails(): Promise<{ name: string; email: string }[]> {
   await ensureSchemaOnce();
   const sql = getSql();
