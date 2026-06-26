@@ -21,7 +21,16 @@ export async function POST(request: Request) {
   }
 
   const token = signToken({ userId: user.id, role: user.role, storeId: user.storeId });
-  const response = NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, storeId: user.storeId } });
+  const response = NextResponse.json({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      storeId: user.storeId,
+      portalAccess: user.portalAccess,
+    },
+  });
   response.cookies.set({ name: 'opex_token', value: token, httpOnly: true, path: '/', secure: process.env.NODE_ENV === 'production', maxAge: 8 * 3600, sameSite: 'lax' });
   return response;
 }

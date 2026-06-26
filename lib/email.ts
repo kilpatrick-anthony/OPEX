@@ -140,7 +140,7 @@ export async function sendNewRequestEmail(
 
 export async function sendWelcomeEmail(user: { name: string; email: string }, temporaryPassword: string): Promise<void> {
   const transport = getTransport();
-  const from = process.env.SMTP_FROM ?? `OAKBERRY OPEX <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM ?? `OAKBERRY Portal <${process.env.SMTP_USER}>`;
   const appUrl = process.env.NEXTAUTH_URL ?? 'https://opex.oakberry.ie';
   const loginUrl = `${appUrl}/login`;
 
@@ -150,7 +150,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to OAKBERRY OPEX</title>
+  <title>Welcome to the OAKBERRY Portal</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
@@ -162,7 +162,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
           <tr>
             <td style="background:#6d2f8e;padding:28px 36px;">
               <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">OAKBERRY Ireland</p>
-              <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Welcome to the OPEX Portal</h1>
+              <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Welcome to the OAKBERRY Portal</h1>
             </td>
           </tr>
 
@@ -171,8 +171,8 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
             <td style="padding:32px 36px;">
               <p style="margin:0 0 20px;color:#1e293b;font-size:16px;font-weight:600;">Hi ${user.name},</p>
               <p style="margin:0 0 24px;color:#475569;font-size:15px;">
-                Your account has been created on the OAKBERRY Ireland OPEX expense portal.
-                You can use it to submit and track expense requests.
+                Your account has been created for the OAKBERRY Ireland portal.
+                After logging in, you will only see the areas that have been enabled for your account.
               </p>
 
               <!-- Credentials box -->
@@ -204,7 +204,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
                   <td align="center">
                     <a href="${loginUrl}"
                        style="display:inline-block;background:#6d2f8e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:8px;">
-                      Log in to OPEX →
+                      Log in to the portal →
                     </a>
                   </td>
                 </tr>
@@ -216,7 +216,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
           <tr>
             <td style="background:#f8fafc;padding:20px 36px;border-top:1px solid #e2e8f0;">
               <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
-                OAKBERRY Ireland OPEX Portal · This is an automated notification
+                OAKBERRY Ireland Portal · This is an automated notification
               </p>
             </td>
           </tr>
@@ -232,7 +232,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }, te
   await transport.sendMail({
     from,
     to: `${user.name} <${user.email}>`,
-    subject: 'Your OAKBERRY OPEX account is ready',
+    subject: 'Your OAKBERRY portal account is ready',
     html,
   });
 }

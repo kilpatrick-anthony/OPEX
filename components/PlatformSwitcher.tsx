@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
+import { userCanAccessPortal } from '@/lib/portalAccess';
 
 type Platform = {
   key: 'opex' | 'oaker';
@@ -22,7 +23,13 @@ export function PlatformSwitcher({ current }: { current: Platform['key'] }) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const active = PLATFORMS.find((platform) => platform.key === current) ?? PLATFORMS[0];
+  const availablePlatforms = PLATFORMS.filter((platform) => (
+    !user ||
+    user.role === 'super_admin' ||
+    userCanAccessPortal(user.portalAccess, platform.key)
+  ));
+  const visiblePlatforms = availablePlatforms.length > 0 ? availablePlatforms : PLATFORMS.slice(0, 1);
+  const active = visiblePlatforms.find((platform) => platform.key === current) ?? visiblePlatforms[0];
   const opexHref = user?.role === 'store_staff' ? '/requests' : '/dashboard';
 
   useEffect(() => {
@@ -62,7 +69,7 @@ export function PlatformSwitcher({ current }: { current: Platform['key'] }) {
           role="menu"
           className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-white/15 bg-white p-2 shadow-2xl"
         >
-          {PLATFORMS.map((platform) => {
+          {visiblePlatforms.map((platform) => {
             const selected = platform.key === active.key;
             const href = platform.key === 'opex' ? opexHref : platform.href;
             return (

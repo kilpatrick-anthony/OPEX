@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getFieldTeamUsers, updateUserBudget, createUser, deleteUser } from '@/lib/db';
+import { getFieldTeamUsers, updateUserBudget, updateUserPortalAccess, createUser, deleteUser } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { sendWelcomeEmail } from '@/lib/email';
+import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, serializePortalAccess } from '@/lib/portalAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,11 +24,28 @@ export async function PATCH(request: Request) {
   if (session?.user?.role !== 'super_admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  const { userId, budget } = await request.json();
-  if (typeof userId !== 'number' || typeof budget !== 'number' || budget < 0) {
+  const body = await request.json().catch(() => ({}));
+  const userId = Number(body.userId);
+  if (!userId || isNaN(userId)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
-  await updateUserBudget(userId, budget);
+
+  if ('budget' in body) {
+    const budget = Number(body.budget);
+    if (isNaN(budget) || budget < 0) {
+      return NextResponse.json({ error: 'Budget must be a non-negative number.' }, { status: 400 });
+    }
+    await updateUserBudget(userId, budget);
+  }
+
+  if ('portalAccess' in body) {
+    const portalAccess = normalizePortalAccess(body.portalAccess);
+    if (portalAccess.length === 0) {
+      return NextResponse.json({ error: 'Select at least one portal area.' }, { status: 400 });
+    }
+    await updateUserPortalAccess(userId, portalAccess);
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -45,6 +63,7 @@ export async function POST(request: Request) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null;
+  const portalAccess = normalizePortalAccess(body.portalAccess ?? DEFAULT_PORTAL_ACCESS);
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: 'Name, email and password are required.' }, { status: 400 });
@@ -56,15 +75,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 });
   }
 
+  if (portalAccess.length === 0) {
+    return NextResponse.json({ error: 'Select at least one portal area.' }, { status: 400 });
+  }
+
   try {
     const hashed = await hashPassword(password);
-    const user = await createUser({ name, email, password: hashed, role: 'field_team' as any, title, storeId: null });
+    const user = await createUser({ name, email, password: hashed, role: 'field_team', title, storeId: null, portalAccess });
     const { password: _pw, ...safeUser } = user as any;
 
     // Send welcome email — fire-and-forget so a delivery failure doesn't block account creation
     sendWelcomeEmail({ name, email }, password).catch(() => {});
 
-    return NextResponse.json(safeUser, { status: 201 });
+    return NextResponse.json({ ...safeUser, portalAccess: serializePortalAccess(safeUser.portalAccess).split(',') }, { status: 201 });
   } catch (err: any) {
     if (err?.message?.includes('unique') || err?.code === '23505') {
       return NextResponse.json({ error: 'An account with that email already exists.' }, { status: 409 });

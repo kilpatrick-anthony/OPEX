@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
+import { userCanAccessPortal, type PortalKey } from '@/lib/portalAccess';
 
 function getOpexHref(user: ReturnType<typeof useCurrentUser>['user']) {
   if (!user) return '/requests';
@@ -22,6 +23,7 @@ export default function PortalPage() {
 
   const tiles = [
     {
+      key: 'opex' as PortalKey,
       title: 'OPEX',
       subtitle: 'Operational Expenditure',
       description: 'Requests, approvals, budgets, reporting, and spend control.',
@@ -30,6 +32,7 @@ export default function PortalPage() {
       color: 'from-sky-500 to-cyan-500',
     },
     {
+      key: 'oaker' as PortalKey,
       title: 'OAKER Experience',
       subtitle: 'Store Standards',
       description: 'Experience checks, store scorecards, reports, and location comparison.',
@@ -38,6 +41,7 @@ export default function PortalPage() {
       color: 'from-emerald-500 to-lime-500',
     },
     {
+      key: 'recruitment' as PortalKey,
       title: 'Recruitment Hub',
       subtitle: 'Hiring & Onboarding',
       description: 'Candidate tracking and onboarding workflows.',
@@ -46,6 +50,7 @@ export default function PortalPage() {
       color: 'from-fuchsia-500 to-rose-500',
     },
     {
+      key: 'hr' as PortalKey,
       title: 'HR',
       subtitle: 'People & Policies',
       description: 'People records, policies, and team support.',
@@ -53,7 +58,7 @@ export default function PortalPage() {
       active: false,
       color: 'from-amber-500 to-orange-500',
     },
-  ];
+  ].filter((tile) => user.role === 'super_admin' || userCanAccessPortal(user.portalAccess, tile.key));
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 58%, #3a1750 100%)' }}>
@@ -73,6 +78,12 @@ export default function PortalPage() {
             Sign out
           </button>
         </div>
+
+        {tiles.length === 0 ? (
+          <div className="rounded-xl border border-white/15 bg-white/10 p-6 text-center text-white/80">
+            No portal areas have been enabled for your account yet.
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2">
           {tiles.map((tile) => {

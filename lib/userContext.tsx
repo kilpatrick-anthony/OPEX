@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { signOut, useSession } from 'next-auth/react';
+import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
 type CurrentUser = {
   id: string;
@@ -11,6 +12,7 @@ type CurrentUser = {
   storeId: number | null;
   store: string | null;
   employeeSlug: string | null;
+  portalAccess: PortalKey[];
 };
 
 type UserContextValue = {
@@ -90,6 +92,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           ? (session.user.storeId ? (storeNameById[session.user.storeId] ?? session.user.name) : session.user.name)
           : (session.user.storeId ? (storeNameById[session.user.storeId] ?? null) : null),
       employeeSlug,
+      portalAccess: normalizePortalAccess(session.user.portalAccess ?? DEFAULT_PORTAL_ACCESS),
     };
   }, [session, status, storeNameById]);
 

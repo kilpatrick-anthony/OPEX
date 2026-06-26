@@ -4,7 +4,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'opex-dashboard-secret';
 
 export type AuthTokenPayload = {
   userId: number;
-  role: 'employee' | 'manager' | 'director';
+  role: 'employee' | 'field_team' | 'manager' | 'director' | 'super_admin';
   storeId: number | null;
 };
 

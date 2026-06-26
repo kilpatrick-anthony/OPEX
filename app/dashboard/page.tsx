@@ -228,7 +228,7 @@ export default function DashboardPage() {
             <p className="text-xs uppercase tracking-widest text-slate-500">Projected period end</p>
             <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent + pendingPipeline)}</p>
             <p className="mt-2 text-sm text-slate-500">
-              {period === 'month' ? 'If all pending approved this month' : period === 'last-month' ? 'If all pending approved last month' : 'If all pending approved this quarter'}
+              {period === 'month' ? 'If all pending approved this month' : period === 'week' ? 'If all pending approved this week' : 'If all pending approved in this date range'}
             </p>
           </div>
         </div>

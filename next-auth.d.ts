@@ -1,5 +1,8 @@
 import 'next-auth';
 import 'next-auth/jwt';
+import type { PortalKey } from '@/lib/portalAccess';
+
+type AuthRole = 'employee' | 'field_team' | 'manager' | 'director' | 'super_admin';
 
 declare module 'next-auth' {
   interface Session {
@@ -7,9 +10,10 @@ declare module 'next-auth' {
       id: number;
       name?: string | null;
       email?: string | null;
-      role: 'employee' | 'manager' | 'director' | 'super_admin';
+      role: AuthRole;
       title?: string | null;
       storeId: number | null;
+      portalAccess?: PortalKey[];
     };
   }
 
@@ -17,17 +21,19 @@ declare module 'next-auth' {
     id: number;
     name?: string | null;
     email?: string | null;
-    role: 'employee' | 'manager' | 'director' | 'super_admin';
+    role: AuthRole;
     title?: string | null;
     storeId: number | null;
+    portalAccess?: PortalKey[];
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
     id: number;
-    role: 'employee' | 'manager' | 'director' | 'super_admin';
+    role: AuthRole;
     title?: string | null;
     storeId: number | null;
+    portalAccess?: PortalKey[];
   }
 }

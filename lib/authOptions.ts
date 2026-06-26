@@ -31,6 +31,7 @@ export const authOptions = {
           role: user.role,
           title: user.title ?? null,
           storeId: user.storeId,
+          portalAccess: user.portalAccess,
         } as any;
       },
     }),
@@ -50,6 +51,7 @@ export const authOptions = {
         token.role = (user as any).role;
         token.title = (user as any).title ?? null;
         token.storeId = (user as any).storeId ?? null;
+        token.portalAccess = (user as any).portalAccess ?? ['opex', 'oaker'];
       }
 
       // Keep session token aligned with database user state (role/title/store assignment).
@@ -70,6 +72,7 @@ export const authOptions = {
           token.role = existing.role;
           token.title = existing.title ?? null;
           token.storeId = resolvedStoreId;
+          token.portalAccess = existing.portalAccess;
         }
       }
 
@@ -81,6 +84,7 @@ export const authOptions = {
         session.user.role = token.role as string;
         session.user.title = (token.title as string | null) ?? null;
         session.user.storeId = token.storeId as number | null;
+        session.user.portalAccess = (token.portalAccess as string[]) ?? ['opex', 'oaker'];
       }
       return session;
     },

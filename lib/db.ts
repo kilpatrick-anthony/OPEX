@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import type { OakerAnswer, OakerMode, OakerQuestionStats, OakerRating } from '@/lib/oaker';
+import { DEFAULT_PORTAL_ACCESS, serializePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
 function makeSql() {
   const connectionString = process.env.DATABASE_URL;
@@ -19,6 +20,7 @@ function getSql(): ReturnType<typeof makeSql> {
 }
 
 let schemaReady: Promise<void> | null = null;
+let requiredMigrationsReady: Promise<void> | null = null;
 
 export type Store = {
   id: number;
@@ -31,9 +33,10 @@ export type User = {
   name: string;
   email: string;
   password: string;
-  role: 'employee' | 'manager' | 'director' | 'super_admin';
+  role: 'employee' | 'field_team' | 'manager' | 'director' | 'super_admin';
   title: string | null;
   storeId: number | null;
+  portalAccess: PortalKey[];
 };
 
 export type RequestRecord = {
@@ -139,7 +142,7 @@ const REQUEST_SELECT_LIST = `
 export async function ensureSchema() {
   const sql = getSql();
   await Promise.all([
-    sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, budget REAL NOT NULL DEFAULT 0, portalAccess TEXT NOT NULL DEFAULT 'opex,oaker', createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, submitterName TEXT, submitterJobRole TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -151,6 +154,7 @@ export async function ensureSchema() {
   await Promise.all([
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`,
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
@@ -163,9 +167,10 @@ export async function ensureSchema() {
 }
 
 async function ensureSchemaOnce() {
-  // When SCHEMA_INITIALIZED=true, the DB schema is already up-to-date and we
-  // skip the expensive DDL migration batch on every cold start.
-  if (process.env.SCHEMA_INITIALIZED === 'true') return;
+  if (process.env.SCHEMA_INITIALIZED === 'true') {
+    await ensureRequiredMigrationsOnce();
+    return;
+  }
   if (!schemaReady) {
     schemaReady = ensureSchema().catch((err) => {
       schemaReady = null; // allow retry on next request
@@ -175,19 +180,42 @@ async function ensureSchemaOnce() {
   await schemaReady;
 }
 
+async function ensureRequiredMigrationsOnce() {
+  if (!requiredMigrationsReady) {
+    requiredMigrationsReady = (async () => {
+      const sql = getSql();
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`;
+    })().catch((err) => {
+      requiredMigrationsReady = null;
+      throw err;
+    });
+  }
+  await requiredMigrationsReady;
+}
+
 export async function getUserByEmail(email: string) {
   await ensureSchemaOnce();
   const sql = getSql();
 
-  const result = await sql`SELECT * FROM users WHERE email = ${email.toLowerCase()}`;
-  return result[0] as User | undefined;
+  const result = await sql`
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    FROM users
+    WHERE email = ${email.toLowerCase()}
+  `;
+  const user = result[0] as (Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] }) | undefined;
+  return user ? { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) } : undefined;
 }
 
 export async function getUserById(id: number) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`SELECT * FROM users WHERE id = ${id}`;
-  return result[0] as User | undefined;
+  const result = await sql`
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    FROM users
+    WHERE id = ${id}
+  `;
+  const user = result[0] as (Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] }) | undefined;
+  return user ? { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) } : undefined;
 }
 
 export async function updateUserPassword(userId: number, passwordHash: string) {
@@ -196,11 +224,22 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   await sql`UPDATE users SET password = ${passwordHash} WHERE id = ${userId}`;
 }
 
-export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'manager' | 'director' | 'super_admin'; title?: string | null; storeId: number | null }) {
+function normalizeUserPortalAccess(value: unknown): PortalKey[] {
+  const serialized = serializePortalAccess(value ?? DEFAULT_PORTAL_ACCESS);
+  return serialized.split(',') as PortalKey[];
+}
+
+export async function createUser(data: { name: string; email: string; password: string; role: 'employee' | 'field_team' | 'manager' | 'director' | 'super_admin'; title?: string | null; storeId: number | null; portalAccess?: PortalKey[] }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO users (name, email, password, role, title, storeId) VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.title ?? null}, ${data.storeId}) RETURNING *`;
-  return result[0] as User;
+  const portalAccess = serializePortalAccess(data.portalAccess ?? DEFAULT_PORTAL_ACCESS);
+  const result = await sql`
+    INSERT INTO users (name, email, password, role, title, storeId, portalAccess)
+    VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.title ?? null}, ${data.storeId}, ${portalAccess})
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+  `;
+  const user = result[0] as Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] };
+  return { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) };
 }
 
 export async function getStores() {
@@ -364,8 +403,16 @@ export async function updateStoreBudget(storeId: number, budget: number) {
 export async function getFieldTeamUsers() {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`SELECT id, name, title, budget FROM users WHERE role IN ('employee', 'field_team') ORDER BY name`;
-  return result as { id: number; name: string; title: string | null; budget: number }[];
+  const result = await sql`
+    SELECT id, name, email, title, budget, portalaccess as "portalAccess"
+    FROM users
+    WHERE role IN ('employee', 'field_team')
+    ORDER BY name
+  `;
+  return result.map((user: any) => ({
+    ...user,
+    portalAccess: normalizeUserPortalAccess(user.portalAccess),
+  })) as { id: number; name: string; email: string; title: string | null; budget: number; portalAccess: PortalKey[] }[];
 }
 
 export async function getDirectorEmails(): Promise<{ name: string; email: string }[]> {
@@ -471,6 +518,12 @@ export async function updateUserBudget(userId: number, budget: number) {
   await ensureSchemaOnce();
   const sql = getSql();
   await sql`UPDATE users SET budget = ${budget} WHERE id = ${userId}`;
+}
+
+export async function updateUserPortalAccess(userId: number, portalAccess: PortalKey[]) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET portalAccess = ${serializePortalAccess(portalAccess)} WHERE id = ${userId}`;
 }
 
 export async function createStore(name: string, budget: number): Promise<Store> {
