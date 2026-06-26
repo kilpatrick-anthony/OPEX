@@ -65,6 +65,8 @@ export default function OakerReportsPage() {
   const [storeFilter, setStoreFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState<'all' | OakerMode>('all');
   const [selectedReport, setSelectedReport] = useState<InspectionDetail | null>(null);
+  const [emailReportTarget, setEmailReportTarget] = useState<Inspection | InspectionDetail | null>(null);
+  const [recipientInput, setRecipientInput] = useState('');
   const [loadingReport, setLoadingReport] = useState(false);
   const [emailingReportId, setEmailingReportId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,16 +125,43 @@ export default function OakerReportsPage() {
     }
   }
 
-  async function emailReport(id: number) {
+  function openEmailDialog(report: Inspection | InspectionDetail) {
+    setEmailReportTarget(report);
+    setRecipientInput('');
+    setError('');
+    setSuccess('');
+  }
+
+  async function emailReport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!emailReportTarget) return;
+
+    const recipients = recipientInput
+      .split(/[\n,;]+/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+    if (recipients.length === 0) {
+      setError('Enter at least one email address.');
+      return;
+    }
+
+    const id = emailReportTarget.id;
     setEmailingReportId(id);
     setError('');
     setSuccess('');
     try {
-      const response = await fetch(`/api/oaker/${id}/email`, { method: 'POST' });
+      const response = await fetch(`/api/oaker/${id}/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipients }),
+      });
       const payload = (await readJsonSafely(response)) as EmailPayload | null;
       if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to email report'));
       if (payload?.emailStatus?.sent) {
         setSuccess(`Report email queued for ${payload.emailStatus.recipientCount} recipient${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
+        setEmailReportTarget(null);
+        setRecipientInput('');
       } else {
         setError(`Report email was not sent (${payload?.emailStatus?.reason ?? 'unknown reason'}).`);
       }
@@ -230,7 +259,7 @@ export default function OakerReportsPage() {
                           </a>
                           <button
                             type="button"
-                            onClick={() => emailReport(inspection.id)}
+                            onClick={() => openEmailDialog(inspection)}
                             disabled={emailingReportId === inspection.id}
                             className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:pointer-events-none disabled:opacity-60"
                           >
@@ -284,7 +313,7 @@ export default function OakerReportsPage() {
               <a href={`/api/oaker/${selectedReport.id}/pdf`} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white">Download generated PDF</a>
               <button
                 type="button"
-                onClick={() => emailReport(selectedReport.id)}
+                onClick={() => openEmailDialog(selectedReport)}
                 disabled={emailingReportId === selectedReport.id}
                 className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 disabled:pointer-events-none disabled:opacity-60"
               >
@@ -317,6 +346,54 @@ export default function OakerReportsPage() {
         ) : (
           <p className="text-sm text-slate-500">Loading report...</p>
         )}
+      </Dialog>
+
+      <Dialog
+        open={!!emailReportTarget}
+        title="Email Report"
+        description={emailReportTarget ? `${emailReportTarget.storeName} · ${formatDate(emailReportTarget.submittedAt)}` : ''}
+        onClose={() => {
+          if (emailingReportId) return;
+          setEmailReportTarget(null);
+          setRecipientInput('');
+        }}
+      >
+        {emailReportTarget ? (
+          <form onSubmit={emailReport} className="space-y-4">
+            <label className="block text-sm font-medium text-slate-700">
+              Recipient email addresses
+              <textarea
+                value={recipientInput}
+                onChange={(event) => setRecipientInput(event.target.value)}
+                rows={4}
+                placeholder="name@oakberry.ie, another@example.com"
+                className="mt-1.5 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal text-slate-900 outline-none focus:border-emerald-300 focus:bg-white"
+                disabled={emailingReportId === emailReportTarget.id}
+              />
+            </label>
+            <p className="text-xs text-slate-500">Separate multiple addresses with commas, semicolons, or new lines.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailReportTarget(null);
+                  setRecipientInput('');
+                }}
+                disabled={emailingReportId === emailReportTarget.id}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:pointer-events-none disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={emailingReportId === emailReportTarget.id}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {emailingReportId === emailReportTarget.id ? 'Sending...' : 'Send report'}
+              </button>
+            </div>
+          </form>
+        ) : null}
       </Dialog>
     </div>
   );
