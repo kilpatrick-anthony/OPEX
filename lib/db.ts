@@ -26,6 +26,9 @@ export type Store = {
   id: number;
   name: string;
   budget: number;
+  managerUserId?: number | null;
+  managerEmail?: string | null;
+  managerPortalAccess?: PortalKey[];
 };
 
 export type User = {
@@ -246,8 +249,30 @@ export async function getStores() {
   await ensureSchemaOnce();
   const sql = getSql();
 
-  const result = await sql`SELECT * FROM stores ORDER BY id`;
-  return result as Store[];
+  const result = await sql`
+    SELECT
+      s.id,
+      s.name,
+      s.budget,
+      u.id as "managerUserId",
+      u.email as "managerEmail",
+      u.portalaccess as "managerPortalAccess"
+    FROM stores s
+    LEFT JOIN LATERAL (
+      SELECT id, email, portalaccess
+      FROM users
+      WHERE role = 'manager' AND storeid = s.id
+      ORDER BY id
+      LIMIT 1
+    ) u ON true
+    ORDER BY s.id
+  `;
+  return result.map((store: any) => ({
+    ...store,
+    managerPortalAccess: store.managerUserId
+      ? normalizeUserPortalAccess(store.managerPortalAccess)
+      : undefined,
+  })) as Store[];
 }
 
 export async function getStoreByName(name: string) {

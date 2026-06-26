@@ -6,7 +6,14 @@ import { Card } from '@/components/ui/card';
 import { formatCurrency, readJsonSafely } from '@/lib/utils';
 import { DEFAULT_PORTAL_ACCESS, PORTAL_OPTIONS, normalizePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
-type StoreRecord = { id: number; name: string; budget: number };
+type StoreRecord = {
+  id: number;
+  name: string;
+  budget: number;
+  managerUserId?: number | null;
+  managerEmail?: string | null;
+  managerPortalAccess?: PortalKey[];
+};
 type FieldUser  = { id: number; name: string; email: string; title: string | null; budget: number; portalAccess: PortalKey[] };
 
 export default function AdminPage() {
@@ -39,7 +46,16 @@ export default function AdminPage() {
   useEffect(() => {
     fetch('/api/stores', { cache: 'no-store' })
       .then((r) => readJsonSafely(r))
-      .then((data) => { if (Array.isArray(data)) setStores(data as StoreRecord[]); })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setStores(data.map((store: any) => ({
+            ...store,
+            managerPortalAccess: store.managerPortalAccess
+              ? normalizePortalAccess(store.managerPortalAccess)
+              : undefined,
+          })) as StoreRecord[]);
+        }
+      })
       .catch(() => {});
     fetch('/api/users', { cache: 'no-store' })
       .then((r) => readJsonSafely(r))
@@ -85,6 +101,42 @@ export default function AdminPage() {
       }
     } catch {
       setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, portalAccess: previous } : user));
+      setSaveError('Network error - portal access not saved.');
+    } finally {
+      setAccessSavingId(null);
+    }
+  }
+
+  async function saveStorePortalAccess(storeId: number, userId: number, nextAccess: PortalKey[]) {
+    if (nextAccess.length === 0) {
+      setSaveError('Each user needs access to at least one area.');
+      return;
+    }
+
+    const previous = stores.find((store) => store.id === storeId)?.managerPortalAccess ?? DEFAULT_PORTAL_ACCESS;
+    setStores((prev) => prev.map((store) => (
+      store.id === storeId ? { ...store, managerPortalAccess: nextAccess } : store
+    )));
+    setAccessSavingId(userId);
+    setSaveError('');
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, portalAccess: nextAccess }),
+      });
+      if (!res.ok) {
+        const payload = await readJsonSafely(res) as any;
+        setStores((prev) => prev.map((store) => (
+          store.id === storeId ? { ...store, managerPortalAccess: previous } : store
+        )));
+        setSaveError(payload?.error ?? 'Failed to save portal access.');
+      }
+    } catch {
+      setStores((prev) => prev.map((store) => (
+        store.id === storeId ? { ...store, managerPortalAccess: previous } : store
+      )));
       setSaveError('Network error - portal access not saved.');
     } finally {
       setAccessSavingId(null);
@@ -253,7 +305,7 @@ export default function AdminPage() {
             <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
               <span className="rounded-full bg-sky-50 px-3 py-0.5 text-xs font-semibold text-sky-700">Stores</span>
               <span className="text-sm font-semibold text-slate-800">Monthly Budgets</span>
-              <span className="ml-auto text-xs text-slate-400">Budgets only</span>
+              <span className="ml-auto text-xs text-slate-400">Budget and access</span>
               <button type="button" onClick={() => { setAddingStore(true); setAddError(''); }}
                 className="rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-700 transition-colors">
                 + Add Store
@@ -268,8 +320,12 @@ export default function AdminPage() {
               ) : stores.map((store) => {
                 const isEditing = editingBudget?.id === String(store.id);
                 return (
-                  <div key={store.id} className="flex items-center justify-between px-6 py-3 gap-3">
-                    <span className="text-sm font-medium text-slate-800">{store.name}</span>
+                  <div key={store.id}>
+                  <div className="flex items-center justify-between px-6 py-3 gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800">{store.name}</p>
+                      {store.managerEmail && <p className="truncate text-xs text-slate-400">{store.managerEmail}</p>}
+                    </div>
                     {isEditing ? (
                       <div className="flex flex-wrap items-center gap-2 gap-y-2">
                         <span className="text-sm text-slate-400">€</span>
@@ -308,6 +364,44 @@ export default function AdminPage() {
                         </button>
                       </div>
                     )}
+                  </div>
+                  <div className="px-6 pb-4">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Portal access</span>
+                        {store.managerUserId && accessSavingId === store.managerUserId ? <span className="text-xs text-slate-400">Saving...</span> : null}
+                      </div>
+                      {store.managerUserId ? (
+                        <div className="grid gap-2">
+                          {PORTAL_OPTIONS.map((option) => {
+                            const access = store.managerPortalAccess ?? DEFAULT_PORTAL_ACCESS;
+                            const checked = access.includes(option.key);
+                            return (
+                              <button
+                                key={option.key}
+                                type="button"
+                                onClick={() => saveStorePortalAccess(store.id, store.managerUserId!, togglePortalAccess(access, option.key))}
+                                disabled={accessSavingId === store.managerUserId}
+                                title={option.description}
+                                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                                  checked
+                                    ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                    : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                                } disabled:opacity-60`}
+                              >
+                                <span>{option.label}</span>
+                                <span className={`text-[10px] uppercase tracking-wide ${checked ? 'text-sky-600' : 'text-slate-300'}`}>
+                                  {checked ? 'On' : 'Off'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400">No store login is linked to this store yet.</p>
+                      )}
+                    </div>
+                  </div>
                   </div>
                 );
               })}
