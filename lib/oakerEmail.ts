@@ -145,6 +145,21 @@ function text(
   page.commands.push(`BT /${font} ${num(size)} Tf ${color(fill)} rg ${num(x)} ${num(y)} Td (${pdfString(value)}) Tj ET`);
 }
 
+function approxTextWidth(value: string, size: number, bold = false) {
+  return value.length * size * (bold ? 0.56 : 0.52);
+}
+
+function textRight(
+  page: PdfPage,
+  value: string,
+  rightX: number,
+  y: number,
+  options: { size?: number; bold?: boolean; fill?: readonly number[] } = {},
+) {
+  const size = options.size ?? 10;
+  text(page, value, rightX - approxTextWidth(value, size, options.bold), y, options);
+}
+
 function image(page: PdfPage, name: string, x: number, y: number, width: number, height: number) {
   page.commands.push(`q ${num(width)} 0 0 ${num(height)} ${num(x)} ${num(y)} cm /${name} Do Q`);
 }
@@ -304,10 +319,19 @@ async function createEvidenceImage(name: string, data: Buffer): Promise<PdfImage
   }
 }
 
-function loadLogoImage(): PdfImage | null {
+async function loadLogoImage(): Promise<PdfImage | null> {
   const logoPath = join(process.cwd(), 'public', 'oakberry-logo.png');
   if (!existsSync(logoPath)) return null;
-  return createImageFromBuffer('Logo', readFileSync(logoPath), 'image/png');
+  try {
+    const prepared = await sharp(readFileSync(logoPath), { failOn: 'none' })
+      .flatten({ background: { r: 110, g: 46, b: 143 } })
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer();
+    return createImageFromBuffer('Logo', prepared, 'image/jpeg');
+  } catch (err) {
+    console.error('Failed to prepare OAKER PDF logo:', err);
+    return null;
+  }
 }
 
 function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfImage | null) {
@@ -315,13 +339,18 @@ function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfIm
   rect(page, 0, 704, PAGE_WIDTH, 5, BRAND_GREEN);
   if (logo) image(page, logo.name, MARGIN, 746, 150, 30);
   else text(page, 'OAKBERRY', MARGIN, 752, { size: 20, bold: true, fill: WHITE });
-  text(page, 'OAKER Experience Check Report', 230, 752, { size: 17, bold: true, fill: WHITE });
-  text(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', 230, 732, { size: 9, fill: WHITE });
-  text(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, 230, 716, { size: 10, bold: true, fill: WHITE });
+  textRight(page, 'OAKER Experience Check Report', PAGE_WIDTH - MARGIN, 755, { size: 17, bold: true, fill: WHITE });
+  textRight(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', PAGE_WIDTH - MARGIN, 736, { size: 9, fill: WHITE });
+  textRight(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, PAGE_WIDTH - MARGIN, 721, { size: 10, bold: true, fill: WHITE });
 }
 
-function addFooter(page: PdfPage, pageNumber: number) {
-  text(page, 'OAKBERRY Ireland OPEX Portal', MARGIN, 24, { size: 8, fill: SLATE_600 });
+function addFooter(page: PdfPage, pageNumber: number, inspection: OakerEmailInspection) {
+  const submittedDate = new Date(inspection.submittedAt).toLocaleDateString('en-IE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  text(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% ${inspection.rating} | ${submittedDate}`, MARGIN, 24, { size: 8, fill: SLATE_600 });
   text(page, `Page ${pageNumber}`, PAGE_WIDTH - MARGIN - 38, 24, { size: 8, fill: SLATE_600 });
 }
 
@@ -335,7 +364,7 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
   });
   const pages: PdfPage[] = [];
   const images = new Map<string, PdfImage>();
-  const logo = loadLogoImage();
+  const logo = await loadLogoImage();
   if (logo) images.set(logo.name, logo);
   let imageCount = logo ? 1 : 0;
 
@@ -343,7 +372,7 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
     const page = { commands: [] as string[] };
     pages.push(page);
     addHeader(page, inspection, logo);
-    addFooter(page, pages.length);
+    addFooter(page, pages.length, inspection);
     return page;
   }
 
@@ -398,19 +427,22 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
     return acc;
   }, {});
 
+  let sectionIndex = 0;
   for (const [section, responses] of Object.entries(grouped)) {
-    if (y < 135) {
+    if (sectionIndex > 0 || y < 135) {
       page = addPage();
       y = 660;
     }
+    sectionIndex += 1;
     rect(page, MARGIN, y, PAGE_WIDTH - MARGIN * 2, 28, BRAND_PURPLE);
     text(page, section, MARGIN + 12, y + 9, { size: 11, bold: true, fill: WHITE });
     y -= 18;
 
     for (const response of responses) {
-      const standardLines = wrapTextForWidth(response.standard, 360, 9);
-      const commentLines = response.comments?.trim() ? wrapTextForWidth(`Comment: ${response.comments.trim()}`, 392, 8) : [];
       const photoImages = (await Promise.all((response.photos ?? []).slice(0, 4).map(addPhoto))).filter((item): item is PdfImage => Boolean(item));
+      const hasPhotos = photoImages.length > 0;
+      const standardLines = wrapTextForWidth(response.standard, hasPhotos ? 315 : 360, 9);
+      const commentLines = response.comments?.trim() ? wrapTextForWidth(`Comment: ${response.comments.trim()}`, hasPhotos ? 315 : 392, 8) : [];
       const photoRows = photoImages.length > 0 ? Math.ceil(photoImages.length / 2) : 0;
       const rowHeight = Math.max(76, 46 + standardLines.length * 12 + commentLines.length * 11 + photoRows * 104);
 
@@ -438,10 +470,14 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
       photoImages.forEach((photo, index) => {
         const thumbW = 116;
         const thumbH = 88;
+        const blockW = photoImages.length === 1 ? thumbW : thumbW * 2 + 12;
+        const blockX = PAGE_WIDTH - MARGIN - 12 - blockW;
+        const blockY = y - rowHeight + 12;
         const col = index % 2;
-        const row = Math.floor(index / 2);
-        const x = MARGIN + 12 + col * (thumbW + 12);
-        const photoY = textY - 96 - row * 104;
+        const rowFromTop = Math.floor(index / 2);
+        const rowFromBottom = photoRows - 1 - rowFromTop;
+        const x = blockX + col * (thumbW + 12);
+        const photoY = blockY + rowFromBottom * 104;
         rect(page, x, photoY, thumbW, thumbH, WHITE);
         strokeRect(page, x, photoY, thumbW, thumbH, [0.88, 0.91, 0.95]);
         const scale = Math.min(thumbW / photo.width, thumbH / photo.height);
@@ -532,6 +568,11 @@ export async function sendOakerCheckCompletedEmail(
     hour: '2-digit',
     minute: '2-digit',
   });
+  const submittedDate = new Date(inspection.submittedAt).toLocaleDateString('en-IE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 
   const html = `
     <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
@@ -546,7 +587,7 @@ export async function sendOakerCheckCompletedEmail(
       </table>
       <p style="margin-top:18px;">The PDF report is attached.</p>
       <p><a href="${appUrl.replace(/\/$/, '')}/oaker" style="display:inline-block;background:#6d2f8e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 18px;border-radius:8px;">Open OAKER Dashboard</a></p>
-      <p style="color:#64748b;font-size:13px;">OAKBERRY Ireland OPEX Portal</p>
+      <p style="color:#64748b;font-size:13px;">${escapeHtml(inspection.storeName)} | ${inspection.percentage.toFixed(1)}% ${escapeHtml(inspection.rating)} | ${submittedDate}</p>
     </div>
   `;
 
