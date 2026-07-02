@@ -153,7 +153,7 @@ export async function ensureSchema() {
     sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-    sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, checkerName TEXT, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS oaker_responses (id SERIAL PRIMARY KEY, inspectionId INTEGER NOT NULL, questionId INTEGER NOT NULL, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, answer TEXT NOT NULL, comments TEXT, photos TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ]);
   await Promise.all([
@@ -163,6 +163,7 @@ export async function ensureSchema() {
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`,
@@ -190,6 +191,10 @@ async function ensureRequiredMigrationsOnce() {
     requiredMigrationsReady = (async () => {
       const sql = getSql();
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`;
     })().catch((err) => {
       requiredMigrationsReady = null;
       throw err;
@@ -707,6 +712,7 @@ export async function performRequestAction(requestId: number, userId: number, ac
 export async function createOakerInspection(data: {
   storeId: number;
   userId: number;
+  checkerName?: string | null;
   mode: OakerMode;
   score: number;
   maxScore: number;
@@ -726,8 +732,8 @@ export async function createOakerInspection(data: {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    INSERT INTO oaker_inspections (storeId, userId, mode, score, maxScore, percentage, rating, notes)
-    VALUES (${data.storeId}, ${data.userId}, ${data.mode}, ${data.score}, ${data.maxScore}, ${data.percentage}, ${data.rating}, ${data.notes ?? null})
+    INSERT INTO oaker_inspections (storeId, userId, checkerName, mode, score, maxScore, percentage, rating, notes)
+    VALUES (${data.storeId}, ${data.userId}, ${data.checkerName?.trim() || null}, ${data.mode}, ${data.score}, ${data.maxScore}, ${data.percentage}, ${data.rating}, ${data.notes ?? null})
     RETURNING id
   `;
   const inspectionId = Number(result[0].id);
@@ -760,7 +766,7 @@ export async function getOakerInspectionById(id: number) {
        i.storeid as "storeId",
        s.name as "storeName",
        i.userid as "userId",
-       u.name as "inspectorName",
+       COALESCE(NULLIF(i.checkername, ''), u.name) as "inspectorName",
        i.mode,
        i.score,
        i.maxscore as "maxScore",
@@ -822,7 +828,7 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
        i.storeid as "storeId",
        s.name as "storeName",
        i.userid as "userId",
-       u.name as "inspectorName",
+       COALESCE(NULLIF(i.checkername, ''), u.name) as "inspectorName",
        i.mode,
        i.score,
        i.maxscore as "maxScore",

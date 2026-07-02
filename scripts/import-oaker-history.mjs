@@ -318,8 +318,9 @@ function parseReports() {
 }
 
 async function ensureSchema() {
-  await sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, checkerName TEXT, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
   await sql`CREATE TABLE IF NOT EXISTS oaker_responses (id SERIAL PRIMARY KEY, inspectionId INTEGER NOT NULL, questionId INTEGER NOT NULL, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, answer TEXT NOT NULL, comments TEXT, photos TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`;
   await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`;
   await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`;
   await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`;
@@ -352,11 +353,12 @@ async function upsertInspection(record, responses = []) {
   const importKey = `oaker-history:${record.month}:${record.storeName.toLowerCase()}`;
 
   const result = await sql`
-    INSERT INTO oaker_inspections (storeId, userId, mode, score, maxScore, percentage, rating, notes, importKey, reportPath, reportText, submittedAt, createdAt)
-    VALUES (${storeId}, ${userId}, 'experience', ${record.score}, ${record.maxScore}, ${record.percentage}, ${record.rating}, ${record.notes || null}, ${importKey}, ${record.reportPath || null}, ${record.reportText || null}, ${record.submittedAt}, ${record.submittedAt})
+    INSERT INTO oaker_inspections (storeId, userId, checkerName, mode, score, maxScore, percentage, rating, notes, importKey, reportPath, reportText, submittedAt, createdAt)
+    VALUES (${storeId}, ${userId}, ${record.inspectorName || null}, 'experience', ${record.score}, ${record.maxScore}, ${record.percentage}, ${record.rating}, ${record.notes || null}, ${importKey}, ${record.reportPath || null}, ${record.reportText || null}, ${record.submittedAt}, ${record.submittedAt})
     ON CONFLICT (importKey) DO UPDATE SET
       storeId = EXCLUDED.storeId,
       userId = EXCLUDED.userId,
+      checkerName = EXCLUDED.checkerName,
       mode = EXCLUDED.mode,
       score = EXCLUDED.score,
       maxScore = EXCLUDED.maxScore,

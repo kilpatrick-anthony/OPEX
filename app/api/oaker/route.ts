@@ -78,6 +78,7 @@ export async function POST(request: Request) {
   const mode: OakerMode = body.mode === 'express' ? 'express' : 'experience';
   const requestedStoreId = Number(body.storeId);
   const storeId = requestedStoreId;
+  const checkerName = typeof body.checkerName === 'string' ? body.checkerName.trim() : '';
   const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
   const incomingResponses = Array.isArray(body.responses) ? body.responses : [];
 
@@ -86,6 +87,9 @@ export async function POST(request: Request) {
   }
   if (incomingResponses.length === 0) {
     return NextResponse.json({ error: 'At least one response is required.' }, { status: 400 });
+  }
+  if (!checkerName) {
+    return NextResponse.json({ error: 'Checker name is required.' }, { status: 400 });
   }
 
   const questionById = new Map(OAKER_QUESTIONS.map((question) => [question.id, question]));
@@ -117,6 +121,7 @@ export async function POST(request: Request) {
   const inspection = await createOakerInspection({
     storeId,
     userId: Number(session.user.id),
+    checkerName,
     mode,
     notes: notes || null,
     ...score,

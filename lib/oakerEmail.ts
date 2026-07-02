@@ -54,8 +54,12 @@ const SLATE_900 = [0.06, 0.09, 0.16] as const;
 const SLATE_600 = [0.29, 0.33, 0.41] as const;
 const SLATE_100 = [0.95, 0.97, 0.98] as const;
 const WHITE = [1, 1, 1] as const;
-const PDF_PHOTO_MAX_WIDTH = 900;
-const PDF_PHOTO_QUALITY = 76;
+const PDF_PHOTO_MAX_WIDTH = 720;
+const PDF_PHOTO_QUALITY = 68;
+const PDF_THUMB_WIDTH = 136;
+const PDF_THUMB_HEIGHT = 104;
+const PDF_THUMB_GAP = 12;
+const PDF_THUMB_ROW_HEIGHT = 120;
 
 function getTransport() {
   const host = process.env.SMTP_HOST;
@@ -471,10 +475,12 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
     for (const response of responses) {
       const photoImages = (await Promise.all((response.photos ?? []).slice(0, 4).map(addPhoto))).filter((item): item is PdfImage => Boolean(item));
       const hasPhotos = photoImages.length > 0;
-      const standardLines = wrapTextForWidth(response.standard, hasPhotos ? 315 : 360, 9);
-      const commentLines = response.comments?.trim() ? wrapTextForWidth(`Comment: ${response.comments.trim()}`, hasPhotos ? 315 : 392, 8) : [];
+      const photoBlockW = photoImages.length === 1 ? PDF_THUMB_WIDTH : PDF_THUMB_WIDTH * 2 + PDF_THUMB_GAP;
+      const textWidth = hasPhotos ? PAGE_WIDTH - MARGIN * 2 - photoBlockW - 42 : 392;
+      const standardLines = wrapTextForWidth(response.standard, textWidth, 9);
+      const commentLines = response.comments?.trim() ? wrapTextForWidth(`Comment: ${response.comments.trim()}`, textWidth, 8) : [];
       const photoRows = photoImages.length > 0 ? Math.ceil(photoImages.length / 2) : 0;
-      const rowHeight = Math.max(76, 46 + standardLines.length * 12 + commentLines.length * 11 + photoRows * 104);
+      const rowHeight = Math.max(76, 46 + standardLines.length * 12 + commentLines.length * 11 + photoRows * PDF_THUMB_ROW_HEIGHT);
 
       if (y - rowHeight < 55) {
         page = addPage();
@@ -498,16 +504,16 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
       textY -= commentLines.length * 11;
 
       photoImages.forEach((photo, index) => {
-        const thumbW = 116;
-        const thumbH = 88;
-        const blockW = photoImages.length === 1 ? thumbW : thumbW * 2 + 12;
+        const thumbW = PDF_THUMB_WIDTH;
+        const thumbH = PDF_THUMB_HEIGHT;
+        const blockW = photoImages.length === 1 ? thumbW : thumbW * 2 + PDF_THUMB_GAP;
         const blockX = PAGE_WIDTH - MARGIN - 12 - blockW;
         const blockY = y - rowHeight + 12;
         const col = index % 2;
         const rowFromTop = Math.floor(index / 2);
         const rowFromBottom = photoRows - 1 - rowFromTop;
-        const x = blockX + col * (thumbW + 12);
-        const photoY = blockY + rowFromBottom * 104;
+        const x = blockX + col * (thumbW + PDF_THUMB_GAP);
+        const photoY = blockY + rowFromBottom * PDF_THUMB_ROW_HEIGHT;
         rect(page, x, photoY, thumbW, thumbH, WHITE);
         strokeRect(page, x, photoY, thumbW, thumbH, [0.88, 0.91, 0.95]);
         const scale = Math.min(thumbW / photo.width, thumbH / photo.height);

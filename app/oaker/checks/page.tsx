@@ -56,6 +56,7 @@ type ResponseState = {
 type CheckDraft = {
   storeId: string;
   mode: OakerMode;
+  checkerName: string;
   currentIndex: number;
   responses: Record<number, Omit<ResponseState, 'photos'> & { photos?: string[] }>;
   notes: string;
@@ -106,18 +107,45 @@ const DRAFT_KEY = 'oaker-check-draft-v1';
 const EMPTY_RESPONSE: ResponseState = { answer: '', comments: '', photos: [] };
 const MAX_PHOTO_SIZE_MB = 10;
 const MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024;
+const PHOTO_MAX_DIMENSION = 1600;
+const PHOTO_JPEG_QUALITY = 0.74;
 
 function formatScore(inspection: Inspection) {
   return `${inspection.percentage.toFixed(1)}%`;
 }
 
-function readFiles(files: File[]) {
-  return Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(new Error('Failed to read photo'));
     reader.readAsDataURL(file);
-  })));
+  });
+}
+
+async function compressPhoto(file: File) {
+  const dataUrl = await readFileAsDataUrl(file);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to prepare photo'));
+    img.src = dataUrl;
+  });
+
+  const scale = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return dataUrl;
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
+}
+
+function readFiles(files: File[]) {
+  return Promise.all(files.map(compressPhoto));
 }
 
 function createDraftResponses(responses: Record<number, ResponseState>): CheckDraft['responses'] {
@@ -150,6 +178,7 @@ export default function OakerPage() {
   const [expressDescription, setExpressDescription] = useState('');
   const [mode, setMode] = useState<OakerMode>('express');
   const [storeId, setStoreId] = useState('');
+  const [checkerName, setCheckerName] = useState('');
   const [active, setActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<Record<number, ResponseState>>({});
@@ -211,6 +240,10 @@ export default function OakerPage() {
   useEffect(() => {
     if (!isLoading && !user) router.replace('/login');
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (!checkerName && user?.name) setCheckerName(user.name);
+  }, [checkerName, user?.name]);
 
   useEffect(() => {
     try {
@@ -286,6 +319,7 @@ export default function OakerPage() {
     const nextDraft: CheckDraft = {
       storeId,
       mode,
+      checkerName,
       currentIndex,
       responses: createDraftResponses(responses),
       notes,
@@ -297,7 +331,7 @@ export default function OakerPage() {
     } catch {
       setError('This check is too large to save in this browser. Please submit before leaving the page.');
     }
-  }, [active, storeId, mode, currentIndex, responses, notes, questions.length]);
+  }, [active, storeId, mode, checkerName, currentIndex, responses, notes, questions.length]);
 
   function updateResponse(questionId: number, patch: Partial<ResponseState>) {
     setResponses((prev) => ({
@@ -333,6 +367,10 @@ export default function OakerPage() {
       setError('Please choose a store first.');
       return;
     }
+    if (!checkerName.trim()) {
+      setError('Please enter the checker name.');
+      return;
+    }
     setError('');
     setSuccess('');
     setMode(nextMode);
@@ -353,6 +391,7 @@ export default function OakerPage() {
     setSuccess('');
     setStoreId(draft.storeId);
     setMode(draft.mode);
+    setCheckerName(draft.checkerName || user?.name || '');
     const draftQuestions = await loadOaker(draft.mode, draft.storeId);
     if (draftQuestions.length === 0) {
       setError('Could not resume this saved check because the questions are no longer available.');
@@ -385,6 +424,7 @@ export default function OakerPage() {
         body: JSON.stringify({
           mode,
           storeId: Number(storeId),
+          checkerName,
           notes,
           responses: questions.map((question) => ({
             questionId: question.id,
@@ -449,20 +489,32 @@ export default function OakerPage() {
             {success ? <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</p> : null}
 
             <Card title="Choose Store" description="Select the store before starting an OAKER Experience check.">
-              <label className="block text-sm font-medium text-slate-700">
-                Store
-                <select
-                  value={storeId}
-                  disabled={!canChooseStore && stores.length === 1}
-                  onChange={(e) => setStoreId(e.target.value)}
-                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-normal"
-                >
-                  <option value="">Choose a store</option>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Store
+                  <select
+                    value={storeId}
+                    disabled={!canChooseStore && stores.length === 1}
+                    onChange={(e) => setStoreId(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-normal"
+                  >
+                    <option value="">Choose a store</option>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Checker name
+                  <input
+                    type="text"
+                    value={checkerName}
+                    onChange={(e) => setCheckerName(e.target.value)}
+                    className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-normal"
+                    placeholder="Enter the name of the checker"
+                  />
+                </label>
+              </div>
             </Card>
 
             {draft ? (
