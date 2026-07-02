@@ -136,7 +136,7 @@ export async function POST(request: Request) {
 
   if (inspection) {
     try {
-      const recipients = await getOakerEmailRecipients();
+      const recipients = await getOakerEmailRecipients(storeId);
       emailStatus = { sent: false, recipientCount: recipients.length, reason: 'attempting' };
       emailStatus = await sendOakerCheckCompletedEmail(inspection, recipients);
       console.info('OAKER completion email status:', emailStatus);

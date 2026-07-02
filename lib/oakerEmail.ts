@@ -84,6 +84,9 @@ type OakerEmailSendResult = {
   provider?: 'smtp';
   recipientCount: number;
   reason?: string;
+  accepted?: string[];
+  rejected?: string[];
+  messageId?: string;
 };
 
 function escapeHtml(value: string) {
@@ -632,7 +635,7 @@ export async function sendOakerCheckCompletedEmail(
   const filename = `oaker-check-${inspection.id}-${inspection.storeName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
   const transport = getTransport();
 
-  await transport.sendMail({
+  const sendInfo = await transport.sendMail({
     from,
     to: recipients.map((recipient) => `${recipient.name} <${recipient.email}>`).join(', '),
     subject,
@@ -646,5 +649,17 @@ export async function sendOakerCheckCompletedEmail(
     ],
   });
 
-  return { sent: true, provider: 'smtp', recipientCount: recipients.length };
+  const accepted = Array.isArray(sendInfo.accepted) ? sendInfo.accepted.map(String) : [];
+  const rejected = Array.isArray(sendInfo.rejected) ? sendInfo.rejected.map(String) : [];
+  const sent = accepted.length > 0 && rejected.length === 0;
+
+  return {
+    sent,
+    provider: 'smtp',
+    recipientCount: recipients.length,
+    reason: sent ? undefined : accepted.length > 0 ? 'partially_rejected' : 'all_rejected',
+    accepted,
+    rejected,
+    messageId: typeof sendInfo.messageId === 'string' ? sendInfo.messageId : undefined,
+  };
 }

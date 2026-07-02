@@ -51,6 +51,9 @@ type EmailPayload = {
     provider?: string;
     recipientCount: number;
     reason?: string;
+    accepted?: string[];
+    rejected?: string[];
+    messageId?: string;
   };
 };
 
@@ -162,11 +165,13 @@ export default function OakerReportsPage() {
       const payload = (await readJsonSafely(response)) as EmailPayload | null;
       if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to email report'));
       if (payload?.emailStatus?.sent) {
-        setSuccess(`Report email queued for ${payload.emailStatus.recipientCount} recipient${payload.emailStatus.recipientCount === 1 ? '' : 's'}.`);
+        const accepted = payload.emailStatus.accepted?.length ? ` Accepted by SMTP: ${payload.emailStatus.accepted.join(', ')}.` : '';
+        setSuccess(`Report email sent for ${payload.emailStatus.recipientCount} recipient${payload.emailStatus.recipientCount === 1 ? '' : 's'}.${accepted}`);
         setEmailReportTarget(null);
         setRecipientInput('');
       } else {
-        setError(`Report email was not sent (${payload?.emailStatus?.reason ?? 'unknown reason'}).`);
+        const rejected = payload?.emailStatus?.rejected?.length ? ` Rejected: ${payload.emailStatus.rejected.join(', ')}.` : '';
+        setError(`Report email was not sent (${payload?.emailStatus?.reason ?? 'unknown reason'}).${rejected}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to email report');

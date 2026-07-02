@@ -451,21 +451,36 @@ export async function getFieldTeamUsers() {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    SELECT id, name, email, title, budget, portalaccess as "portalAccess"
+    SELECT id, name, email, role, title, budget, portalaccess as "portalAccess"
     FROM users
-    WHERE role IN ('employee', 'field_team')
-    ORDER BY name
+    WHERE role IN ('director', 'employee', 'field_team')
+    ORDER BY
+      CASE WHEN role = 'director' THEN 0 ELSE 1 END,
+      name
   `;
   return result.map((user: any) => ({
     ...user,
     portalAccess: normalizeUserPortalAccess(user.portalAccess),
-  })) as { id: number; name: string; email: string; title: string | null; budget: number; portalAccess: PortalKey[] }[];
+  })) as { id: number; name: string; email: string; role: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[] }[];
 }
 
 export async function getDirectorEmails(): Promise<{ name: string; email: string }[]> {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`SELECT name, email FROM users WHERE role IN ('director', 'super_admin') ORDER BY name`;
+  return result as { name: string; email: string }[];
+}
+
+export async function getStoreManagerEmails(storeId: number): Promise<{ name: string; email: string }[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`
+    SELECT name, email
+    FROM users
+    WHERE role = 'manager'
+      AND storeid = ${storeId}
+    ORDER BY name
+  `;
   return result as { name: string; email: string }[];
 }
 
@@ -493,10 +508,11 @@ function getConfiguredOakerRecipients(): { name: string; email: string }[] {
     .filter((recipient): recipient is { name: string; email: string } => recipient !== null);
 }
 
-export async function getOakerEmailRecipients(): Promise<{ name: string; email: string }[]> {
+export async function getOakerEmailRecipients(storeId?: number): Promise<{ name: string; email: string }[]> {
   const defaultOakerRecipient = parseEmailRecipient(DEFAULT_OAKER_EMAIL_RECIPIENTS);
   const recipients = [
     ...(await getDirectorEmails()),
+    ...(storeId ? await getStoreManagerEmails(storeId) : []),
     ...(defaultOakerRecipient ? [defaultOakerRecipient] : []),
     ...getConfiguredOakerRecipients(),
   ];

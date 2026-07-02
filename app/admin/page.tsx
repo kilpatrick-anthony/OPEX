@@ -16,7 +16,7 @@ type StoreRecord = {
   managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
 };
-type FieldUser  = { id: number; name: string; email: string; title: string | null; budget: number; portalAccess: PortalKey[] };
+type FieldUser  = { id: number; name: string; email: string; role?: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[] };
 type AccountEditor = {
   type: 'store' | 'user';
   userId: number;
@@ -579,7 +579,12 @@ export default function AdminPage() {
                   <div key={user.id}>
                   <div className="flex items-center justify-between px-6 py-3 gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800">{user.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-slate-800">{user.name}</p>
+                        {user.role === 'director' ? (
+                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">Director</span>
+                        ) : null}
+                      </div>
                       <p className="truncate text-xs text-slate-400">{user.email}</p>
                       {user.title && <p className="text-xs text-slate-400">{user.title}</p>}
                     </div>

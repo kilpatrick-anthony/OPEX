@@ -57,6 +57,28 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: 'You can send to up to 20 recipients at a time.' }, { status: 400 });
   }
 
-  const emailStatus = await sendOakerCheckCompletedEmail(inspection, recipients);
-  return NextResponse.json({ emailStatus });
+  try {
+    const emailStatus = await sendOakerCheckCompletedEmail(inspection, recipients);
+    console.info('Manual OAKER report email status:', {
+      inspectionId,
+      sent: emailStatus.sent,
+      recipientCount: emailStatus.recipientCount,
+      accepted: emailStatus.accepted,
+      rejected: emailStatus.rejected,
+      reason: emailStatus.reason,
+      messageId: emailStatus.messageId,
+    });
+    return NextResponse.json({ emailStatus });
+  } catch (err) {
+    console.error('Failed to send manual OAKER report email:', err);
+    const message = err instanceof Error ? err.message : '';
+    return NextResponse.json({
+      error: 'Failed to email report.',
+      emailStatus: {
+        sent: false,
+        recipientCount: recipients.length,
+        reason: message.includes('SMTP_HOST') ? 'email_config_missing' : 'send_failed',
+      },
+    }, { status: 500 });
+  }
 }
