@@ -375,8 +375,8 @@ async function loadLogoImage(): Promise<PdfImage | null> {
 function addHeader(page: PdfPage, inspection: OakerEmailInspection, logo?: PdfImage | null) {
   rect(page, 0, 704, PAGE_WIDTH, 88, BRAND_PURPLE);
   rect(page, 0, 704, PAGE_WIDTH, 5, BRAND_GREEN);
-  if (logo) image(page, logo.name, MARGIN, 746, 150, 30);
-  else text(page, 'OAKBERRY', MARGIN, 752, { size: 20, bold: true, fill: WHITE });
+  if (logo) image(page, logo.name, MARGIN, 733, 150, 30);
+  else text(page, 'OAKBERRY', MARGIN, 739, { size: 20, bold: true, fill: WHITE });
   textRight(page, inspection.mode === 'express' ? 'OAKER Express' : 'Full OAKER Experience', PAGE_WIDTH - MARGIN, 748, { size: 13, bold: true, fill: WHITE });
   textRight(page, `${inspection.storeName} | ${inspection.percentage.toFixed(1)}% | ${inspection.rating}`, PAGE_WIDTH - MARGIN, 728, { size: 11, bold: true, fill: WHITE });
 }
