@@ -449,13 +449,26 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
   y -= 42;
 
   if (inspection.notes?.trim()) {
-    y -= 58;
-    rect(page, MARGIN, y - 8, PAGE_WIDTH - MARGIN * 2, 76, SLATE_100);
-    text(page, 'Overall report notes', MARGIN + 14, y + 45, { size: 12, bold: true, fill: SLATE_900 });
-    wrapTextForWidth(inspection.notes.trim(), PAGE_WIDTH - MARGIN * 2 - 28, 9).slice(0, 3).forEach((line, index) => {
-      text(page, line, MARGIN + 14, y + 26 - index * 13, { size: 9, fill: SLATE_600 });
+    y -= 34;
+    const notePanelTop = y;
+    const notePanelBottomLimit = 82;
+    const noteLineHeight = 13;
+    const noteLines = wrapTextForWidth(inspection.notes.trim(), PAGE_WIDTH - MARGIN * 2 - 28, 9);
+    const availableNoteHeight = notePanelTop - notePanelBottomLimit;
+    const maxNoteLines = Math.max(3, Math.floor((availableNoteHeight - 60) / noteLineHeight));
+    const renderedNoteLines = noteLines.slice(0, maxNoteLines);
+    const notePanelHeight = Math.min(
+      availableNoteHeight,
+      54 + renderedNoteLines.length * noteLineHeight,
+    );
+    const notePanelY = notePanelTop - notePanelHeight;
+
+    rect(page, MARGIN, notePanelY, PAGE_WIDTH - MARGIN * 2, notePanelHeight, SLATE_100);
+    text(page, 'Overall report notes', MARGIN + 14, notePanelTop - 28, { size: 12, bold: true, fill: SLATE_900 });
+    renderedNoteLines.forEach((line, index) => {
+      text(page, line, MARGIN + 14, notePanelTop - 50 - index * noteLineHeight, { size: 9, fill: SLATE_600 });
     });
-    y -= 40;
+    y = notePanelY - 24;
   }
 
   const grouped = inspection.responses.reduce<Record<string, typeof inspection.responses>>((acc, response) => {
@@ -464,8 +477,14 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
     return acc;
   }, {});
 
+  const groupedEntries = Object.entries(grouped);
+  if (groupedEntries.length > 0) {
+    page = addPage();
+    y = 660;
+  }
+
   let sectionIndex = 0;
-  for (const [section, responses] of Object.entries(grouped)) {
+  for (const [section, responses] of groupedEntries) {
     if (sectionIndex > 0 || y < 135) {
       page = addPage();
       y = 660;
