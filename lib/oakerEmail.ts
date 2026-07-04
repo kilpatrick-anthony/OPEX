@@ -435,13 +435,14 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
 
   const cardW = 160;
   const cardH = 74;
+  const cardGap = 24;
   const cards = [
     { label: 'Score', value: `${inspection.percentage.toFixed(1)}%`, fill: ratingColor(inspection.rating) },
     { label: 'Rating', value: inspection.rating, fill: ratingColor(inspection.rating) },
     { label: 'Points', value: `${inspection.score}/${inspection.maxScore}`, fill: BRAND_PURPLE },
   ];
   cards.forEach((card, index) => {
-    const x = MARGIN + index * (cardW + 18);
+    const x = MARGIN + index * (cardW + cardGap);
     rect(page, x, y, cardW, cardH, card.fill);
     text(page, card.label, x + 14, y + 48, { size: 9, bold: true, fill: WHITE });
     text(page, card.value, x + 14, y + 18, { size: 23, bold: true, fill: WHITE });
