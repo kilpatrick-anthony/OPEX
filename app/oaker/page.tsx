@@ -245,14 +245,14 @@ export default function OakerDashboardPage() {
               Estate-level scoring, store ranking, and standards signals from the latest OAKER Experience checks.
             </p>
           </div>
-          <Link href="/oaker/checks">
-            <Button
-              type="button"
-              variant="ghost"
-              className="rounded-xl bg-[#6d2f8e] px-6 py-3 text-base font-semibold text-white shadow-lg shadow-amber-300/60 transition hover:-translate-y-0.5 hover:bg-[#4a1f60] hover:shadow-xl hover:shadow-amber-300/70"
-            >
-              New Check
-            </Button>
+          <Link
+            href="/oaker/checks"
+            className="inline-flex items-center justify-center rounded-xl px-6 py-3 text-base font-semibold text-white shadow-lg shadow-amber-300/60 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-300/70 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2"
+            style={{ backgroundColor: '#6d2f8e' }}
+            onMouseEnter={(event) => { event.currentTarget.style.backgroundColor = '#4a1f60'; }}
+            onMouseLeave={(event) => { event.currentTarget.style.backgroundColor = '#6d2f8e'; }}
+          >
+            New Check
           </Link>
         </div>
 
