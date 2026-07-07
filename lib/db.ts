@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import type { OakerAnswer, OakerMode, OakerQuestionStats, OakerRating } from '@/lib/oaker';
+import { OAKER_QUESTIONS, type OakerAnswer, type OakerMode, type OakerQuestion, type OakerQuestionStats, type OakerRating } from '@/lib/oaker';
 import { DEFAULT_PORTAL_ACCESS, serializePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
 function makeSql() {
@@ -31,6 +31,7 @@ export type Store = {
   managerEmail?: string | null;
   managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
+  managerCanManageOakerQuestions?: boolean;
 };
 
 export type User = {
@@ -42,6 +43,7 @@ export type User = {
   title: string | null;
   storeId: number | null;
   portalAccess: PortalKey[];
+  canManageOakerQuestions: boolean;
 };
 
 export type RequestRecord = {
@@ -108,6 +110,14 @@ export type OakerResponseRecord = {
   photos: string[];
 };
 
+export type OakerQuestionRecord = OakerQuestion & {
+  active: boolean;
+  expressPinned: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const REQUEST_SELECT = `
   r.id,
   r.storeid as "storeId",
@@ -155,11 +165,13 @@ export async function ensureSchema() {
     sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS oaker_inspections (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, checkerName TEXT, mode TEXT NOT NULL, score REAL NOT NULL, maxScore REAL NOT NULL, percentage REAL NOT NULL, rating TEXT NOT NULL, notes TEXT, importKey TEXT, reportPath TEXT, reportText TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, submittedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS oaker_responses (id SERIAL PRIMARY KEY, inspectionId INTEGER NOT NULL, questionId INTEGER NOT NULL, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, answer TEXT NOT NULL, comments TEXT, photos TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS oaker_questions (id INTEGER PRIMARY KEY, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, active BOOLEAN NOT NULL DEFAULT true, expressPinned BOOLEAN NOT NULL DEFAULT false, sortOrder INTEGER NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ]);
   await Promise.all([
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`,
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS canManageOakerQuestions BOOLEAN NOT NULL DEFAULT false`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
@@ -167,9 +179,15 @@ export async function ensureSchema() {
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`,
+    sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`,
+    sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`,
+    sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS sortOrder INTEGER NOT NULL DEFAULT 0`,
+    sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+    sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
     sql`CREATE UNIQUE INDEX IF NOT EXISTS oaker_inspections_importkey_idx ON oaker_inspections (importKey)`,
     sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`,
   ]);
+  await seedOakerQuestions(sql);
 }
 
 async function ensureSchemaOnce() {
@@ -191,10 +209,18 @@ async function ensureRequiredMigrationsOnce() {
     requiredMigrationsReady = (async () => {
       const sql = getSql();
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS canManageOakerQuestions BOOLEAN NOT NULL DEFAULT false`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`;
+      await sql`CREATE TABLE IF NOT EXISTS oaker_questions (id INTEGER PRIMARY KEY, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, active BOOLEAN NOT NULL DEFAULT true, expressPinned BOOLEAN NOT NULL DEFAULT false, sortOrder INTEGER NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+      await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`;
+      await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS sortOrder INTEGER NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+      await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+      await seedOakerQuestions(sql);
     })().catch((err) => {
       requiredMigrationsReady = null;
       throw err;
@@ -203,12 +229,22 @@ async function ensureRequiredMigrationsOnce() {
   await requiredMigrationsReady;
 }
 
+async function seedOakerQuestions(sql: ReturnType<typeof getSql>) {
+  for (const question of OAKER_QUESTIONS) {
+    await sql`
+      INSERT INTO oaker_questions (id, section, standard, weighting, active, expressPinned, sortOrder)
+      VALUES (${question.id}, ${question.section}, ${question.standard}, ${question.weighting}, true, false, ${question.id})
+      ON CONFLICT (id) DO NOTHING
+    `;
+  }
+}
+
 export async function getUserByEmail(email: string) {
   await ensureSchemaOnce();
   const sql = getSql();
 
   const result = await sql`
-    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
     FROM users
     WHERE email = ${email.toLowerCase()}
   `;
@@ -220,7 +256,7 @@ export async function getUserById(id: number) {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
     FROM users
     WHERE id = ${id}
   `;
@@ -241,7 +277,7 @@ export async function updateUserProfile(userId: number, data: { name: string; em
     UPDATE users
     SET name = ${data.name}, email = ${data.email.toLowerCase()}, title = ${data.title ?? null}
     WHERE id = ${userId}
-    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
   `;
   const user = result[0] as (Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] }) | undefined;
   return user ? { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) } : undefined;
@@ -259,7 +295,7 @@ export async function createUser(data: { name: string; email: string; password: 
   const result = await sql`
     INSERT INTO users (name, email, password, role, title, storeId, portalAccess)
     VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.title ?? null}, ${data.storeId}, ${portalAccess})
-    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess"
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
   `;
   const user = result[0] as Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] };
   return { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) };
@@ -278,10 +314,11 @@ export async function getStores() {
       u.name as "managerName",
       u.email as "managerEmail",
       u.title as "managerTitle",
-      u.portalaccess as "managerPortalAccess"
+      u.portalaccess as "managerPortalAccess",
+      u.canmanageoakerquestions as "managerCanManageOakerQuestions"
     FROM stores s
     LEFT JOIN LATERAL (
-      SELECT id, name, email, title, portalaccess
+      SELECT id, name, email, title, portalaccess, canmanageoakerquestions
       FROM users
       WHERE role = 'manager' AND storeid = s.id
       ORDER BY id
@@ -293,6 +330,9 @@ export async function getStores() {
     ...store,
     managerPortalAccess: store.managerUserId
       ? normalizeUserPortalAccess(store.managerPortalAccess)
+      : undefined,
+    managerCanManageOakerQuestions: store.managerUserId
+      ? Boolean(store.managerCanManageOakerQuestions)
       : undefined,
   })) as Store[];
 }
@@ -451,7 +491,7 @@ export async function getFieldTeamUsers() {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    SELECT id, name, email, role, title, budget, portalaccess as "portalAccess"
+    SELECT id, name, email, role, title, budget, portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
     FROM users
     WHERE role IN ('director', 'employee', 'field_team')
     ORDER BY
@@ -461,7 +501,8 @@ export async function getFieldTeamUsers() {
   return result.map((user: any) => ({
     ...user,
     portalAccess: normalizeUserPortalAccess(user.portalAccess),
-  })) as { id: number; name: string; email: string; role: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[] }[];
+    canManageOakerQuestions: Boolean(user.canManageOakerQuestions),
+  })) as { id: number; name: string; email: string; role: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean }[];
 }
 
 export async function getDirectorEmails(): Promise<{ name: string; email: string }[]> {
@@ -639,6 +680,25 @@ export async function updateUserPortalAccess(userId: number, portalAccess: Porta
   await sql`UPDATE users SET portalAccess = ${serializePortalAccess(portalAccess)} WHERE id = ${userId}`;
 }
 
+export async function updateUserOakerQuestionAccess(userId: number, canManage: boolean) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET canManageOakerQuestions = ${canManage} WHERE id = ${userId}`;
+}
+
+export async function canUserManageOakerQuestions(userId: number, role?: string | null) {
+  if (role === 'super_admin') return true;
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`
+    SELECT canmanageoakerquestions as "canManageOakerQuestions"
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  return Boolean(result[0]?.canManageOakerQuestions);
+}
+
 export async function createStore(name: string, budget: number): Promise<Store> {
   await ensureSchemaOnce();
   const sql = getSql();
@@ -723,6 +783,68 @@ export async function performRequestAction(requestId: number, userId: number, ac
   await sql`UPDATE requests SET status = ${validStatus}, actionComment = ${comment || null}, queryComment = ${action === 'queried' ? comment : null}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${requestId}`;
   await sql`INSERT INTO approvals (requestId, userId, action, comment) VALUES (${requestId}, ${userId}, ${action}, ${comment || null})`;
   return getRequestById(requestId);
+}
+
+function mapOakerQuestion(row: any): OakerQuestionRecord {
+  return {
+    id: Number(row.id),
+    section: row.section,
+    standard: row.standard,
+    weighting: Number(row.weighting),
+    active: Boolean(row.active),
+    expressPinned: Boolean(row.expressPinned ?? row.expresspinned),
+    sortOrder: Number(row.sortOrder ?? row.sortorder ?? row.id),
+    createdAt: row.createdAt ?? row.createdat,
+    updatedAt: row.updatedAt ?? row.updatedat,
+  };
+}
+
+export async function getOakerQuestionBank(options?: { includeInactive?: boolean }): Promise<OakerQuestionRecord[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const includeInactive = options?.includeInactive ?? false;
+  const result = await sql.query(
+    `SELECT id, section, standard, weighting, active, expresspinned as "expressPinned", sortorder as "sortOrder", createdat as "createdAt", updatedat as "updatedAt"
+     FROM oaker_questions
+     WHERE ($1 = true OR active = true)
+     ORDER BY active DESC, sortorder, id`,
+    [includeInactive],
+  );
+  return result.map(mapOakerQuestion);
+}
+
+export async function createOakerQuestion(data: { section: OakerQuestion['section']; standard: string; weighting: number; active?: boolean; expressPinned?: boolean }) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const maxResult = await sql`SELECT COALESCE(MAX(id), 0)::int as id, COALESCE(MAX(sortorder), 0)::int as "sortOrder" FROM oaker_questions`;
+  const id = Number(maxResult[0]?.id ?? 0) + 1;
+  const sortOrder = Number(maxResult[0]?.sortOrder ?? 0) + 1;
+  const result = await sql`
+    INSERT INTO oaker_questions (id, section, standard, weighting, active, expressPinned, sortOrder, updatedAt)
+    VALUES (${id}, ${data.section}, ${data.standard.trim()}, ${data.weighting}, ${data.active ?? true}, ${data.expressPinned ?? false}, ${sortOrder}, CURRENT_TIMESTAMP)
+    RETURNING id, section, standard, weighting, active, expresspinned as "expressPinned", sortorder as "sortOrder", createdat as "createdAt", updatedat as "updatedAt"
+  `;
+  return mapOakerQuestion(result[0]);
+}
+
+export async function updateOakerQuestion(
+  questionId: number,
+  data: { section: OakerQuestion['section']; standard: string; weighting: number; active: boolean; expressPinned: boolean },
+) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql`
+    UPDATE oaker_questions
+    SET section = ${data.section},
+        standard = ${data.standard.trim()},
+        weighting = ${data.weighting},
+        active = ${data.active},
+        expressPinned = ${data.expressPinned},
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ${questionId}
+    RETURNING id, section, standard, weighting, active, expresspinned as "expressPinned", sortorder as "sortOrder", createdat as "createdAt", updatedat as "updatedAt"
+  `;
+  return result[0] ? mapOakerQuestion(result[0]) : undefined;
 }
 
 export async function createOakerInspection(data: {

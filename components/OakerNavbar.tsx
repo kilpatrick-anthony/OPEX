@@ -22,6 +22,7 @@ export function OakerNavbar() {
     { href: '/oaker', label: 'Dashboard', activePath: '/oaker', exact: true },
     { href: '/oaker/stores', label: 'Stores', activePath: '/oaker/stores' },
     { href: '/oaker/reports', label: 'Reports', activePath: '/oaker/reports' },
+    { href: '/oaker/question-bank', label: 'Question Bank', activePath: '/oaker/question-bank' },
     { href: '/oaker/checks', label: 'New Check', activePath: '/oaker/checks' },
   ];
 

@@ -14,6 +14,7 @@ declare module 'next-auth' {
       title?: string | null;
       storeId: number | null;
       portalAccess?: PortalKey[];
+      canManageOakerQuestions?: boolean;
     };
   }
 
@@ -25,6 +26,7 @@ declare module 'next-auth' {
     title?: string | null;
     storeId: number | null;
     portalAccess?: PortalKey[];
+    canManageOakerQuestions?: boolean;
   }
 }
 
@@ -35,5 +37,6 @@ declare module 'next-auth/jwt' {
     title?: string | null;
     storeId: number | null;
     portalAccess?: PortalKey[];
+    canManageOakerQuestions?: boolean;
   }
 }

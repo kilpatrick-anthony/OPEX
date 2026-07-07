@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { createOakerInspection, getOakerEmailRecipients, getOakerInspections, getOakerQuestionStats, getStores } from '@/lib/db';
+import { createOakerInspection, getOakerEmailRecipients, getOakerInspections, getOakerQuestionBank, getOakerQuestionStats, getStores } from '@/lib/db';
 import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
-import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, OAKER_QUESTIONS, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
+import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,16 +40,17 @@ export async function GET(request: Request) {
   const limitParam = Number(url.searchParams.get('limit'));
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 500) : 50;
 
-  const [stores, inspections, stats] = await Promise.all([
+  const [stores, inspections, stats, bankQuestions] = await Promise.all([
     getStores(),
     getOakerInspections({ role: 'employee', storeId }, limit),
     getOakerQuestionStats(storeId),
+    getOakerQuestionBank(),
   ]);
 
   const visibleStores = stores
     .filter((store) => CURRENT_OAKER_STORES.has(store.name.trim().toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const questions = getOakerQuestions(mode, stats);
+  const questions = getOakerQuestions(mode, stats, bankQuestions);
   const latestByStore = new Map<number, (typeof inspections)[number]>();
   for (const inspection of inspections) {
     if (!latestByStore.has(inspection.storeId)) latestByStore.set(inspection.storeId, inspection);
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
     template: {
       mode,
       questions,
-      fullQuestionCount: OAKER_QUESTIONS.length,
+      fullQuestionCount: bankQuestions.length,
       expressDescription: OAKER_EXPRESS_DESCRIPTION,
     },
   });
@@ -92,7 +93,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Checker name is required.' }, { status: 400 });
   }
 
-  const questionById = new Map(OAKER_QUESTIONS.map((question) => [question.id, question]));
+  const bankQuestions = await getOakerQuestionBank();
+  const questionById = new Map(bankQuestions.map((question) => [question.id, question]));
   const responses = incomingResponses.map((item: any) => {
     const questionId = Number(item.questionId);
     const question = questionById.get(questionId);
@@ -117,7 +119,7 @@ export async function POST(request: Request) {
   }
 
   const cleanResponses = responses as NonNullable<(typeof responses)[number]>[];
-  const score = scoreOakerResponses(cleanResponses);
+  const score = scoreOakerResponses(cleanResponses, bankQuestions);
   const inspection = await createOakerInspection({
     storeId,
     userId: Number(session.user.id),

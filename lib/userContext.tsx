@@ -13,6 +13,7 @@ type CurrentUser = {
   store: string | null;
   employeeSlug: string | null;
   portalAccess: PortalKey[];
+  canManageOakerQuestions: boolean;
 };
 
 type UserContextValue = {
@@ -93,6 +94,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           : (session.user.storeId ? (storeNameById[session.user.storeId] ?? null) : null),
       employeeSlug,
       portalAccess: normalizePortalAccess(session.user.portalAccess ?? DEFAULT_PORTAL_ACCESS),
+      canManageOakerQuestions: Boolean(session.user.canManageOakerQuestions),
     };
   }, [session, status, storeNameById]);
 

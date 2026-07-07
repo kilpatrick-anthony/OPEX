@@ -32,6 +32,7 @@ export const authOptions = {
           title: user.title ?? null,
           storeId: user.storeId,
           portalAccess: user.portalAccess,
+          canManageOakerQuestions: user.canManageOakerQuestions,
         } as any;
       },
     }),
@@ -52,6 +53,7 @@ export const authOptions = {
         token.title = (user as any).title ?? null;
         token.storeId = (user as any).storeId ?? null;
         token.portalAccess = (user as any).portalAccess ?? ['opex', 'oaker'];
+        token.canManageOakerQuestions = Boolean((user as any).canManageOakerQuestions);
       }
 
       // Keep session token aligned with database user state (role/title/store assignment).
@@ -73,6 +75,7 @@ export const authOptions = {
           token.title = existing.title ?? null;
           token.storeId = resolvedStoreId;
           token.portalAccess = existing.portalAccess;
+          token.canManageOakerQuestions = Boolean(existing.canManageOakerQuestions);
         }
       }
 
@@ -85,6 +88,7 @@ export const authOptions = {
         session.user.title = (token.title as string | null) ?? null;
         session.user.storeId = token.storeId as number | null;
         session.user.portalAccess = (token.portalAccess as string[]) ?? ['opex', 'oaker'];
+        session.user.canManageOakerQuestions = Boolean(token.canManageOakerQuestions);
       }
       return session;
     },

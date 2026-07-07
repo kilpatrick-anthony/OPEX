@@ -15,8 +15,9 @@ type StoreRecord = {
   managerEmail?: string | null;
   managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
+  managerCanManageOakerQuestions?: boolean;
 };
-type FieldUser  = { id: number; name: string; email: string; role?: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[] };
+type FieldUser  = { id: number; name: string; email: string; role?: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean };
 type AccountEditor = {
   type: 'store' | 'user';
   userId: number;
@@ -153,6 +154,62 @@ export default function AdminPage() {
         store.id === storeId ? { ...store, managerPortalAccess: previous } : store
       )));
       setSaveError('Network error - portal access not saved.');
+    } finally {
+      setAccessSavingId(null);
+    }
+  }
+
+  async function saveUserQuestionBankAccess(userId: number, canManageOakerQuestions: boolean) {
+    const previous = fieldUsers.find((user) => user.id === userId)?.canManageOakerQuestions ?? false;
+    setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, canManageOakerQuestions } : user));
+    setAccessSavingId(userId);
+    setSaveError('');
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, canManageOakerQuestions }),
+      });
+      if (!res.ok) {
+        const payload = await readJsonSafely(res) as any;
+        setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, canManageOakerQuestions: previous } : user));
+        setSaveError(payload?.error ?? 'Failed to save question bank access.');
+      }
+    } catch {
+      setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, canManageOakerQuestions: previous } : user));
+      setSaveError('Network error - question bank access not saved.');
+    } finally {
+      setAccessSavingId(null);
+    }
+  }
+
+  async function saveStoreQuestionBankAccess(storeId: number, userId: number, canManageOakerQuestions: boolean) {
+    const previous = stores.find((store) => store.id === storeId)?.managerCanManageOakerQuestions ?? false;
+    setStores((prev) => prev.map((store) => (
+      store.id === storeId ? { ...store, managerCanManageOakerQuestions: canManageOakerQuestions } : store
+    )));
+    setAccessSavingId(userId);
+    setSaveError('');
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, canManageOakerQuestions }),
+      });
+      if (!res.ok) {
+        const payload = await readJsonSafely(res) as any;
+        setStores((prev) => prev.map((store) => (
+          store.id === storeId ? { ...store, managerCanManageOakerQuestions: previous } : store
+        )));
+        setSaveError(payload?.error ?? 'Failed to save question bank access.');
+      }
+    } catch {
+      setStores((prev) => prev.map((store) => (
+        store.id === storeId ? { ...store, managerCanManageOakerQuestions: previous } : store
+      )));
+      setSaveError('Network error - question bank access not saved.');
     } finally {
       setAccessSavingId(null);
     }
@@ -349,6 +406,7 @@ export default function AdminPage() {
         title: payload.title ?? null,
         budget: 0,
         portalAccess: normalizePortalAccess(payload.portalAccess ?? addUserForm.portalAccess),
+        canManageOakerQuestions: Boolean(payload.canManageOakerQuestions),
       }].sort((a, b) => a.name.localeCompare(b.name)));
       setAddingUser(false);
       setAddUserForm({ name: '', email: '', password: '', title: '', portalAccess: DEFAULT_PORTAL_ACCESS });
@@ -503,6 +561,22 @@ export default function AdminPage() {
                               </button>
                             );
                           })}
+                          <button
+                            type="button"
+                            onClick={() => saveStoreQuestionBankAccess(store.id, store.managerUserId!, !store.managerCanManageOakerQuestions)}
+                            disabled={accessSavingId === store.managerUserId}
+                            title="Allow this login to add, edit, archive, weight, and pin OAKER question bank items"
+                            className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                              store.managerCanManageOakerQuestions
+                                ? 'border-violet-200 bg-violet-50 text-violet-700'
+                                : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                            } disabled:opacity-60`}
+                          >
+                            <span>Question Bank Editing</span>
+                            <span className={`text-[10px] uppercase tracking-wide ${store.managerCanManageOakerQuestions ? 'text-violet-600' : 'text-slate-300'}`}>
+                              {store.managerCanManageOakerQuestions ? 'On' : 'Off'}
+                            </span>
+                          </button>
                         </div>
                       ) : (
                         <p className="text-xs text-slate-400">No store login is linked to this store yet.</p>
@@ -661,6 +735,22 @@ export default function AdminPage() {
                           </button>
                         );
                       })}
+                        <button
+                          type="button"
+                          onClick={() => saveUserQuestionBankAccess(user.id, !user.canManageOakerQuestions)}
+                          disabled={accessSavingId === user.id}
+                          title="Allow this user to add, edit, archive, weight, and pin OAKER question bank items"
+                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                            user.canManageOakerQuestions
+                              ? 'border-violet-200 bg-violet-50 text-violet-700'
+                              : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                          } disabled:opacity-60`}
+                        >
+                          <span>Question Bank Editing</span>
+                          <span className={`text-[10px] uppercase tracking-wide ${user.canManageOakerQuestions ? 'text-violet-600' : 'text-slate-300'}`}>
+                            {user.canManageOakerQuestions ? 'On' : 'Off'}
+                          </span>
+                        </button>
                       </div>
                     </div>
                   </div>

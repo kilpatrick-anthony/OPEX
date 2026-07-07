@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getFieldTeamUsers, updateUserBudget, updateUserPortalAccess, updateUserProfile, updateUserPassword, createUser, deleteUser } from '@/lib/db';
+import { getFieldTeamUsers, updateUserBudget, updateUserOakerQuestionAccess, updateUserPortalAccess, updateUserProfile, updateUserPassword, createUser, deleteUser } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { sendWelcomeEmail } from '@/lib/email';
 import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, serializePortalAccess } from '@/lib/portalAccess';
@@ -44,6 +44,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Select at least one portal area.' }, { status: 400 });
     }
     await updateUserPortalAccess(userId, portalAccess);
+  }
+
+  if ('canManageOakerQuestions' in body) {
+    await updateUserOakerQuestionAccess(userId, Boolean(body.canManageOakerQuestions));
   }
 
   const password = typeof body.password === 'string' ? body.password : '';

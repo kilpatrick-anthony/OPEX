@@ -7,6 +7,10 @@ export type OakerQuestion = {
   section: 'Operations' | 'Customer Service' | 'Systems' | 'Health & Safety';
   standard: string;
   weighting: number;
+  active?: boolean;
+  expressPinned?: boolean;
+  sortOrder?: number;
+  updatedAt?: string;
 };
 
 export type OakerQuestionStats = {
@@ -93,11 +97,16 @@ export function calculateOakerRating(percentage: number): OakerRating {
   return 'Red';
 }
 
-export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] = []): OakerQuestion[] {
-  if (mode === 'experience') return OAKER_QUESTIONS;
+export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] = [], questions: OakerQuestion[] = OAKER_QUESTIONS): OakerQuestion[] {
+  const activeQuestions = questions.filter((question) => question.active !== false);
+  if (mode === 'experience') return activeQuestions;
 
   const byId = new Map(stats.map((item) => [item.questionId, item]));
-  const scored = OAKER_QUESTIONS.map((question) => {
+  const pinnedQuestions = activeQuestions
+    .filter((question) => question.expressPinned)
+    .sort((a, b) => b.weighting - a.weighting || a.id - b.id)
+    .slice(0, 15);
+  const scored = activeQuestions.map((question) => {
     const stat = byId.get(question.id);
     return {
       question,
@@ -111,31 +120,37 @@ export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] =
 
   const selected = new Map<number, OakerQuestion>();
 
+  pinnedQuestions.forEach((question) => {
+    if (selected.size < 15) selected.set(question.id, question);
+  });
+
   scored
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12)
-    .forEach((item) => selected.set(item.question.id, item.question));
+    .forEach((item) => {
+      if (selected.size < 15) selected.set(item.question.id, item.question);
+    });
 
-  OAKER_QUESTIONS
+  activeQuestions
     .filter((question) => question.weighting >= 10)
     .slice(0, 6)
-    .forEach((question) => selected.set(question.id, question));
+    .forEach((question) => {
+      if (selected.size < 15) selected.set(question.id, question);
+    });
 
   const daySeed = Math.floor(Date.now() / 86400000);
-  OAKER_QUESTIONS
+  activeQuestions
     .slice()
-    .sort((a, b) => ((a.id * 37 + daySeed) % 63) - ((b.id * 37 + daySeed) % 63))
+    .sort((a, b) => ((a.id * 37 + daySeed) % Math.max(activeQuestions.length, 1)) - ((b.id * 37 + daySeed) % Math.max(activeQuestions.length, 1)))
     .forEach((question) => {
       if (selected.size < 15) selected.set(question.id, question);
     });
 
   return Array.from(selected.values())
-    .sort((a, b) => a.section.localeCompare(b.section) || a.id - b.id)
-    .slice(0, 15);
+    .sort((a, b) => a.section.localeCompare(b.section) || a.id - b.id);
 }
 
-export function scoreOakerResponses(responses: Array<{ questionId: number; answer: OakerAnswer }>) {
-  const byQuestion = new Map(OAKER_QUESTIONS.map((question) => [question.id, question]));
+export function scoreOakerResponses(responses: Array<{ questionId: number; answer: OakerAnswer }>, questions: OakerQuestion[] = OAKER_QUESTIONS) {
+  const byQuestion = new Map(questions.map((question) => [question.id, question]));
   const score = responses.reduce((sum, response) => {
     const question = byQuestion.get(response.questionId);
     return sum + (question && response.answer === 'yes' ? question.weighting : 0);
