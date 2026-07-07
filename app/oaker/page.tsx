@@ -248,6 +248,7 @@ export default function OakerDashboardPage() {
           <Link href="/oaker/checks">
             <Button
               type="button"
+              variant="ghost"
               className="rounded-xl bg-[#6d2f8e] px-6 py-3 text-base font-semibold text-white shadow-lg shadow-amber-300/60 transition hover:-translate-y-0.5 hover:bg-[#4a1f60] hover:shadow-xl hover:shadow-amber-300/70"
             >
               New Check
