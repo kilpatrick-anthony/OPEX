@@ -39,6 +39,47 @@ const EMPTY_FORM: QuestionForm = {
   expressPinned: false,
 };
 
+const QUESTION_TABLE_COLUMNS =
+  'xl:grid-cols-[72px_160px_minmax(360px,1fr)_96px_150px_150px_240px]';
+
+const SECTION_TILE_STYLES: Record<
+  OakerQuestion['section'],
+  { card: string; selected: string; accent: string; label: string; value: string; meta: string }
+> = {
+  Operations: {
+    card: 'border-emerald-200 bg-emerald-50/70 hover:border-emerald-300 hover:bg-emerald-50',
+    selected: 'ring-2 ring-emerald-300',
+    accent: 'bg-emerald-500',
+    label: 'text-emerald-800',
+    value: 'text-emerald-950',
+    meta: 'text-emerald-700',
+  },
+  'Customer Service': {
+    card: 'border-sky-200 bg-sky-50/70 hover:border-sky-300 hover:bg-sky-50',
+    selected: 'ring-2 ring-sky-300',
+    accent: 'bg-sky-500',
+    label: 'text-sky-800',
+    value: 'text-sky-950',
+    meta: 'text-sky-700',
+  },
+  Systems: {
+    card: 'border-amber-200 bg-amber-50/70 hover:border-amber-300 hover:bg-amber-50',
+    selected: 'ring-2 ring-amber-300',
+    accent: 'bg-amber-500',
+    label: 'text-amber-800',
+    value: 'text-amber-950',
+    meta: 'text-amber-700',
+  },
+  'Health & Safety': {
+    card: 'border-rose-200 bg-rose-50/70 hover:border-rose-300 hover:bg-rose-50',
+    selected: 'ring-2 ring-rose-300',
+    accent: 'bg-rose-500',
+    label: 'text-rose-800',
+    value: 'text-rose-950',
+    meta: 'text-rose-700',
+  },
+};
+
 function formatDate(dateText?: string) {
   if (!dateText) return 'Not saved yet';
   return new Date(dateText).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -254,18 +295,23 @@ export default function OakerQuestionBankPage() {
         {success ? <p className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</p> : null}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {sectionSummary.map((item) => (
-            <button
-              type="button"
-              key={item.section}
-              onClick={() => setSectionFilter(item.section)}
-              className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40"
-            >
-              <p className="text-sm font-semibold text-slate-900">{item.section}</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{item.count}</p>
-              <p className="mt-1 text-xs text-slate-500">{item.weighting} total weighting</p>
-            </button>
-          ))}
+          {sectionSummary.map((item) => {
+            const tileStyle = SECTION_TILE_STYLES[item.section];
+            const isSelected = sectionFilter === item.section;
+            return (
+              <button
+                type="button"
+                key={item.section}
+                onClick={() => setSectionFilter(item.section)}
+                className={`relative overflow-hidden rounded-lg border p-4 text-left shadow-sm transition ${tileStyle.card} ${isSelected ? tileStyle.selected : ''}`}
+              >
+                <span className={`absolute inset-x-0 top-0 h-1 ${tileStyle.accent}`} />
+                <p className={`text-sm font-semibold ${tileStyle.label}`}>{item.section}</p>
+                <p className={`mt-2 text-2xl font-semibold ${tileStyle.value}`}>{item.count}</p>
+                <p className={`mt-1 text-xs font-medium ${tileStyle.meta}`}>{item.weighting} total weighting</p>
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
@@ -401,18 +447,18 @@ export default function OakerQuestionBankPage() {
         </div>
 
         <div className="mt-8 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="grid grid-cols-[72px_150px_minmax(0,1fr)_110px_120px_180px_170px] items-center border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-widest text-slate-500 max-xl:hidden">
+          <div className={`grid ${QUESTION_TABLE_COLUMNS} gap-x-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-widest text-slate-500 max-xl:hidden`}>
             <span>ID</span>
             <span>Section</span>
             <span>Question</span>
-            <span>Weight</span>
+            <span className="text-center">Weight</span>
             <span>Status</span>
             <span>Updated</span>
             <span className="text-right">Actions</span>
           </div>
           <div className="divide-y divide-slate-100">
             {filteredQuestions.map((question) => (
-              <div key={question.id} className="grid gap-3 px-4 py-4 text-sm xl:grid-cols-[72px_150px_minmax(0,1fr)_110px_120px_180px_170px] xl:items-center">
+              <div key={question.id} className={`grid gap-3 px-4 py-4 text-sm xl:gap-x-4 ${QUESTION_TABLE_COLUMNS} xl:items-start`}>
                 <div className="font-semibold text-slate-900">#{question.id}</div>
                 <div className="text-slate-700">{question.section}</div>
                 <div>
@@ -426,7 +472,7 @@ export default function OakerQuestionBankPage() {
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{formatDate(question.updatedAt)}</span>
                   </div>
                 </div>
-                <div className="hidden text-slate-900 xl:block">{question.weighting}</div>
+                <div className="hidden text-center font-semibold text-slate-900 xl:block">{question.weighting}</div>
                 <div className="hidden xl:block">
                   <div className="flex flex-wrap gap-1.5">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${question.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -436,12 +482,12 @@ export default function OakerQuestionBankPage() {
                   </div>
                 </div>
                 <div className="hidden text-slate-500 xl:block">{formatDate(question.updatedAt)}</div>
-                <div className="flex flex-wrap gap-2 xl:justify-end">
-                  <Button type="button" variant="secondary" onClick={() => startEdit(question)} disabled={!canManage || saving}>Edit</Button>
-                  <Button type="button" variant="ghost" onClick={() => setQuestionExpressPinned(question, !question.expressPinned)} disabled={!canManage || saving || !question.active}>
+                <div className="flex flex-wrap gap-2 xl:flex-nowrap xl:justify-end">
+                  <Button type="button" variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => startEdit(question)} disabled={!canManage || saving}>Edit</Button>
+                  <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => setQuestionExpressPinned(question, !question.expressPinned)} disabled={!canManage || saving || !question.active}>
                     {question.expressPinned ? 'Unpin' : 'Pin'}
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setQuestionActive(question, !question.active)} disabled={!canManage || saving}>
+                  <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => setQuestionActive(question, !question.active)} disabled={!canManage || saving}>
                     {question.active ? 'Archive' : 'Reactivate'}
                   </Button>
                 </div>

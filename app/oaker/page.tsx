@@ -245,8 +245,13 @@ export default function OakerDashboardPage() {
               Estate-level scoring, store ranking, and standards signals from the latest OAKER Experience checks.
             </p>
           </div>
-          <Link href="/oaker/stores">
-            <Button type="button" variant="secondary">Store Breakdown</Button>
+          <Link href="/oaker/checks">
+            <Button
+              type="button"
+              className="rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-xl"
+            >
+              New Check
+            </Button>
           </Link>
         </div>
 
