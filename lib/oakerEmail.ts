@@ -15,6 +15,8 @@ export type OakerEmailInspection = {
   percentage: number;
   rating: string;
   notes: string | null;
+  editReason?: string | null;
+  editedAt?: string | null;
   submittedAt: string;
   responses: Array<{
     questionId: number;
@@ -449,26 +451,50 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
   });
   y -= 42;
 
-  if (inspection.notes?.trim()) {
+  const overallNotes = inspection.notes?.trim() ?? '';
+  const editReason = inspection.editReason?.trim() ?? '';
+  if (overallNotes || editReason) {
     y -= 34;
     const notePanelTop = y;
     const notePanelBottomLimit = 82;
     const noteLineHeight = 13;
-    const noteLines = wrapTextForWidth(inspection.notes.trim(), PAGE_WIDTH - MARGIN * 2 - 28, 9);
+    const noteLines = overallNotes ? wrapTextForWidth(overallNotes, PAGE_WIDTH - MARGIN * 2 - 28, 9) : [];
+    const editReasonPrefix = inspection.editedAt
+      ? `Edited ${new Date(inspection.editedAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}: `
+      : '';
+    const editReasonLines = editReason ? wrapTextForWidth(`${editReasonPrefix}${editReason}`, PAGE_WIDTH - MARGIN * 2 - 28, 9) : [];
     const availableNoteHeight = notePanelTop - notePanelBottomLimit;
-    const maxNoteLines = Math.max(3, Math.floor((availableNoteHeight - 60) / noteLineHeight));
+    const sectionGap = overallNotes && editReason ? 28 : 0;
+    const headingHeight = overallNotes ? 34 : 0;
+    const editHeadingHeight = editReason ? 24 : 0;
+    const maxTotalLines = Math.max(3, Math.floor((availableNoteHeight - 42 - headingHeight - editHeadingHeight - sectionGap) / noteLineHeight));
+    const maxNoteLines = editReason ? Math.ceil(maxTotalLines / 2) : maxTotalLines;
     const renderedNoteLines = noteLines.slice(0, maxNoteLines);
+    const renderedEditReasonLines = editReasonLines.slice(0, Math.max(2, maxTotalLines - renderedNoteLines.length));
     const notePanelHeight = Math.min(
       availableNoteHeight,
-      54 + renderedNoteLines.length * noteLineHeight,
+      34 +
+        (overallNotes ? 22 + renderedNoteLines.length * noteLineHeight : 0) +
+        (editReason ? editHeadingHeight + renderedEditReasonLines.length * noteLineHeight : 0) +
+        sectionGap,
     );
     const notePanelY = notePanelTop - notePanelHeight;
 
     rect(page, MARGIN, notePanelY, PAGE_WIDTH - MARGIN * 2, notePanelHeight, SLATE_100);
-    text(page, 'Overall report notes', MARGIN + 14, notePanelTop - 28, { size: 12, bold: true, fill: SLATE_900 });
-    renderedNoteLines.forEach((line, index) => {
-      text(page, line, MARGIN + 14, notePanelTop - 50 - index * noteLineHeight, { size: 9, fill: SLATE_600 });
-    });
+    let noteTextY = notePanelTop - 28;
+    if (overallNotes) {
+      text(page, 'Overall report notes', MARGIN + 14, noteTextY, { size: 12, bold: true, fill: SLATE_900 });
+      renderedNoteLines.forEach((line, index) => {
+        text(page, line, MARGIN + 14, noteTextY - 22 - index * noteLineHeight, { size: 9, fill: SLATE_600 });
+      });
+      noteTextY -= 22 + renderedNoteLines.length * noteLineHeight + sectionGap;
+    }
+    if (editReason) {
+      text(page, 'Reason for edit', MARGIN + 14, noteTextY, { size: 12, bold: true, fill: BRAND_PURPLE });
+      renderedEditReasonLines.forEach((line, index) => {
+        text(page, line, MARGIN + 14, noteTextY - 22 - index * noteLineHeight, { size: 9, fill: SLATE_600 });
+      });
+    }
     y = notePanelY - 24;
   }
 
