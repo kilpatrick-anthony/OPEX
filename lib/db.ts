@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { OAKER_QUESTIONS, type OakerAnswer, type OakerMode, type OakerQuestion, type OakerQuestionStats, type OakerRating } from '@/lib/oaker';
+import { OAKER_QUESTIONS, calculateOakerRating, type OakerAnswer, type OakerMode, type OakerQuestion, type OakerQuestionStats, type OakerRating } from '@/lib/oaker';
 import { DEFAULT_PORTAL_ACCESS, serializePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
 function makeSql() {
@@ -92,6 +92,8 @@ export type OakerInspectionRecord = {
   percentage: number;
   rating: OakerRating;
   notes: string | null;
+  editReason?: string | null;
+  editedAt?: string | null;
   reportPath?: string | null;
   reportText?: string | null;
   createdAt: string;
@@ -179,6 +181,8 @@ export async function ensureSchema() {
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editReason TEXT`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editedAt TIMESTAMP`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS sortOrder INTEGER NOT NULL DEFAULT 0`,
@@ -214,6 +218,8 @@ async function ensureRequiredMigrationsOnce() {
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editReason TEXT`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editedAt TIMESTAMP`;
       await sql`CREATE TABLE IF NOT EXISTS oaker_questions (id INTEGER PRIMARY KEY, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, active BOOLEAN NOT NULL DEFAULT true, expressPinned BOOLEAN NOT NULL DEFAULT false, sortOrder INTEGER NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`;
@@ -911,6 +917,8 @@ export async function getOakerInspectionById(id: number) {
        i.percentage,
        i.rating,
        i.notes,
+       i.editreason as "editReason",
+       i.editedat as "editedAt",
        i.reportpath as "reportPath",
        i.reporttext as "reportText",
        i.createdat as "createdAt",
@@ -954,6 +962,75 @@ export async function getOakerInspectionById(id: number) {
   };
 }
 
+export async function updateOakerInspection(data: {
+  inspectionId: number;
+  notes?: string | null;
+  editReason: string;
+  responses: Array<{
+    id: number;
+    answer: OakerAnswer;
+    comments?: string | null;
+  }>;
+}) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const existing = await getOakerInspectionById(data.inspectionId);
+  if (!existing) return undefined;
+
+  const responseById = new Map(existing.responses.map((response) => [response.id, response]));
+  if (data.responses.length !== existing.responses.length) {
+    throw new Error('Every response must be included when editing a check.');
+  }
+
+  const mergedResponses = data.responses.map((response) => {
+    const existingResponse = responseById.get(response.id);
+    if (!existingResponse) throw new Error('One or more responses do not belong to this check.');
+    if (!['yes', 'no', 'capex'].includes(response.answer)) throw new Error('One or more responses are invalid.');
+    return {
+      ...existingResponse,
+      answer: response.answer,
+      comments: response.comments?.trim() || null,
+    };
+  });
+
+  const score = mergedResponses.reduce((sum, response) => sum + (response.answer === 'yes' ? response.weighting : 0), 0);
+  const maxScore = mergedResponses.reduce((sum, response) => sum + response.weighting, 0);
+  const percentage = maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0;
+  const rating = calculateOakerRating(percentage);
+
+  for (const response of mergedResponses) {
+    await sql.query(
+      `UPDATE oaker_responses
+       SET answer = $1, comments = $2
+       WHERE id = $3 AND inspectionid = $4`,
+      [response.answer, response.comments, response.id, data.inspectionId],
+    );
+  }
+
+  await sql.query(
+    `UPDATE oaker_inspections
+     SET score = $1,
+         maxscore = $2,
+         percentage = $3,
+         rating = $4,
+         notes = $5,
+         editreason = $6,
+         editedat = CURRENT_TIMESTAMP
+     WHERE id = $7`,
+    [
+      score,
+      maxScore,
+      percentage,
+      rating,
+      data.notes?.trim() || null,
+      data.editReason.trim(),
+      data.inspectionId,
+    ],
+  );
+
+  return getOakerInspectionById(data.inspectionId);
+}
+
 export async function getOakerInspections(filters: { storeId?: number; role: string; userStoreId?: number | null }, limit = 50): Promise<OakerInspectionRecord[]> {
   await ensureSchemaOnce();
   const sql = getSql();
@@ -973,6 +1050,8 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
        i.percentage,
        i.rating,
        i.notes,
+       i.editreason as "editReason",
+       i.editedat as "editedAt",
        i.reportpath as "reportPath",
        i.reporttext as "reportText",
        i.createdat as "createdAt",

@@ -22,6 +22,8 @@ type Inspection = {
   percentage: number;
   rating: string;
   submittedAt: string;
+  editReason?: string | null;
+  editedAt?: string | null;
   reportPath?: string | null;
 };
 
@@ -57,8 +59,25 @@ type EmailPayload = {
   };
 };
 
+type EditDraft = {
+  notes: string;
+  editReason: string;
+  responses: Record<number, { answer: OakerAnswer; comments: string }>;
+};
+
 function formatDate(dateText: string) {
   return new Date(dateText).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function createEditDraft(report: InspectionDetail): EditDraft {
+  return {
+    notes: report.notes ?? '',
+    editReason: '',
+    responses: Object.fromEntries(report.responses.map((response) => [
+      response.id,
+      { answer: response.answer, comments: response.comments ?? '' },
+    ])),
+  };
 }
 
 export default function OakerReportsPage() {
@@ -74,10 +93,13 @@ export default function OakerReportsPage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [emailingReportId, setEmailingReportId] = useState<number | null>(null);
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const canDeleteReports = user?.role === 'super_admin';
+  const canEditReports = user?.role === 'super_admin' || user?.role === 'director';
 
   useEffect(() => {
     if (userLoading) return;
@@ -123,11 +145,77 @@ export default function OakerReportsPage() {
       const response = await fetch(`/api/oaker/${id}`, { cache: 'no-store' });
       const payload = (await readJsonSafely(response)) as { inspection?: InspectionDetail } | null;
       if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to load report'));
-      if (payload?.inspection) setSelectedReport(payload.inspection);
+      if (payload?.inspection) {
+        setSelectedReport(payload.inspection);
+        setEditDraft(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
       setLoadingReport(false);
+    }
+  }
+
+  function startEditReport() {
+    if (!selectedReport || !canEditReports) return;
+    setEditDraft(createEditDraft(selectedReport));
+    setError('');
+    setSuccess('');
+  }
+
+  function cancelEditReport() {
+    setEditDraft(null);
+    setError('');
+  }
+
+  async function saveReportEdit() {
+    if (!selectedReport || !editDraft || !canEditReports) return;
+    if (!editDraft.editReason.trim()) {
+      setError('Enter a reason for editing this check.');
+      return;
+    }
+
+    setSavingEdit(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await fetch(`/api/oaker/${selectedReport.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: editDraft.notes,
+          editReason: editDraft.editReason,
+          responses: selectedReport.responses.map((item) => ({
+            id: item.id,
+            answer: editDraft.responses[item.id]?.answer ?? item.answer,
+            comments: editDraft.responses[item.id]?.comments ?? '',
+          })),
+        }),
+      });
+      const payload = (await readJsonSafely(response)) as { inspection?: InspectionDetail } | null;
+      if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to update check'));
+      if (!payload?.inspection) throw new Error('Updated check was not returned.');
+
+      setSelectedReport(payload.inspection);
+      setInspections((current) => current.map((inspection) => (
+        inspection.id === payload.inspection!.id
+          ? {
+              ...inspection,
+              score: payload.inspection!.score,
+              maxScore: payload.inspection!.maxScore,
+              percentage: payload.inspection!.percentage,
+              rating: payload.inspection!.rating,
+              editReason: payload.inspection!.editReason,
+              editedAt: payload.inspection!.editedAt,
+            }
+          : inspection
+      )));
+      setEditDraft(null);
+      setSuccess('OAKER check updated.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update check');
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -326,7 +414,11 @@ export default function OakerReportsPage() {
         open={!!selectedReport || loadingReport}
         title={selectedReport ? `${selectedReport.storeName} Report` : 'Loading report'}
         description={selectedReport ? `${selectedReport.mode === 'experience' ? 'Full OAKER Experience' : 'OAKER Express'} · ${formatDate(selectedReport.submittedAt)}` : ''}
-        onClose={() => setSelectedReport(null)}
+        onClose={() => {
+          if (savingEdit) return;
+          setSelectedReport(null);
+          setEditDraft(null);
+        }}
         className="max-h-[90vh] max-w-5xl overflow-y-auto"
       >
         {selectedReport ? (
@@ -355,17 +447,47 @@ export default function OakerReportsPage() {
               <button
                 type="button"
                 onClick={() => openEmailDialog(selectedReport)}
-                disabled={emailingReportId === selectedReport.id}
+                disabled={emailingReportId === selectedReport.id || !!editDraft}
                 className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 disabled:pointer-events-none disabled:opacity-60"
               >
                 {emailingReportId === selectedReport.id ? 'Emailing...' : 'Email report'}
               </button>
               {selectedReport.reportPath ? <a href={selectedReport.reportPath} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-700">Open original PDF</a> : null}
+              {canEditReports ? (
+                editDraft ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={saveReportEdit}
+                      disabled={savingEdit}
+                      className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800 disabled:pointer-events-none disabled:opacity-60"
+                    >
+                      {savingEdit ? 'Saving...' : 'Save edit'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditReport}
+                      disabled={savingEdit}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-60"
+                    >
+                      Cancel edit
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startEditReport}
+                    className="rounded-xl bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                  >
+                    Edit check
+                  </button>
+                )
+              ) : null}
               {canDeleteReports ? (
                 <button
                   type="button"
                   onClick={() => setDeleteReportTarget(selectedReport)}
-                  disabled={deletingReportId === selectedReport.id}
+                  disabled={deletingReportId === selectedReport.id || !!editDraft}
                   className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 disabled:pointer-events-none disabled:opacity-60"
                 >
                   Delete check
@@ -373,7 +495,43 @@ export default function OakerReportsPage() {
               ) : null}
             </div>
 
-            {selectedReport.notes ? (
+            {selectedReport.editedAt ? (
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-widest text-amber-700">Edited check</p>
+                <p className="mt-2 text-slate-700">
+                  Edited on {formatDate(selectedReport.editedAt)}{selectedReport.editReason ? `: ${selectedReport.editReason}` : '.'}
+                </p>
+              </div>
+            ) : null}
+
+            {editDraft ? (
+              <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-violet-700">
+                  Reason for editing
+                  <textarea
+                    value={editDraft.editReason}
+                    onChange={(event) => setEditDraft((current) => current ? { ...current, editReason: event.target.value } : current)}
+                    rows={3}
+                    className="mt-2 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-slate-900 outline-none focus:border-violet-400"
+                    placeholder="Explain why this completed check is being amended."
+                    disabled={savingEdit}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            {editDraft ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Overall Notes</p>
+                <textarea
+                  value={editDraft.notes}
+                  onChange={(event) => setEditDraft((current) => current ? { ...current, notes: event.target.value } : current)}
+                  rows={4}
+                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-300 focus:bg-white"
+                  disabled={savingEdit}
+                />
+              </div>
+            ) : selectedReport.notes ? (
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs uppercase tracking-widest text-slate-400">Notes</p>
                 <p className="mt-2 text-slate-700">{selectedReport.notes}</p>
@@ -386,10 +544,50 @@ export default function OakerReportsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">#{response.questionId}</span>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{response.section}</span>
-                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">{response.answer}</span>
+                    {editDraft ? (
+                      <select
+                        value={editDraft.responses[response.id]?.answer ?? response.answer}
+                        onChange={(event) => setEditDraft((current) => current ? {
+                          ...current,
+                          responses: {
+                            ...current.responses,
+                            [response.id]: {
+                              answer: event.target.value as OakerAnswer,
+                              comments: current.responses[response.id]?.comments ?? response.comments ?? '',
+                            },
+                          },
+                        } : current)}
+                        disabled={savingEdit}
+                        className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 outline-none"
+                      >
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                        <option value="capex">Capex</option>
+                      </select>
+                    ) : (
+                      <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">{response.answer}</span>
+                    )}
                   </div>
                   <p className="mt-2 font-medium text-slate-900">{response.standard}</p>
-                  {response.comments ? <p className="mt-1 text-slate-600">{response.comments}</p> : null}
+                  {editDraft ? (
+                    <textarea
+                      value={editDraft.responses[response.id]?.comments ?? ''}
+                      onChange={(event) => setEditDraft((current) => current ? {
+                        ...current,
+                        responses: {
+                          ...current.responses,
+                          [response.id]: {
+                            answer: current.responses[response.id]?.answer ?? response.answer,
+                            comments: event.target.value,
+                          },
+                        },
+                      } : current)}
+                      rows={2}
+                      placeholder="Comments"
+                      disabled={savingEdit}
+                      className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-300 focus:bg-white"
+                    />
+                  ) : response.comments ? <p className="mt-1 text-slate-600">{response.comments}</p> : null}
                 </div>
               ))}
             </div>
