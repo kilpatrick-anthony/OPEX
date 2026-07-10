@@ -40,7 +40,7 @@ const EMPTY_FORM: QuestionForm = {
 };
 
 const QUESTION_TABLE_COLUMNS =
-  'xl:grid-cols-[72px_160px_minmax(360px,1fr)_96px_150px_150px_240px]';
+  'xl:grid-cols-[64px_132px_minmax(280px,1fr)_72px_124px_108px_188px]';
 
 const SECTION_TILE_STYLES: Record<
   OakerQuestion['section'],
@@ -413,11 +413,11 @@ export default function OakerQuestionBankPage() {
               {expressPinnedQuestions.length ? expressPinnedQuestions.map((question) => (
                 <div key={question.id} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-widest text-violet-600">#{question.id} · {question.section}</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-900">{question.standard}</p>
+                      <p className="mt-1 break-words text-sm leading-6 text-slate-900">{question.standard}</p>
                     </div>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-violet-700">{question.weighting}</span>
+                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-violet-700">{question.weighting}</span>
                   </div>
                   <Button type="button" variant="ghost" className="mt-2 px-2 py-1 text-xs" onClick={() => setQuestionExpressPinned(question, false)} disabled={!canManage || saving}>
                     Remove from Express priority
@@ -433,9 +433,9 @@ export default function OakerQuestionBankPage() {
             <div className="space-y-3">
               {highestWeightedQuestions.map((question) => (
                 <div key={question.id} className="flex items-start justify-between gap-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">#{question.id} · {question.section} · Weight {question.weighting}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-900">{question.standard}</p>
+                    <p className="mt-1 break-words text-sm leading-6 text-slate-900">{question.standard}</p>
                   </div>
                   <Button type="button" variant={question.expressPinned ? 'secondary' : 'ghost'} className="shrink-0 px-3 py-1.5 text-xs" onClick={() => setQuestionExpressPinned(question, !question.expressPinned)} disabled={!canManage || saving}>
                     {question.expressPinned ? 'Pinned' : 'Pin'}
@@ -460,9 +460,9 @@ export default function OakerQuestionBankPage() {
             {filteredQuestions.map((question) => (
               <div key={question.id} className={`grid gap-3 px-4 py-4 text-sm xl:gap-x-4 ${QUESTION_TABLE_COLUMNS} xl:items-start`}>
                 <div className="font-semibold text-slate-900">#{question.id}</div>
-                <div className="text-slate-700">{question.section}</div>
-                <div>
-                  <p className="leading-6 text-slate-900">{question.standard}</p>
+                <div className="min-w-0 break-words text-slate-700">{question.section}</div>
+                <div className="min-w-0">
+                  <p className="break-words leading-6 text-slate-900">{question.standard}</p>
                   <div className="mt-3 flex flex-wrap gap-2 xl:hidden">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Weight {question.weighting}</span>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${question.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -481,13 +481,13 @@ export default function OakerQuestionBankPage() {
                     {question.expressPinned ? <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">Express</span> : null}
                   </div>
                 </div>
-                <div className="hidden text-slate-500 xl:block">{formatDate(question.updatedAt)}</div>
+                <div className="hidden whitespace-nowrap text-slate-500 xl:block">{formatDate(question.updatedAt)}</div>
                 <div className="flex flex-wrap gap-2 xl:flex-nowrap xl:justify-end">
-                  <Button type="button" variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => startEdit(question)} disabled={!canManage || saving}>Edit</Button>
-                  <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => setQuestionExpressPinned(question, !question.expressPinned)} disabled={!canManage || saving || !question.active}>
+                  <Button type="button" variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => startEdit(question)} disabled={!canManage || saving}>Edit</Button>
+                  <Button type="button" variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => setQuestionExpressPinned(question, !question.expressPinned)} disabled={!canManage || saving || !question.active}>
                     {question.expressPinned ? 'Unpin' : 'Pin'}
                   </Button>
-                  <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => setQuestionActive(question, !question.active)} disabled={!canManage || saving}>
+                  <Button type="button" variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => setQuestionActive(question, !question.active)} disabled={!canManage || saving}>
                     {question.active ? 'Archive' : 'Reactivate'}
                   </Button>
                 </div>
