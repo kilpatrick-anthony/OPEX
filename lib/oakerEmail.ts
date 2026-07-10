@@ -207,12 +207,14 @@ function image(page: PdfPage, name: string, x: number, y: number, width: number,
 function answerLabel(answer: OakerAnswer) {
   if (answer === 'yes') return 'Yes';
   if (answer === 'no') return 'No';
+  if (answer === 'not_applicable') return 'Not applicable';
   return 'Capex';
 }
 
 function answerColor(answer: OakerAnswer) {
   if (answer === 'yes') return [0.06, 0.65, 0.51] as const;
   if (answer === 'no') return [0.9, 0.11, 0.23] as const;
+  if (answer === 'not_applicable') return [0.39, 0.45, 0.55] as const;
   return [0.96, 0.62, 0.04] as const;
 }
 
@@ -539,9 +541,11 @@ async function buildStyledPdf(inspection: OakerEmailInspection) {
       rect(page, MARGIN, y - rowHeight, PAGE_WIDTH - MARGIN * 2, rowHeight - 8, [0.99, 0.99, 1]);
       strokeRect(page, MARGIN, y - rowHeight, PAGE_WIDTH - MARGIN * 2, rowHeight - 8, [0.88, 0.91, 0.95]);
       text(page, `#${response.questionId}`, MARGIN + 12, y - 25, { size: 9, bold: true, fill: SLATE_600 });
-      rect(page, MARGIN + 54, y - 34, 58, 20, answerColor(response.answer));
+      const labelWidth = response.answer === 'not_applicable' ? 82 : 58;
+      rect(page, MARGIN + 54, y - 34, labelWidth, 20, answerColor(response.answer));
       text(page, answerLabel(response.answer), MARGIN + 64, y - 28, { size: 8, bold: true, fill: WHITE });
-      text(page, `${response.weighting} pts`, PAGE_WIDTH - MARGIN - 55, y - 25, { size: 8, bold: true, fill: SLATE_600 });
+      const scoreText = response.answer === 'not_applicable' ? 'Score removed' : `${response.weighting} pts`;
+      textRight(page, scoreText, PAGE_WIDTH - MARGIN - 12, y - 25, { size: 8, bold: true, fill: SLATE_600 });
 
       standardLines.forEach((line, index) => {
         text(page, line, MARGIN + 12, y - 50 - index * 12, { size: 9, fill: SLATE_900 });

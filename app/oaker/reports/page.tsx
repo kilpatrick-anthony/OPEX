@@ -65,6 +65,20 @@ type EditDraft = {
   responses: Record<number, { answer: OakerAnswer; comments: string }>;
 };
 
+const ANSWER_LABELS: Record<OakerAnswer, string> = {
+  yes: 'Yes',
+  no: 'No',
+  capex: 'Capex',
+  not_applicable: 'Not applicable',
+};
+
+const ANSWER_STYLES: Record<OakerAnswer, string> = {
+  yes: 'bg-emerald-50 text-emerald-700',
+  no: 'bg-rose-50 text-rose-700',
+  capex: 'bg-amber-50 text-amber-700',
+  not_applicable: 'bg-slate-100 text-slate-700',
+};
+
 function formatDate(dateText: string) {
   return new Date(dateText).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -563,9 +577,12 @@ export default function OakerReportsPage() {
                         <option value="yes">Yes</option>
                         <option value="no">No</option>
                         <option value="capex">Capex</option>
+                        <option value="not_applicable">Not applicable</option>
                       </select>
                     ) : (
-                      <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">{response.answer}</span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ANSWER_STYLES[response.answer]}`}>
+                        {ANSWER_LABELS[response.answer]}
+                      </span>
                     )}
                   </div>
                   <p className="mt-2 font-medium text-slate-900">{response.standard}</p>

@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { OAKER_QUESTIONS, calculateOakerRating, type OakerAnswer, type OakerMode, type OakerQuestion, type OakerQuestionStats, type OakerRating } from '@/lib/oaker';
+import { OAKER_ANSWERS, OAKER_QUESTIONS, calculateOakerRating, type OakerAnswer, type OakerMode, type OakerQuestion, type OakerQuestionStats, type OakerRating } from '@/lib/oaker';
 import { DEFAULT_PORTAL_ACCESS, serializePortalAccess, type PortalKey } from '@/lib/portalAccess';
 
 function makeSql() {
@@ -985,7 +985,7 @@ export async function updateOakerInspection(data: {
   const mergedResponses = data.responses.map((response) => {
     const existingResponse = responseById.get(response.id);
     if (!existingResponse) throw new Error('One or more responses do not belong to this check.');
-    if (!['yes', 'no', 'capex'].includes(response.answer)) throw new Error('One or more responses are invalid.');
+    if (!OAKER_ANSWERS.includes(response.answer)) throw new Error('One or more responses are invalid.');
     return {
       ...existingResponse,
       answer: response.answer,
@@ -994,7 +994,9 @@ export async function updateOakerInspection(data: {
   });
 
   const score = mergedResponses.reduce((sum, response) => sum + (response.answer === 'yes' ? response.weighting : 0), 0);
-  const maxScore = mergedResponses.reduce((sum, response) => sum + response.weighting, 0);
+  const maxScore = mergedResponses.reduce((sum, response) => (
+    response.answer === 'not_applicable' ? sum : sum + response.weighting
+  ), 0);
   const percentage = maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0;
   const rating = calculateOakerRating(percentage);
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { deleteOakerInspection, getOakerInspectionById, updateOakerInspection } from '@/lib/db';
-import type { OakerAnswer } from '@/lib/oaker';
+import { OAKER_ANSWERS, type OakerAnswer } from '@/lib/oaker';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const responses = incomingResponses.map((item: any) => {
     const id = Number(item.id);
     const answer = item.answer as OakerAnswer;
-    if (!id || !['yes', 'no', 'capex'].includes(answer)) return null;
+    if (!id || !OAKER_ANSWERS.includes(answer)) return null;
     return {
       id,
       answer,

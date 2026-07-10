@@ -89,13 +89,17 @@ const ANSWER_LABELS: Record<OakerAnswer, string> = {
   yes: 'Yes',
   no: 'No',
   capex: 'Capex',
+  not_applicable: 'Not applicable',
 };
 
 const ANSWER_STYLES: Record<OakerAnswer, string> = {
   yes: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   no: 'border-rose-200 bg-rose-50 text-rose-700',
   capex: 'border-amber-200 bg-amber-50 text-amber-700',
+  not_applicable: 'border-slate-200 bg-slate-100 text-slate-700',
 };
+
+const ANSWER_OPTIONS: OakerAnswer[] = ['yes', 'no', 'capex', 'not_applicable'];
 
 const RATING_STYLES: Record<string, string> = {
   Green: 'bg-emerald-50 text-emerald-700',
@@ -217,12 +221,13 @@ export default function OakerPage() {
 
   const reportSections = useMemo(() => {
     if (!selectedReport) return [];
-    const sections = selectedReport.responses.reduce<Record<string, { score: number; maxScore: number; failed: number; capex: number; responses: InspectionResponse[] }>>((acc, response) => {
-      if (!acc[response.section]) acc[response.section] = { score: 0, maxScore: 0, failed: 0, capex: 0, responses: [] };
-      acc[response.section].maxScore += response.weighting;
+    const sections = selectedReport.responses.reduce<Record<string, { score: number; maxScore: number; failed: number; capex: number; notApplicable: number; responses: InspectionResponse[] }>>((acc, response) => {
+      if (!acc[response.section]) acc[response.section] = { score: 0, maxScore: 0, failed: 0, capex: 0, notApplicable: 0, responses: [] };
+      if (response.answer !== 'not_applicable') acc[response.section].maxScore += response.weighting;
       if (response.answer === 'yes') acc[response.section].score += response.weighting;
       if (response.answer === 'no') acc[response.section].failed += 1;
       if (response.answer === 'capex') acc[response.section].capex += 1;
+      if (response.answer === 'not_applicable') acc[response.section].notApplicable += 1;
       acc[response.section].responses.push(response);
       return acc;
     }, {});
@@ -234,7 +239,8 @@ export default function OakerPage() {
     }));
   }, [selectedReport]);
 
-  const failedReportResponses = selectedReport?.responses.filter((response) => response.answer !== 'yes') ?? [];
+  const actionReportResponses = selectedReport?.responses.filter((response) => response.answer === 'no' || response.answer === 'capex') ?? [];
+  const notApplicableReportResponses = selectedReport?.responses.filter((response) => response.answer === 'not_applicable') ?? [];
   const reportPhotoCount = selectedReport?.responses.reduce((sum, response) => sum + response.photos.length, 0) ?? 0;
 
   useEffect(() => {
@@ -617,7 +623,7 @@ export default function OakerPage() {
                   </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Answered</p>
                     <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCount}/{questions.length}</p>
@@ -628,7 +634,14 @@ export default function OakerPage() {
                   </div>
                   <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Actions</p>
-                    <p className="mt-1 text-2xl font-semibold text-rose-700">{questions.filter((question) => responses[question.id]?.answer && responses[question.id]?.answer !== 'yes').length}</p>
+                    <p className="mt-1 text-2xl font-semibold text-rose-700">{questions.filter((question) => {
+                      const answer = responses[question.id]?.answer;
+                      return answer === 'no' || answer === 'capex';
+                    }).length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">N/A</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-700">{questions.filter((question) => responses[question.id]?.answer === 'not_applicable').length}</p>
                   </div>
                 </div>
 
@@ -671,8 +684,8 @@ export default function OakerPage() {
                 <h2 className="mt-2 text-xl font-semibold leading-snug text-slate-900">{currentQuestion.standard}</h2>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {(['yes', 'no', 'capex'] as OakerAnswer[]).map((answer) => (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {ANSWER_OPTIONS.map((answer) => (
                   <button
                     key={answer}
                     type="button"
@@ -787,7 +800,7 @@ export default function OakerPage() {
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Issues</p>
-                <p className="mt-1 text-xl font-bold text-slate-900">{failedReportResponses.length}</p>
+                <p className="mt-1 text-xl font-bold text-slate-900">{actionReportResponses.length}</p>
                 <p className="text-xs text-slate-500">No / Capex responses</p>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -838,7 +851,7 @@ export default function OakerPage() {
                       <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.min(section.percentage, 100)}%` }} />
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
-                      {section.score} of {section.maxScore} · {section.failed} failed · {section.capex} capex
+                      {section.score} of {section.maxScore} · {section.failed} failed · {section.capex} capex · {section.notApplicable} N/A
                     </p>
                   </div>
                 ))}
@@ -854,11 +867,11 @@ export default function OakerPage() {
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Failed / Capex Standards</p>
-              {failedReportResponses.length === 0 ? (
+              {actionReportResponses.length === 0 ? (
                 <p className="mt-2 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-700">No failed standards recorded in this check.</p>
               ) : (
                 <div className="mt-2 space-y-3">
-                  {failedReportResponses.map((response) => (
+                  {actionReportResponses.map((response) => (
                     <div key={response.id} className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">#{response.questionId}</span>
@@ -884,6 +897,28 @@ export default function OakerPage() {
                 </div>
               )}
             </div>
+
+            {notApplicableReportResponses.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Not Applicable Standards</p>
+                <div className="mt-2 space-y-3">
+                  {notApplicableReportResponses.map((response) => (
+                    <div key={response.id} className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">#{response.questionId}</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{response.section}</span>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ANSWER_STYLES[response.answer]}`}>
+                          {ANSWER_LABELS[response.answer]}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Score removed</span>
+                      </div>
+                      <p className="mt-3 font-medium leading-relaxed text-slate-900">{response.standard}</p>
+                      {response.comments ? <p className="mt-2 text-slate-600">{response.comments}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">All Responses</p>

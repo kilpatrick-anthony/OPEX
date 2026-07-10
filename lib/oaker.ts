@@ -1,6 +1,8 @@
 export type OakerMode = 'experience' | 'express';
-export type OakerAnswer = 'yes' | 'no' | 'capex';
+export type OakerAnswer = 'yes' | 'no' | 'capex' | 'not_applicable';
 export type OakerRating = 'Green' | 'Amber' | 'Red';
+
+export const OAKER_ANSWERS: OakerAnswer[] = ['yes', 'no', 'capex', 'not_applicable'];
 
 export type OakerQuestion = {
   id: number;
@@ -155,7 +157,10 @@ export function scoreOakerResponses(responses: Array<{ questionId: number; answe
     const question = byQuestion.get(response.questionId);
     return sum + (question && response.answer === 'yes' ? question.weighting : 0);
   }, 0);
-  const maxScore = responses.reduce((sum, response) => sum + (byQuestion.get(response.questionId)?.weighting ?? 0), 0);
+  const maxScore = responses.reduce((sum, response) => {
+    if (response.answer === 'not_applicable') return sum;
+    return sum + (byQuestion.get(response.questionId)?.weighting ?? 0);
+  }, 0);
   const percentage = maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0;
   return { score, maxScore, percentage, rating: calculateOakerRating(percentage) };
 }

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { createOakerInspection, getOakerEmailRecipients, getOakerInspections, getOakerQuestionBank, getOakerQuestionStats, getStores } from '@/lib/db';
 import { sendOakerCheckCompletedEmail } from '@/lib/oakerEmail';
-import { getOakerQuestions, OAKER_EXPRESS_DESCRIPTION, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
+import { getOakerQuestions, OAKER_ANSWERS, OAKER_EXPRESS_DESCRIPTION, scoreOakerResponses, type OakerAnswer, type OakerMode } from '@/lib/oaker';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     const questionId = Number(item.questionId);
     const question = questionById.get(questionId);
     const answer = item.answer as OakerAnswer;
-    if (!question || !['yes', 'no', 'capex'].includes(answer)) return null;
+    if (!question || !OAKER_ANSWERS.includes(answer)) return null;
     const photos = Array.isArray(item.photos)
       ? item.photos.filter((photo: unknown): photo is string => typeof photo === 'string' && photo.startsWith('data:'))
       : [];
