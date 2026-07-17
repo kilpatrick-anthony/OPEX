@@ -248,10 +248,6 @@ export default function OakerPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (!checkerName && user?.name) setCheckerName(user.name);
-  }, [checkerName, user?.name]);
-
-  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
@@ -397,7 +393,7 @@ export default function OakerPage() {
     setSuccess('');
     setStoreId(draft.storeId);
     setMode(draft.mode);
-    setCheckerName(draft.checkerName || user?.name || '');
+    setCheckerName(draft.checkerName || '');
     const draftQuestions = await loadOaker(draft.mode, draft.storeId);
     if (draftQuestions.length === 0) {
       setError('Could not resume this saved check because the questions are no longer available.');
