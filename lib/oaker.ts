@@ -23,6 +23,7 @@ export type OakerQuestionStats = {
 };
 
 export const OAKER_SECTIONS = ['Operations', 'Customer Service', 'Systems', 'Health & Safety'] as const;
+export const OAKER_EXPRESS_QUESTION_COUNT = 20;
 
 export const OAKER_EXPRESS_DESCRIPTION =
   'OAKER Express is an adaptive store self-check. It prioritises the highest-weighted standards, questions most commonly missed across the estate, store-specific weak spots, recent failed items, and a small rotating sample so teams get a fast, relevant sense check without the full inspection load.';
@@ -107,7 +108,7 @@ export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] =
   const pinnedQuestions = activeQuestions
     .filter((question) => question.expressPinned)
     .sort((a, b) => b.weighting - a.weighting || a.id - b.id)
-    .slice(0, 15);
+    .slice(0, OAKER_EXPRESS_QUESTION_COUNT);
   const scored = activeQuestions.map((question) => {
     const stat = byId.get(question.id);
     return {
@@ -123,20 +124,20 @@ export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] =
   const selected = new Map<number, OakerQuestion>();
 
   pinnedQuestions.forEach((question) => {
-    if (selected.size < 15) selected.set(question.id, question);
+    if (selected.size < OAKER_EXPRESS_QUESTION_COUNT) selected.set(question.id, question);
   });
 
   scored
     .sort((a, b) => b.score - a.score)
     .forEach((item) => {
-      if (selected.size < 15) selected.set(item.question.id, item.question);
+      if (selected.size < OAKER_EXPRESS_QUESTION_COUNT) selected.set(item.question.id, item.question);
     });
 
   activeQuestions
     .filter((question) => question.weighting >= 10)
     .slice(0, 6)
     .forEach((question) => {
-      if (selected.size < 15) selected.set(question.id, question);
+      if (selected.size < OAKER_EXPRESS_QUESTION_COUNT) selected.set(question.id, question);
     });
 
   const daySeed = Math.floor(Date.now() / 86400000);
@@ -144,7 +145,7 @@ export function getOakerQuestions(mode: OakerMode, stats: OakerQuestionStats[] =
     .slice()
     .sort((a, b) => ((a.id * 37 + daySeed) % Math.max(activeQuestions.length, 1)) - ((b.id * 37 + daySeed) % Math.max(activeQuestions.length, 1)))
     .forEach((question) => {
-      if (selected.size < 15) selected.set(question.id, question);
+      if (selected.size < OAKER_EXPRESS_QUESTION_COUNT) selected.set(question.id, question);
     });
 
   return Array.from(selected.values())

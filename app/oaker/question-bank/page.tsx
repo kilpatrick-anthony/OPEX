@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { OakerNavbar } from '@/components/OakerNavbar';
 import { getApiErrorMessage, readJsonSafely } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/userContext';
-import { OAKER_SECTIONS, type OakerQuestion } from '@/lib/oaker';
+import { OAKER_EXPRESS_QUESTION_COUNT, OAKER_SECTIONS, type OakerQuestion } from '@/lib/oaker';
 
 type QuestionRecord = OakerQuestion & {
   active: boolean;
@@ -160,7 +160,7 @@ export default function OakerQuestionBankPage() {
     return activeQuestions
       .slice()
       .sort((a, b) => b.weighting - a.weighting || a.section.localeCompare(b.section) || a.id - b.id)
-      .slice(0, 15);
+      .slice(0, OAKER_EXPRESS_QUESTION_COUNT);
   }, [activeQuestions]);
 
   const expressPinnedQuestions = useMemo(() => {
