@@ -32,6 +32,7 @@ export type Store = {
   managerTitle?: string | null;
   managerPortalAccess?: PortalKey[];
   managerCanManageOakerQuestions?: boolean;
+  isActive?: boolean;
 };
 
 export type User = {
@@ -44,6 +45,8 @@ export type User = {
   storeId: number | null;
   portalAccess: PortalKey[];
   canManageOakerQuestions: boolean;
+  isOfficialOakerChecker: boolean;
+  isActive: boolean;
 };
 
 export type RequestRecord = {
@@ -98,6 +101,7 @@ export type OakerInspectionRecord = {
   reportText?: string | null;
   createdAt: string;
   submittedAt: string;
+  isOfficial: boolean;
 };
 
 export type OakerResponseRecord = {
@@ -174,6 +178,8 @@ export async function ensureSchema() {
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS canManageOakerQuestions BOOLEAN NOT NULL DEFAULT false`,
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS isOfficialOakerChecker BOOLEAN NOT NULL DEFAULT false`,
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
@@ -183,6 +189,8 @@ export async function ensureSchema() {
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editReason TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editedAt TIMESTAMP`,
+    sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS isOfficial BOOLEAN NOT NULL DEFAULT false`,
+    sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`,
     sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS sortOrder INTEGER NOT NULL DEFAULT 0`,
@@ -214,12 +222,16 @@ async function ensureRequiredMigrationsOnce() {
       const sql = getSql();
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS portalAccess TEXT NOT NULL DEFAULT 'opex,oaker'`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS canManageOakerQuestions BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS isOfficialOakerChecker BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportPath TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS reportText TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editReason TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editedAt TIMESTAMP`;
+      await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS isOfficial BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`;
       await sql`CREATE TABLE IF NOT EXISTS oaker_questions (id INTEGER PRIMARY KEY, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, active BOOLEAN NOT NULL DEFAULT true, expressPinned BOOLEAN NOT NULL DEFAULT false, sortOrder INTEGER NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS expressPinned BOOLEAN NOT NULL DEFAULT false`;
@@ -250,7 +262,7 @@ export async function getUserByEmail(email: string) {
   const sql = getSql();
 
   const result = await sql`
-    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions", isofficialoakerchecker as "isOfficialOakerChecker", isactive as "isActive"
     FROM users
     WHERE email = ${email.toLowerCase()}
   `;
@@ -262,7 +274,7 @@ export async function getUserById(id: number) {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
+    SELECT id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions", isofficialoakerchecker as "isOfficialOakerChecker", isactive as "isActive"
     FROM users
     WHERE id = ${id}
   `;
@@ -283,7 +295,7 @@ export async function updateUserProfile(userId: number, data: { name: string; em
     UPDATE users
     SET name = ${data.name}, email = ${data.email.toLowerCase()}, title = ${data.title ?? null}
     WHERE id = ${userId}
-    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions", isofficialoakerchecker as "isOfficialOakerChecker", isactive as "isActive"
   `;
   const user = result[0] as (Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] }) | undefined;
   return user ? { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) } : undefined;
@@ -301,7 +313,7 @@ export async function createUser(data: { name: string; email: string; password: 
   const result = await sql`
     INSERT INTO users (name, email, password, role, title, storeId, portalAccess)
     VALUES (${data.name}, ${data.email.toLowerCase()}, ${data.password}, ${data.role}, ${data.title ?? null}, ${data.storeId}, ${portalAccess})
-    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
+    RETURNING id, name, email, password, role, title, storeid as "storeId", portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions", isofficialoakerchecker as "isOfficialOakerChecker", isactive as "isActive"
   `;
   const user = result[0] as Omit<User, 'portalAccess'> & { portalAccess?: string | PortalKey[] };
   return { ...user, portalAccess: normalizeUserPortalAccess(user.portalAccess) };
@@ -326,10 +338,11 @@ export async function getStores() {
     LEFT JOIN LATERAL (
       SELECT id, name, email, title, portalaccess, canmanageoakerquestions
       FROM users
-      WHERE role = 'manager' AND storeid = s.id
+      WHERE role = 'manager' AND storeid = s.id AND isactive = true
       ORDER BY id
       LIMIT 1
     ) u ON true
+    WHERE s.isactive = true
     ORDER BY s.id
   `;
   return result.map((store: any) => ({
@@ -346,7 +359,7 @@ export async function getStores() {
 export async function getStoreByName(name: string) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`SELECT * FROM stores WHERE LOWER(name) = ${name.toLowerCase()} LIMIT 1`;
+  const result = await sql`SELECT * FROM stores WHERE LOWER(name) = ${name.toLowerCase()} AND isActive = true LIMIT 1`;
   return result[0] as Store | undefined;
 }
 
@@ -497,9 +510,9 @@ export async function getFieldTeamUsers() {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    SELECT id, name, email, role, title, budget, portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions"
+    SELECT id, name, email, role, title, budget, portalaccess as "portalAccess", canmanageoakerquestions as "canManageOakerQuestions", isofficialoakerchecker as "isOfficialOakerChecker"
     FROM users
-    WHERE role IN ('director', 'employee', 'field_team')
+    WHERE role IN ('director', 'employee', 'field_team') AND isactive = true
     ORDER BY
       CASE WHEN role = 'director' THEN 0 ELSE 1 END,
       name
@@ -508,7 +521,8 @@ export async function getFieldTeamUsers() {
     ...user,
     portalAccess: normalizeUserPortalAccess(user.portalAccess),
     canManageOakerQuestions: Boolean(user.canManageOakerQuestions),
-  })) as { id: number; name: string; email: string; role: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean }[];
+    isOfficialOakerChecker: Boolean(user.isOfficialOakerChecker),
+  })) as { id: number; name: string; email: string; role: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean; isOfficialOakerChecker: boolean }[];
 }
 
 export async function getDirectorEmails(): Promise<{ name: string; email: string }[]> {
@@ -692,6 +706,12 @@ export async function updateUserOakerQuestionAccess(userId: number, canManage: b
   await sql`UPDATE users SET canManageOakerQuestions = ${canManage} WHERE id = ${userId}`;
 }
 
+export async function updateUserOfficialOakerChecker(userId: number, isOfficial: boolean) {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  await sql`UPDATE users SET isOfficialOakerChecker = ${isOfficial} WHERE id = ${userId}`;
+}
+
 export async function canUserManageOakerQuestions(userId: number, role?: string | null) {
   if (role === 'super_admin') return true;
   await ensureSchemaOnce();
@@ -715,18 +735,15 @@ export async function createStore(name: string, budget: number): Promise<Store> 
 export async function deleteStore(storeId: number): Promise<void> {
   await ensureSchemaOnce();
   const sql = getSql();
-  await sql`DELETE FROM requests WHERE storeId = ${storeId}`;
-  await sql`DELETE FROM stores WHERE id = ${storeId}`;
+  await sql`UPDATE stores SET isActive = false WHERE id = ${storeId}`;
+  await sql`UPDATE users SET isActive = false WHERE role = 'manager' AND storeId = ${storeId}`;
 }
 
 export async function deleteUser(userId: number): Promise<void> {
   await ensureSchemaOnce();
   const sql = getSql();
-  await sql`DELETE FROM notifications WHERE userId = ${userId}`;
-  await sql`DELETE FROM approvals WHERE userId = ${userId}`;
-  await sql`DELETE FROM requests WHERE userId = ${userId}`;
   await sql`DELETE FROM password_reset_tokens WHERE userId = ${userId}`;
-  await sql`DELETE FROM users WHERE id = ${userId}`;
+  await sql`UPDATE users SET isActive = false WHERE id = ${userId}`;
 }
 
 export async function createPasswordResetToken(userId: number, token: string, expiresAt: Date) {
@@ -876,8 +893,8 @@ export async function createOakerInspection(data: {
   await ensureSchemaOnce();
   const sql = getSql();
   const result = await sql`
-    INSERT INTO oaker_inspections (storeId, userId, checkerName, mode, score, maxScore, percentage, rating, notes)
-    VALUES (${data.storeId}, ${data.userId}, ${data.checkerName?.trim() || null}, ${data.mode}, ${data.score}, ${data.maxScore}, ${data.percentage}, ${data.rating}, ${data.notes ?? null})
+    INSERT INTO oaker_inspections (storeId, userId, checkerName, mode, score, maxScore, percentage, rating, notes, isOfficial)
+    VALUES (${data.storeId}, ${data.userId}, ${data.checkerName?.trim() || null}, ${data.mode}, ${data.score}, ${data.maxScore}, ${data.percentage}, ${data.rating}, ${data.notes ?? null}, COALESCE((SELECT isOfficialOakerChecker FROM users WHERE id = ${data.userId}), false))
     RETURNING id
   `;
   const inspectionId = Number(result[0].id);
@@ -921,6 +938,7 @@ export async function getOakerInspectionById(id: number) {
        i.editedat as "editedAt",
        i.reportpath as "reportPath",
        i.reporttext as "reportText",
+       i.isofficial as "isOfficial",
        i.createdat as "createdAt",
        i.submittedat as "submittedAt"
      FROM oaker_inspections i
@@ -1056,6 +1074,7 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
        i.editedat as "editedAt",
        i.reportpath as "reportPath",
        i.reporttext as "reportText",
+       i.isofficial as "isOfficial",
        i.createdat as "createdAt",
        i.submittedat as "submittedAt"
      FROM oaker_inspections i
@@ -1073,6 +1092,7 @@ export async function getOakerInspections(filters: { storeId?: number; role: str
     score: Number(item.score),
     maxScore: Number(item.maxScore),
     percentage: Number(item.percentage),
+    isOfficial: Boolean(item.isOfficial),
   })) as OakerInspectionRecord[];
 }
 

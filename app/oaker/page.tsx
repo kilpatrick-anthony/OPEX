@@ -42,7 +42,10 @@ type Inspection = {
   percentage: number;
   rating: string;
   submittedAt: string;
+  isOfficial: boolean;
 };
+
+type CheckScope = 'combined' | 'official' | 'local';
 
 type OakerPayload = {
   stores?: Store[];
@@ -93,7 +96,7 @@ export default function OakerDashboardPage() {
   const { user, isLoading: userLoading } = useCurrentUser();
   const [stores, setStores] = useState<Store[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
-  const [latestByStore, setLatestByStore] = useState<Inspection[]>([]);
+  const [checkScope, setCheckScope] = useState<CheckScope>('combined');
   const [selectedGroup, setSelectedGroup] = useState<StoreGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -109,7 +112,6 @@ export default function OakerDashboardPage() {
 
       setStores(Array.isArray(payload?.stores) ? payload.stores : []);
       setInspections(Array.isArray(payload?.inspections) ? payload.inspections : []);
-      setLatestByStore(Array.isArray(payload?.latestByStore) ? payload.latestByStore : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load OAKER dashboard');
     } finally {
@@ -130,26 +132,36 @@ export default function OakerDashboardPage() {
     loadDashboard();
   }, [user, userLoading, router]);
 
-  const estateAverage = useMemo(() => average(latestByStore.map((inspection) => inspection.percentage)), [latestByStore]);
-  const expertCount = useMemo(() => latestByStore.filter((inspection) => inspection.percentage >= 90).length, [latestByStore]);
-  const classicCount = useMemo(() => latestByStore.filter((inspection) => inspection.percentage >= 75 && inspection.percentage < 90).length, [latestByStore]);
-  const risingCount = useMemo(() => latestByStore.filter((inspection) => inspection.percentage < 75).length, [latestByStore]);
+  const scopedInspections = useMemo(() => inspections.filter((inspection) => (
+    checkScope === 'combined' || (checkScope === 'official' ? inspection.isOfficial : !inspection.isOfficial)
+  )), [inspections, checkScope]);
+  const scopedLatestByStore = useMemo(() => {
+    const latest = new Map<number, Inspection>();
+    scopedInspections.forEach((inspection) => {
+      if (!latest.has(inspection.storeId)) latest.set(inspection.storeId, inspection);
+    });
+    return Array.from(latest.values());
+  }, [scopedInspections]);
+  const estateAverage = useMemo(() => average(scopedLatestByStore.map((inspection) => inspection.percentage)), [scopedLatestByStore]);
+  const expertCount = useMemo(() => scopedLatestByStore.filter((inspection) => inspection.percentage >= 90).length, [scopedLatestByStore]);
+  const classicCount = useMemo(() => scopedLatestByStore.filter((inspection) => inspection.percentage >= 75 && inspection.percentage < 90).length, [scopedLatestByStore]);
+  const risingCount = useMemo(() => scopedLatestByStore.filter((inspection) => inspection.percentage < 75).length, [scopedLatestByStore]);
   const recentCutoff = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 30);
     return date;
   }, []);
-  const recentInspections = useMemo(() => inspections.filter((inspection) => new Date(inspection.submittedAt) >= recentCutoff), [inspections, recentCutoff]);
+  const recentInspections = useMemo(() => scopedInspections.filter((inspection) => new Date(inspection.submittedAt) >= recentCutoff), [scopedInspections, recentCutoff]);
 
   const leagueTable = useMemo(() => (
-    latestByStore
+    scopedLatestByStore
       .slice()
       .sort((a, b) => b.percentage - a.percentage || a.storeName.localeCompare(b.storeName))
       .map((inspection, index) => ({ ...inspection, rank: index + 1 }))
-  ), [latestByStore]);
+  ), [scopedLatestByStore]);
 
   const trendData = useMemo(() => {
-    const byMonth = inspections.reduce<Record<string, { key: string; month: string; values: number[] }>>((acc, inspection) => {
+    const byMonth = scopedInspections.reduce<Record<string, { key: string; month: string; values: number[] }>>((acc, inspection) => {
       const key = monthKey(inspection.submittedAt);
       if (!acc[key]) acc[key] = { key, month: monthLabel(inspection.submittedAt), values: [] };
       acc[key].values.push(inspection.percentage);
@@ -159,7 +171,7 @@ export default function OakerDashboardPage() {
     return Object.values(byMonth)
       .sort((a, b) => a.key.localeCompare(b.key))
       .map((item) => ({ month: item.month, score: Math.round(average(item.values) * 10) / 10 }));
-  }, [inspections]);
+  }, [scopedInspections]);
 
   const ratingMix = useMemo(() => [
     { name: 'Green', value: expertCount, color: RATING_COLORS.Green, rating: 'Green' },
@@ -168,16 +180,16 @@ export default function OakerDashboardPage() {
   ], [expertCount, classicCount, risingCount]);
 
   const modeMix = useMemo(() => {
-    const full = inspections.filter((inspection) => inspection.mode === 'experience').length;
-    const express = inspections.filter((inspection) => inspection.mode === 'express').length;
+    const full = scopedInspections.filter((inspection) => inspection.mode === 'experience').length;
+    const express = scopedInspections.filter((inspection) => inspection.mode === 'express').length;
     return [
       { name: 'Full', checks: full },
       { name: 'Express', checks: express },
     ];
-  }, [inspections]);
+  }, [scopedInspections]);
 
   const momentum = useMemo(() => {
-    const byStore = inspections.reduce<Record<number, Inspection[]>>((acc, inspection) => {
+    const byStore = scopedInspections.reduce<Record<number, Inspection[]>>((acc, inspection) => {
       if (!acc[inspection.storeId]) acc[inspection.storeId] = [];
       acc[inspection.storeId].push(inspection);
       return acc;
@@ -194,11 +206,11 @@ export default function OakerDashboardPage() {
         };
       })
       .sort((a, b) => a.change - b.change);
-  }, [inspections]);
+  }, [scopedInspections]);
 
   const topMover = momentum.slice().sort((a, b) => b.change - a.change)[0];
   const needsAttention = leagueTable.filter((inspection) => inspection.percentage < 75).slice(0, 5);
-  const latestInspection = inspections[0];
+  const latestInspection = scopedInspections[0];
 
   function openStoreGroup(title: string, description: string, storesForGroup: Inspection[]) {
     setSelectedGroup({
@@ -209,7 +221,7 @@ export default function OakerDashboardPage() {
   }
 
   function storesForRating(rating: string) {
-    return latestByStore.filter((inspection) => inspection.rating === rating);
+    return scopedLatestByStore.filter((inspection) => inspection.rating === rating);
   }
 
   if (userLoading || loading) {
@@ -256,11 +268,25 @@ export default function OakerDashboardPage() {
           </Link>
         </div>
 
+        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-card">
+          <span className="px-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Statistics</span>
+          {(['combined', 'official', 'local'] as CheckScope[]).map((scope) => (
+            <button
+              key={scope}
+              type="button"
+              onClick={() => setCheckScope(scope)}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize transition ${checkScope === scope ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              {scope}
+            </button>
+          ))}
+        </div>
+
         <div className="mt-8 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Estate score</p>
             <p className="mt-3 text-4xl font-semibold text-slate-900">{estateAverage.toFixed(1)}%</p>
-            <p className="mt-2 text-sm text-slate-500">Latest score across {latestByStore.length} stores</p>
+            <p className="mt-2 text-sm text-slate-500">Latest score across {scopedLatestByStore.length} stores</p>
           </div>
           <button
             type="button"
@@ -438,12 +464,14 @@ export default function OakerDashboardPage() {
                   </tr>
                 </TableHeader>
                 <tbody>
-                  {inspections.slice(0, 10).map((inspection) => (
+                  {scopedInspections.slice(0, 10).map((inspection) => (
                     <TableRow key={inspection.id}>
                       <TableCell className="font-semibold text-slate-900">{inspection.storeName}</TableCell>
                       <TableCell className="font-semibold text-slate-900">{inspection.percentage.toFixed(1)}%</TableCell>
                       <TableCell className="capitalize text-slate-600">{inspection.mode === 'experience' ? 'Full' : 'Express'}</TableCell>
-                      <TableCell className="text-slate-500">{inspection.inspectorName}</TableCell>
+                      <TableCell className="text-slate-500">
+                        <span className="inline-flex items-center gap-1.5">{inspection.inspectorName}{inspection.isOfficial ? <span title="Official check" className="text-amber-500">★</span> : null}</span>
+                      </TableCell>
                       <TableCell className="text-slate-500">{formatDate(inspection.submittedAt)}</TableCell>
                     </TableRow>
                   ))}
@@ -460,7 +488,7 @@ export default function OakerDashboardPage() {
           </div>
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total checks</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{inspections.length}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">{scopedInspections.length}</p>
           </div>
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Latest check</p>

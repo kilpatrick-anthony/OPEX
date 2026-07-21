@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getFieldTeamUsers, updateUserBudget, updateUserOakerQuestionAccess, updateUserPortalAccess, updateUserProfile, updateUserPassword, createUser, deleteUser } from '@/lib/db';
+import { getFieldTeamUsers, updateUserBudget, updateUserOfficialOakerChecker, updateUserOakerQuestionAccess, updateUserPortalAccess, updateUserProfile, updateUserPassword, createUser, deleteUser } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { sendWelcomeEmail } from '@/lib/email';
 import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, serializePortalAccess } from '@/lib/portalAccess';
@@ -48,6 +48,10 @@ export async function PATCH(request: Request) {
 
   if ('canManageOakerQuestions' in body) {
     await updateUserOakerQuestionAccess(userId, Boolean(body.canManageOakerQuestions));
+  }
+
+  if ('isOfficialOakerChecker' in body) {
+    await updateUserOfficialOakerChecker(userId, Boolean(body.isOfficialOakerChecker));
   }
 
   const password = typeof body.password === 'string' ? body.password : '';

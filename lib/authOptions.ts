@@ -21,7 +21,7 @@ export const authOptions = {
         const email = credentials.email.toLowerCase();
         const user = await getUserByEmail(email);
         const valid = user ? await verifyPassword(credentials.password, user.password) : false;
-        if (!user || !valid) {
+        if (!user || !user.isActive || !valid) {
           return null;
         }
         return {
@@ -60,6 +60,12 @@ export const authOptions = {
       if (token.email) {
         const existing = await getUserByEmail(String(token.email).toLowerCase());
         if (existing) {
+          if (!existing.isActive) {
+            token.id = undefined;
+            token.role = undefined;
+            token.storeId = null;
+            return token;
+          }
           let resolvedStoreId = existing.storeId ?? null;
 
           if (existing.role === 'manager' && !resolvedStoreId) {
@@ -82,6 +88,10 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }: { session: any; token: any }) {
+      if (!token.id) {
+        session.user = undefined;
+        return session;
+      }
       if (session.user) {
         session.user.id = token.id as number;
         session.user.role = token.role as string;

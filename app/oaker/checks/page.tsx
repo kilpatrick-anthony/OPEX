@@ -26,6 +26,7 @@ type Inspection = {
   percentage: number;
   rating: string;
   submittedAt: string;
+  isOfficial: boolean;
 };
 
 type InspectionResponse = {
@@ -776,7 +777,7 @@ export default function OakerPage() {
       <Dialog
         open={!!selectedReport}
         title={selectedReport ? `${selectedReport.storeName} OAKER Report` : 'OAKER Report'}
-        description={selectedReport ? `${selectedReport.mode === 'express' ? 'Express Check' : 'Full OAKER Experience'} by ${selectedReport.inspectorName} on ${new Date(selectedReport.submittedAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+        description={selectedReport ? `${selectedReport.mode === 'express' ? 'Express Check' : 'Full OAKER Experience'} by ${selectedReport.inspectorName}${selectedReport.isOfficial ? ' · ★ Official check' : ' · Local check'} on ${new Date(selectedReport.submittedAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
         onClose={() => setSelectedReport(null)}
         className="max-h-[90vh] max-w-5xl overflow-y-auto"
       >

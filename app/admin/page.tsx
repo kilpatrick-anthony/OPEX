@@ -17,7 +17,7 @@ type StoreRecord = {
   managerPortalAccess?: PortalKey[];
   managerCanManageOakerQuestions?: boolean;
 };
-type FieldUser  = { id: number; name: string; email: string; role?: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean };
+type FieldUser  = { id: number; name: string; email: string; role?: 'director' | 'employee' | 'field_team'; title: string | null; budget: number; portalAccess: PortalKey[]; canManageOakerQuestions: boolean; isOfficialOakerChecker: boolean };
 type AccountEditor = {
   type: 'store' | 'user';
   userId: number;
@@ -179,6 +179,31 @@ export default function AdminPage() {
     } catch {
       setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, canManageOakerQuestions: previous } : user));
       setSaveError('Network error - question bank access not saved.');
+    } finally {
+      setAccessSavingId(null);
+    }
+  }
+
+  async function saveOfficialCheckerAccess(userId: number, isOfficialOakerChecker: boolean) {
+    const previous = fieldUsers.find((user) => user.id === userId)?.isOfficialOakerChecker ?? false;
+    setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, isOfficialOakerChecker } : user));
+    setAccessSavingId(userId);
+    setSaveError('');
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isOfficialOakerChecker }),
+      });
+      if (!res.ok) {
+        const payload = await readJsonSafely(res) as any;
+        setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, isOfficialOakerChecker: previous } : user));
+        setSaveError(payload?.error ?? 'Failed to save official checker status.');
+      }
+    } catch {
+      setFieldUsers((prev) => prev.map((user) => user.id === userId ? { ...user, isOfficialOakerChecker: previous } : user));
+      setSaveError('Network error - official checker status not saved.');
     } finally {
       setAccessSavingId(null);
     }
@@ -407,6 +432,7 @@ export default function AdminPage() {
         budget: 0,
         portalAccess: normalizePortalAccess(payload.portalAccess ?? addUserForm.portalAccess),
         canManageOakerQuestions: Boolean(payload.canManageOakerQuestions),
+        isOfficialOakerChecker: Boolean(payload.isOfficialOakerChecker),
       }].sort((a, b) => a.name.localeCompare(b.name)));
       setAddingUser(false);
       setAddUserForm({ name: '', email: '', password: '', title: '', portalAccess: DEFAULT_PORTAL_ACCESS });
@@ -430,7 +456,7 @@ export default function AdminPage() {
       });
       if (!res.ok) {
         const payload = await readJsonSafely(res) as any;
-        setSaveError(payload?.error ?? 'Failed to delete.');
+        setSaveError(payload?.error ?? 'Failed to archive.');
       } else {
         if (confirmDelete.type === 'store') {
           setStores((prev) => prev.filter((s) => s.id !== confirmDelete.id));
@@ -439,7 +465,7 @@ export default function AdminPage() {
         }
       }
     } catch {
-      setSaveError('Network error — could not delete.');
+      setSaveError('Network error — could not archive.');
     } finally {
       setDeleting(false);
       setConfirmDelete(null);
@@ -524,8 +550,8 @@ export default function AdminPage() {
                         )}
                         <button type="button" onClick={() => setConfirmDelete({ type: 'store', id: store.id, name: store.name })}
                           className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                          title="Delete store">
-                          Remove
+                          title="Archive store">
+                          Archive
                         </button>
                       </div>
                     )}
@@ -700,8 +726,8 @@ export default function AdminPage() {
                         </button>
                         <button type="button" onClick={() => setConfirmDelete({ type: 'user', id: user.id, name: user.name })}
                           className="rounded-full px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                          title="Remove person">
-                          Remove
+                          title="Archive person">
+                          Archive
                         </button>
                       </div>
                     )}
@@ -749,6 +775,22 @@ export default function AdminPage() {
                           <span>Question Bank Editing</span>
                           <span className={`text-[10px] uppercase tracking-wide ${user.canManageOakerQuestions ? 'text-violet-600' : 'text-slate-300'}`}>
                             {user.canManageOakerQuestions ? 'On' : 'Off'}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveOfficialCheckerAccess(user.id, !user.isOfficialOakerChecker)}
+                          disabled={accessSavingId === user.id}
+                          title="Checks submitted by this account will be recorded as official OAKER checks"
+                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                            user.isOfficialOakerChecker
+                              ? 'border-amber-200 bg-amber-50 text-amber-800'
+                              : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                          } disabled:opacity-60`}
+                        >
+                          <span>Official OAKER Checker</span>
+                          <span className={`text-[10px] uppercase tracking-wide ${user.isOfficialOakerChecker ? 'text-amber-700' : 'text-slate-300'}`}>
+                            {user.isOfficialOakerChecker ? 'On' : 'Off'}
                           </span>
                         </button>
                       </div>
@@ -928,18 +970,18 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── Confirm Delete Modal ──────────────────────────────────────── */}
+      {/* ── Confirm Archive Modal ─────────────────────────────────────── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-base font-semibold text-slate-900">
-              Remove {confirmDelete.type === 'store' ? 'Store' : 'Person'}?
+              Archive {confirmDelete.type === 'store' ? 'Store' : 'Person'}?
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              Are you sure you want to permanently remove <span className="font-semibold text-slate-700">{confirmDelete.name}</span>?
+              Are you sure you want to archive <span className="font-semibold text-slate-700">{confirmDelete.name}</span>?
               {confirmDelete.type === 'store'
-                ? ' All requests associated with this store will also be deleted.'
-                : ' All requests and data for this person will also be deleted.'}
+                ? ' It will no longer appear for new activity and its store login will be disabled. Historical OPEX submissions and OAKER checks will remain available.'
+                : ' Their login will be disabled and they will no longer appear in administration. Historical OPEX submissions and OAKER checks will remain available.'}
             </p>
             {saveError && <p className="mt-2 text-xs text-rose-600">{saveError}</p>}
             <div className="mt-5 flex justify-end gap-3">
@@ -949,7 +991,7 @@ export default function AdminPage() {
               </button>
               <button type="button" onClick={confirmDeleteItem} disabled={deleting}
                 className="rounded-xl bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
-                {deleting ? 'Removing…' : 'Yes, Remove'}
+                {deleting ? 'Archiving…' : 'Yes, Archive'}
               </button>
             </div>
           </div>

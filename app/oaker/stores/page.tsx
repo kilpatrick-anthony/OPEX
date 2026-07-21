@@ -21,6 +21,7 @@ type Inspection = {
   percentage: number;
   rating: string;
   submittedAt: string;
+  isOfficial: boolean;
 };
 
 type OakerPayload = {
@@ -41,7 +42,7 @@ export default function OakerStoresPage() {
   const router = useRouter();
   const { user, isLoading: userLoading } = useCurrentUser();
   const [inspections, setInspections] = useState<Inspection[]>([]);
-  const [latestByStore, setLatestByStore] = useState<Inspection[]>([]);
+  const [checkScope, setCheckScope] = useState<'combined' | 'official' | 'local'>('combined');
 const [compareA, setCompareA] = useState('');
   const [compareB, setCompareB] = useState('');
   const [focusStoreId, setFocusStoreId] = useState('');
@@ -64,7 +65,6 @@ const [compareA, setCompareA] = useState('');
         if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to load store breakdown'));
         const latest = Array.isArray(payload?.latestByStore) ? payload.latestByStore : [];
         setInspections(Array.isArray(payload?.inspections) ? payload.inspections : []);
-        setLatestByStore(latest);
         if (latest[0]) setCompareA(String(latest[0].storeId));
         if (latest[1]) setCompareB(String(latest[1].storeId));
         if (latest[0]) setFocusStoreId(String(latest[0].storeId));
@@ -78,10 +78,21 @@ const [compareA, setCompareA] = useState('');
     loadData();
   }, [user, userLoading, router]);
 
+  const scopedInspections = useMemo(() => inspections.filter((inspection) => (
+    checkScope === 'combined' || (checkScope === 'official' ? inspection.isOfficial : !inspection.isOfficial)
+  )), [inspections, checkScope]);
+  const scopedLatestByStore = useMemo(() => {
+    const latest = new Map<number, Inspection>();
+    scopedInspections.forEach((inspection) => {
+      if (!latest.has(inspection.storeId)) latest.set(inspection.storeId, inspection);
+    });
+    return Array.from(latest.values());
+  }, [scopedInspections]);
+
   const storeRows = useMemo(() => {
-    return latestByStore
+    return scopedLatestByStore
       .map((store) => {
-        const history = inspections.filter((inspection) => inspection.storeId === store.storeId);
+        const history = scopedInspections.filter((inspection) => inspection.storeId === store.storeId);
         const fullChecks = history.filter((inspection) => inspection.mode === 'experience').length;
         const expressChecks = history.filter((inspection) => inspection.mode === 'express').length;
         const previous = history.slice().sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[1];
@@ -95,7 +106,7 @@ const [compareA, setCompareA] = useState('');
         };
       })
       .sort((a, b) => b.percentage - a.percentage || a.storeName.localeCompare(b.storeName));
-  }, [inspections, latestByStore]);
+  }, [scopedInspections, scopedLatestByStore]);
 
   const selectedStores = useMemo(() => {
     return [compareA, compareB]
@@ -113,11 +124,11 @@ const [compareA, setCompareA] = useState('');
   const focusStore = storeRows.find((store) => String(store.storeId) === focusStoreId) ?? storeRows[0];
   const focusHistory = useMemo(() => {
     if (!focusStore) return [];
-    return inspections
+    return scopedInspections
       .filter((inspection) => inspection.storeId === focusStore.storeId)
       .slice()
       .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
-  }, [focusStore, inspections]);
+  }, [focusStore, scopedInspections]);
   const focusTrend = focusHistory.map((inspection) => ({
     date: formatDate(inspection.submittedAt).replace(` ${new Date(inspection.submittedAt).getFullYear()}`, ''),
     score: Math.round(inspection.percentage * 10) / 10,
@@ -146,6 +157,15 @@ const [compareA, setCompareA] = useState('');
           <p className="text-sm uppercase tracking-widest text-emerald-600">OAKER Experience</p>
           <h1 className="mt-1 text-3xl font-semibold text-slate-900">Store Breakdown</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">Compare latest scores, historical averages, check volume, and movement store by store.</p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-card">
+          <span className="px-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Statistics</span>
+          {(['combined', 'official', 'local'] as const).map((scope) => (
+            <button key={scope} type="button" onClick={() => setCheckScope(scope)} className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize transition ${checkScope === scope ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+              {scope}
+            </button>
+          ))}
         </div>
 
         {error ? <p className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}

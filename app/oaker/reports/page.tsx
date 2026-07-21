@@ -25,6 +25,7 @@ type Inspection = {
   editReason?: string | null;
   editedAt?: string | null;
   reportPath?: string | null;
+  isOfficial: boolean;
 };
 
 type InspectionDetail = Inspection & {
@@ -100,6 +101,7 @@ export default function OakerReportsPage() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [storeFilter, setStoreFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState<'all' | OakerMode>('all');
+  const [scopeFilter, setScopeFilter] = useState<'combined' | 'official' | 'local'>('combined');
   const [selectedReport, setSelectedReport] = useState<InspectionDetail | null>(null);
   const [emailReportTarget, setEmailReportTarget] = useState<Inspection | InspectionDetail | null>(null);
   const [recipientInput, setRecipientInput] = useState('');
@@ -148,9 +150,10 @@ export default function OakerReportsPage() {
     return inspections.filter((inspection) => {
       const storeMatches = storeFilter === 'all' || inspection.storeName === storeFilter;
       const modeMatches = modeFilter === 'all' || inspection.mode === modeFilter;
-      return storeMatches && modeMatches;
+      const scopeMatches = scopeFilter === 'combined' || (scopeFilter === 'official' ? inspection.isOfficial : !inspection.isOfficial);
+      return storeMatches && modeMatches && scopeMatches;
     });
-  }, [inspections, storeFilter, modeFilter]);
+  }, [inspections, storeFilter, modeFilter, scopeFilter]);
 
   async function openReport(id: number) {
     setLoadingReport(true);
@@ -344,12 +347,20 @@ export default function OakerReportsPage() {
 
         <div className="mt-6">
           <Card title="Report Library" description="Filter, view, and download past OAKER Experience checks." className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <label className="block text-sm font-medium text-slate-700">
                 Store
                 <select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal">
                   <option value="all">All stores</option>
                   {stores.map((store) => <option key={store} value={store}>{store}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Check status
+                <select value={scopeFilter} onChange={(event) => setScopeFilter(event.target.value as typeof scopeFilter)} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal">
+                  <option value="combined">Combined</option>
+                  <option value="official">Official checks</option>
+                  <option value="local">Local checks</option>
                 </select>
               </label>
               <label className="block text-sm font-medium text-slate-700">
@@ -381,7 +392,9 @@ export default function OakerReportsPage() {
                       <TableCell>{formatDate(inspection.submittedAt)}</TableCell>
                       <TableCell className="font-semibold text-slate-900">{inspection.percentage.toFixed(1)}%</TableCell>
                       <TableCell>{inspection.mode === 'experience' ? 'Full' : 'Express'}</TableCell>
-                      <TableCell>{inspection.inspectorName}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5">{inspection.inspectorName}{inspection.isOfficial ? <span title="Official check" className="text-amber-500">★</span> : null}</span>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => openReport(inspection.id)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -448,7 +461,7 @@ export default function OakerReportsPage() {
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs uppercase tracking-widest text-slate-400">Inspector</p>
-                <p className="mt-1 font-semibold text-slate-900">{selectedReport.inspectorName}</p>
+                <p className="mt-1 inline-flex items-center gap-1.5 font-semibold text-slate-900">{selectedReport.inspectorName}{selectedReport.isOfficial ? <span title="Official check" className="text-amber-500">★ Official</span> : null}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs uppercase tracking-widest text-slate-400">Responses</p>
