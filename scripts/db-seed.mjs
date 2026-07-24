@@ -19,6 +19,7 @@ const stores = [
   'ILAC',
   'Kildare Village',
   'Maynooth',
+  'Nutgrove',
   'Swords Pavilions',
   'Warehouse',
 ];
@@ -51,6 +52,7 @@ const storeAccounts = [
   { storeName: 'ILAC',             email: 'ilac@oakberry.ie',           password: 'Ilac2026!',            title: 'Store Manager' },
   { storeName: 'Kildare Village',  email: 'kildarevillage@oakberry.ie', password: 'Kildarevillage2026!',  title: 'Store Manager' },
   { storeName: 'Maynooth',         email: 'maynooth@oakberry.ie',       password: 'Maynooth2026!',        title: 'Store Manager' },
+  { storeName: 'Nutgrove',         email: 'nutgrove@oakberry.ie',       password: 'Nutgrove2026!',        title: 'Store Manager' },
   { storeName: 'Swords Pavilions', email: 'swordspavilions@oakberry.ie',password: 'Swordspavilions2026!', title: 'Store Manager' },
   { storeName: 'Warehouse',         email: 'warehouse@oakberry.ie',        password: 'Warehouse2026!',         title: 'Warehouse Manager' },
 ];
@@ -82,12 +84,6 @@ const legacyEmails = [
 
 async function main() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT`;
-
-  // Remove legacy Nutgrove data so it cannot appear in dashboard store aggregates.
-  await sql`DELETE FROM requests WHERE storeId IN (SELECT id FROM stores WHERE LOWER(name) = 'nutgrove')`;
-  await sql`DELETE FROM users WHERE storeId IN (SELECT id FROM stores WHERE LOWER(name) = 'nutgrove')`;
-  await sql`DELETE FROM users WHERE LOWER(email) = 'nutgrove@oakberry.ie' OR LOWER(email) = 'manager.nutgrove@oakberry.ie'`;
-  await sql`DELETE FROM stores WHERE LOWER(name) = 'nutgrove'`;
 
   for (const email of legacyEmails) {
     await sql`DELETE FROM users WHERE email = ${email}`;
