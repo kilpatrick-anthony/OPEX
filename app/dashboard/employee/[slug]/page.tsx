@@ -36,7 +36,7 @@ type FieldUser  = { id: number; name: string; title: string | null; budget: numb
 type RequestRow = {
   id: number; amount: number; status: string; category: string;
   description: string; storeName: string; requesterName: string;
-  requesterRole: string; requesterTitle?: string | null; createdAt: string;
+  requesterRole: string; requesterTitle?: string | null; createdAt: string; dateOnReceipt?: string | null;
 };
 
 function inPeriod(date: Date, period: Period) {
@@ -329,6 +329,7 @@ export default function EmployeeDetailPage() {
                   <TableHeader>
                     <tr>
                       <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Receipt Date</th>
                       <th className="px-4 py-3 text-left">Category</th>
                       <th className="px-4 py-3 text-left">Description</th>
                       <th className="px-4 py-3 text-left">Amount</th>
@@ -340,6 +341,9 @@ export default function EmployeeDetailPage() {
                       <TableRow key={req.id}>
                         <TableCell className="text-sm text-slate-500 whitespace-nowrap">
                           {new Date(req.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                          {req.dateOnReceipt ? new Date(`${req.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}
                         </TableCell>
                         <TableCell><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">{req.category}</span></TableCell>
                         <TableCell className="max-w-sm text-sm text-slate-600">{req.description}</TableCell>

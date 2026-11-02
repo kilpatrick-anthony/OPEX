@@ -67,6 +67,7 @@ export type RequestRecord = {
   actionedByName?: string | null;
   submitterName?: string | null;
   submitterJobRole?: string | null;
+  dateOnReceipt?: string | null;
   reimbursable: boolean;
   updatedAt: string;
   createdAt: string;
@@ -137,6 +138,7 @@ const REQUEST_SELECT = `
   r.actioncomment as "actionComment",
   r.submittername as "submitterName",
   r.submitterjobrole as "submitterJobRole",
+  r.dateonreceipt as "dateOnReceipt",
   COALESCE(r.reimbursable, true) as "reimbursable",
   r.updatedat as "updatedAt",
   r.createdat as "createdAt"
@@ -155,6 +157,7 @@ const REQUEST_SELECT_LIST = `
   r.actioncomment as "actionComment",
   r.submittername as "submitterName",
   r.submitterjobrole as "submitterJobRole",
+  r.dateonreceipt as "dateOnReceipt",
   COALESCE(r.reimbursable, true) as "reimbursable",
   r.updatedat as "updatedAt",
   r.createdat as "createdAt"
@@ -165,7 +168,7 @@ export async function ensureSchema() {
   await Promise.all([
     sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, title TEXT, storeId INTEGER, budget REAL NOT NULL DEFAULT 0, portalAccess TEXT NOT NULL DEFAULT 'opex,oaker', createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS stores (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, budget REAL NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-    sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, submitterName TEXT, submitterJobRole TEXT, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    sql`CREATE TABLE IF NOT EXISTS requests (id SERIAL PRIMARY KEY, storeId INTEGER NOT NULL, userId INTEGER NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, description TEXT, receipt TEXT, submitterName TEXT, submitterJobRole TEXT, dateOnReceipt DATE, status TEXT NOT NULL DEFAULT 'pending', queryComment TEXT, actionComment TEXT, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS approvals (id SERIAL PRIMARY KEY, requestId INTEGER NOT NULL, userId INTEGER NOT NULL, action TEXT NOT NULL, comment TEXT, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, requestId INTEGER NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, isRead BOOLEAN NOT NULL DEFAULT false, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id SERIAL PRIMARY KEY, userId INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expiresAt TIMESTAMP NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -182,6 +185,7 @@ export async function ensureSchema() {
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterName TEXT`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS submitterJobRole TEXT`,
+    sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS dateOnReceipt DATE`,
     sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS reimbursable BOOLEAN DEFAULT true`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS checkerName TEXT`,
     sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS importKey TEXT`,
@@ -231,6 +235,7 @@ async function ensureRequiredMigrationsOnce() {
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editReason TEXT`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS editedAt TIMESTAMP`;
       await sql`ALTER TABLE oaker_inspections ADD COLUMN IF NOT EXISTS isOfficial BOOLEAN NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS dateOnReceipt DATE`;
       await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`;
       await sql`CREATE TABLE IF NOT EXISTS oaker_questions (id INTEGER PRIMARY KEY, section TEXT NOT NULL, standard TEXT NOT NULL, weighting REAL NOT NULL, active BOOLEAN NOT NULL DEFAULT true, expressPinned BOOLEAN NOT NULL DEFAULT false, sortOrder INTEGER NOT NULL DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true`;
@@ -439,10 +444,11 @@ export async function insertRequest(data: {
   receipt?: string;
   submitterName?: string;
   submitterJobRole?: string;
+  dateOnReceipt?: string;
 }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, 'pending') RETURNING *`;
+  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, 'pending') RETURNING *`;
   return getRequestById(result[0].id);
 }
 

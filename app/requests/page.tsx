@@ -33,6 +33,7 @@ type RequestRecord = {
   queryComment?: string | null;
   submitterName?: string | null;
   submitterJobRole?: string | null;
+  dateOnReceipt?: string | null;
   createdAt: string;
   storeRemainingBudget: number;
 };
@@ -63,6 +64,7 @@ export default function RequestsPage() {
     description: '',
     submitterName: '',
     submitterJobRole: '',
+    dateOnReceipt: '',
   });
 
   const [receiptDataUrls, setReceiptDataUrls] = useState<string[]>([]);
@@ -314,6 +316,10 @@ export default function RequestsPage() {
       setError('Please select your job role.');
       return;
     }
+    if (!form.dateOnReceipt) {
+      setError('Please enter the date on the receipt.');
+      return;
+    }
     if (!form.amount || Number(form.amount) <= 0) {
       setError('Please enter a valid amount.');
       return;
@@ -336,6 +342,7 @@ export default function RequestsPage() {
           receipts: receiptDataUrls,
           submitterName: isStoreLevelUser ? form.submitterName.trim() : undefined,
           submitterJobRole: isStoreLevelUser ? form.submitterJobRole : undefined,
+          dateOnReceipt: form.dateOnReceipt,
         }),
       });
 
@@ -354,6 +361,7 @@ export default function RequestsPage() {
         description: '',
         submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
         submitterJobRole: '',
+        dateOnReceipt: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
       if (isStoreStaff) {
@@ -379,6 +387,7 @@ export default function RequestsPage() {
       description: request.description,
       submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
       submitterJobRole: '',
+      dateOnReceipt: request.dateOnReceipt ?? '',
     }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -509,6 +518,17 @@ export default function RequestsPage() {
               </label>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+                Date on Receipt
+                <input
+                  type="date"
+                  value={form.dateOnReceipt}
+                  onChange={(e) => setForm({ ...form, dateOnReceipt: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-normal"
+                  required
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Description
                 <textarea
                   value={form.description}
@@ -601,7 +621,8 @@ export default function RequestsPage() {
                       <th className="px-4 py-3 text-left">Category</th>
                       <th className="px-4 py-3 text-left">Amount</th>
                       <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Submitted</th>
+                      <th className="px-4 py-3 text-left">Receipt Date</th>
                       <th className="px-4 py-3 text-left"></th>
                     </tr>
                   </TableHeader>
@@ -619,6 +640,9 @@ export default function RequestsPage() {
                         </TableCell>
                         <TableCell className="text-sm text-slate-500">
                           {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500">
+                          {request.dateOnReceipt ? new Date(`${request.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}
                         </TableCell>
                         <TableCell>
                           <button
@@ -644,7 +668,8 @@ export default function RequestsPage() {
                 <Table>
                   <TableHeader>
                     <tr>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Submitted</th>
+                      <th className="px-4 py-3 text-left">Receipt Date</th>
                       <th className="px-4 py-3 text-left">Category</th>
                       <th className="px-4 py-3 text-left">Amount</th>
                       <th className="px-4 py-3 text-left">Query note</th>
@@ -656,6 +681,9 @@ export default function RequestsPage() {
                       <TableRow key={request.id}>
                         <TableCell className="text-sm text-slate-500">
                           {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500">
+                          {request.dateOnReceipt ? new Date(`${request.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}
                         </TableCell>
                         <TableCell>{request.category}</TableCell>
                         <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
@@ -689,6 +717,9 @@ export default function RequestsPage() {
               <p><span className="font-medium text-slate-800">Submitted by:</span> {selectedRequest.submitterName} · {selectedRequest.submitterJobRole}</p>
             ) : null}
             <p><span className="font-medium text-slate-800">Category:</span> {selectedRequest.category}</p>
+            {selectedRequest.dateOnReceipt ? (
+              <p><span className="font-medium text-slate-800">Date on Receipt:</span> {new Date(`${selectedRequest.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <p><span className="font-medium text-slate-800">Amount:</span> {formatCurrency(selectedRequest.amount)}</p>
               {selectedRequest.status === 'pending' || selectedRequest.status === 'queried' ? (

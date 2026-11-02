@@ -97,9 +97,14 @@ export async function POST(request: Request) {
   const receipt = serializeReceiptList(receipts);
   const submitterName = body.submitterName?.trim() || null;
   const submitterJobRole = body.submitterJobRole?.trim() || null;
+  const dateOnReceipt = typeof body.dateOnReceipt === 'string' ? body.dateOnReceipt.trim() : '';
 
-  if (!storeId || !category || !amount || amount <= 0 || !description) {
-    return NextResponse.json({ error: 'storeId, category, amount and description are required.' }, { status: 400 });
+  if (!storeId || !category || !amount || amount <= 0 || !description || !dateOnReceipt) {
+    return NextResponse.json({ error: 'storeId, category, amount, description and dateOnReceipt are required.' }, { status: 400 });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnReceipt)) {
+    return NextResponse.json({ error: 'dateOnReceipt must be a valid date.' }, { status: 400 });
   }
 
   if (!REQUEST_CATEGORIES.includes(category)) {
@@ -120,6 +125,7 @@ export async function POST(request: Request) {
     receipt: receipt || undefined,
     submitterName: submitterName || undefined,
     submitterJobRole: submitterJobRole || undefined,
+    dateOnReceipt,
   });
 
   // Fire-and-forget email to all directors/super_admins — never blocks the response

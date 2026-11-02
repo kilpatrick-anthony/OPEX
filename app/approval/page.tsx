@@ -23,6 +23,7 @@ type ApprovalRequest = {
   description: string;
   receipt?: string | null;
   createdAt: string;
+  dateOnReceipt?: string | null;
   storeRemainingBudget: number;
   status: RequestStatus;
   queryComment?: string;
@@ -362,7 +363,8 @@ export default function ApprovalPage() {
                     <th className="px-4 py-3 text-left">Requester</th>
                     <th className="px-4 py-3 text-left">Amount</th>
                     <th className="px-4 py-3 text-left">Category</th>
-                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Submitted</th>
+                    <th className="px-4 py-3 text-left">Receipt Date</th>
                     <th className="px-4 py-3 text-left">Status</th>
                     <th className="px-4 py-3 text-left">Actions</th>
                   </tr>
@@ -370,7 +372,7 @@ export default function ApprovalPage() {
                 <tbody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-sm text-slate-500">Loading approvals…</TableCell>
+                      <TableCell colSpan={9} className="text-sm text-slate-500">Loading approvals…</TableCell>
                     </TableRow>
                   ) : (
                     displayedRequests.map((request) => {
@@ -401,6 +403,7 @@ export default function ApprovalPage() {
                             <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
                           </TableCell>
                           <TableCell className="text-sm text-slate-500">{new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}</TableCell>
+                          <TableCell className="text-sm text-slate-500">{request.dateOnReceipt ? new Date(`${request.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}</TableCell>
                           <TableCell>
                             <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[request.status]}`}>{request.status}</span>
                           </TableCell>
@@ -547,6 +550,10 @@ export default function ApprovalPage() {
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Date submitted</p>
                 <p className="mt-0.5 text-slate-800">{new Date(viewRequest.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Date on Receipt</p>
+                <p className="mt-0.5 text-slate-800">{viewRequest.dateOnReceipt ? new Date(`${viewRequest.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Remaining store budget</p>

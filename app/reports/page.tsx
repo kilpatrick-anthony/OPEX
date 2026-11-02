@@ -34,6 +34,7 @@ type RequestRow = {
   storeName: string;
   requesterName: string;
   createdAt: string;
+  dateOnReceipt?: string | null;
   reimbursable?: boolean;
 };
 
@@ -307,9 +308,9 @@ export default function ReportsPage() {
 
   function exportCsv() {
     const rows: string[][] = [
-      ['ID', 'Date', 'Store', 'Category', 'Amount', 'Status', 'Requester', 'Description'],
+      ['ID', 'Date submitted', 'Date on Receipt', 'Store', 'Category', 'Amount', 'Status', 'Requester', 'Description'],
       ...dateFilteredRequests.map((r) => [
-        String(r.id), r.createdAt, r.storeName, r.category,
+        String(r.id), r.createdAt, r.dateOnReceipt ?? '', r.storeName, r.category,
         r.amount.toFixed(2), r.status, r.requesterName, r.description,
       ]),
     ];
@@ -684,7 +685,8 @@ export default function ReportsPage() {
                     <Table>
                       <TableHeader>
                         <tr>
-                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">Submitted</th>
+                          <th className="px-4 py-3 text-left">Receipt Date</th>
                           <th className="px-4 py-3 text-left">Category</th>
                           <th className="px-4 py-3 text-left">Description</th>
                           <th className="px-4 py-3 text-right">Amount</th>
@@ -789,6 +791,7 @@ export default function ReportsPage() {
                   {tableFilteredRequests.slice(0, 50).map((request) => (
                     <TableRow key={request.id}>
                       <TableCell>{format(new Date(request.createdAt), 'd MMM yyyy')}</TableCell>
+                      <TableCell>{request.dateOnReceipt ? format(new Date(`${request.dateOnReceipt.slice(0, 10)}T00:00:00`), 'd MMM yyyy') : '-'}</TableCell>
                       <TableCell>{request.storeName}</TableCell>
                       <TableCell>{request.category}</TableCell>
                       <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>

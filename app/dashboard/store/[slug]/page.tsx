@@ -36,7 +36,7 @@ type StoreRecord = { id: number; name: string; budget: number };
 type RequestRow = {
   id: number; amount: number; status: string; category: string;
   description: string; storeName: string; requesterName: string;
-  requesterRole: string; requesterTitle?: string | null; createdAt: string;
+  requesterRole: string; requesterTitle?: string | null; createdAt: string; dateOnReceipt?: string | null;
 };
 
 function inPeriod(date: Date, period: Period) {
@@ -345,6 +345,7 @@ export default function StoreDetailPage() {
                   <TableHeader>
                     <tr>
                       <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Receipt Date</th>
                       <th className="px-4 py-3 text-left">Requester</th>
                       <th className="px-4 py-3 text-left">Category</th>
                       <th className="px-4 py-3 text-left">Description</th>
@@ -357,6 +358,9 @@ export default function StoreDetailPage() {
                       <TableRow key={req.id}>
                         <TableCell className="text-sm text-slate-500 whitespace-nowrap">
                           {new Date(req.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                          {req.dateOnReceipt ? new Date(`${req.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}
                         </TableCell>
                         <TableCell>
                           <div>
