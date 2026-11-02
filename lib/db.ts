@@ -1145,11 +1145,12 @@ export async function getDashboardData(from: string, to: string) {
       AND createdAt < ${to}::date
   `;
   const byStore = await sql`
-    SELECT s.name, COALESCE(SUM(r.amount), 0) as total
+    SELECT s.name,
+      COALESCE(SUM(CASE WHEN r.status = 'approved' THEN r.amount ELSE 0 END), 0) AS total,
+      COALESCE(SUM(CASE WHEN r.status IN ('pending', 'queried') THEN r.amount ELSE 0 END), 0) AS pending
     FROM stores s
     LEFT JOIN requests r
       ON r.storeId = s.id
-      AND r.status = 'approved'
       AND r.createdAt >= ${from}::date
       AND r.createdAt < ${to}::date
     GROUP BY s.id, s.name
@@ -1184,7 +1185,11 @@ export async function getDashboardData(from: string, to: string) {
     totalBudget: budgetTotal,
     totalSpent: spentTotal,
     remainingBudget: Math.max(budgetTotal - spentTotal, 0),
-    byStore: byStore.map((item) => ({ name: String(item.name), total: Number(item.total) })),
+    byStore: byStore.map((item) => ({
+      name: String(item.name),
+      total: Number(item.total),
+      pending: Number(item.pending),
+    })),
     byCategory: byCategory.map((item) => ({ category: String(item.category), total: Number(item.total) })),
     topExpenses: topExpenses as RequestRecord[],
   };

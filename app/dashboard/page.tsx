@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableCell } from '@/components/ui/table';
@@ -37,7 +37,7 @@ type DashboardResponse = {
   totalBudget: number;
   totalSpent: number;
   remainingBudget: number;
-  byStore: Array<{ name: string; total: number }>;
+  byStore: Array<{ name: string; total: number; pending: number }>;
   byCategory: Array<{ category: string; total: number }>;
   topExpenses: Array<{
     id: number;
@@ -140,7 +140,11 @@ export default function DashboardPage() {
 
   function exportCsv() {
     if (!dashboard) return;
-    const rows = [['Store', 'Amount'], ...dashboard.byStore.map((item) => [item.name, item.total.toFixed(2)])];
+    const rows = [['Store', 'Approved Amount', 'Awaiting Approval'], ...dashboard.byStore.map((item) => [
+      item.name,
+      item.total.toFixed(2),
+      item.pending.toFixed(2),
+    ])];
     const csv = rows.map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -262,8 +266,15 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" interval={0} height={72} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
                   <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Bar dataKey="total" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      formatCurrency(value),
+                      name === 'total' ? 'Approved' : 'Awaiting approval',
+                    ]}
+                  />
+                  <Legend formatter={(value) => value === 'total' ? 'Approved' : 'Awaiting approval'} />
+                  <Bar dataKey="total" stackId="spend" fill="#0ea5e9" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="pending" stackId="spend" fill="#f59e0b" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
