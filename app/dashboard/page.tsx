@@ -15,6 +15,24 @@ import { useCurrentUser } from '@/lib/userContext';
 
 type DashboardPeriod = 'month' | 'week' | 'custom';
 
+function StoreNameTick({ x, y, payload }: { x: number; y: number; payload: { value: string } }) {
+  const words = payload.value.split(' ');
+  const lines = words.reduce<string[]>((result, word) => {
+    const current = result[result.length - 1];
+    if (!current || `${current} ${word}`.length > 14) result.push(word);
+    else result[result.length - 1] = `${current} ${word}`;
+    return result;
+  }, []);
+
+  return (
+    <text x={x} y={y} fill="#475569" fontSize={11} textAnchor="middle">
+      {lines.slice(0, 3).map((line, index) => (
+        <tspan key={line} x={x} dy={index === 0 ? 14 : 13}>{line}</tspan>
+      ))}
+    </text>
+  );
+}
+
 type DashboardResponse = {
   totalBudget: number;
   totalSpent: number;
@@ -238,11 +256,11 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm uppercase tracking-widest text-slate-500">Spend by store</p>
             </div>
-            <div className="h-72">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dashboard.byStore} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={dashboard.byStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: '#475569', fontSize: 11 }} />
+                  <XAxis dataKey="name" interval={0} height={72} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
                   <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={(value: number) => formatCurrency(value)} />
                   <Bar dataKey="total" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
