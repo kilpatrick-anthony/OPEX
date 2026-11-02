@@ -606,21 +606,31 @@ export default function ApprovalPage() {
               </div>
             ) : null}
             {(viewRequest.status === 'pending' || viewRequest.status === 'queried') ? (
-              <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">Include in payroll reimbursement</p>
-                  <p className="text-xs text-slate-500">Uncheck if paid via fuel card or another method.</p>
+                  <p className="text-sm font-medium text-slate-800">How was this expense paid?</p>
+                  <p className="mt-1 text-xs text-slate-500">Select payroll reimbursement only if this expense should be reimbursed through payroll.</p>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-label="Include in payroll reimbursement"
-                  aria-checked={detailReimbursable}
-                  onClick={() => setDetailReimbursable((value) => !value)}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${detailReimbursable ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                >
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${detailReimbursable ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    aria-pressed={detailReimbursable}
+                    onClick={() => setDetailReimbursable(true)}
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${detailReimbursable ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    Payroll reimbursement
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">Include this expense in payroll.</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={!detailReimbursable}
+                    onClick={() => setDetailReimbursable(false)}
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${!detailReimbursable ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    Already paid another way
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">Fuel card, company card, or other payment.</span>
+                  </button>
+                </div>
               </div>
             ) : null}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
