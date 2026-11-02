@@ -640,7 +640,7 @@ export default function ApprovalPage() {
                     className={`rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${!detailReimbursable ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
                   >
                     Already paid another way
-                    <span className="mt-0.5 block text-xs font-normal text-slate-500">Fuel card, company card, or other payment.</span>
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">Cash from till, fuel card, company card, or other payment.</span>
                   </button>
                 </div>
               </div>
