@@ -82,6 +82,18 @@ export default function ApprovalPage() {
       setError('');
       try {
         await Promise.all([loadStores(), loadRequests()]);
+        const requestId = Number(new URLSearchParams(window.location.search).get('request'));
+        if (Number.isInteger(requestId) && requestId > 0) {
+          const response = await fetch(`/api/requests/${requestId}`, { cache: 'no-store' });
+          const payload = await readJsonSafely(response);
+          if (response.ok) {
+            const request = (payload as { request?: ApprovalRequest })?.request;
+            if (request) {
+              setViewRequest(request);
+              setDetailReimbursable(false);
+            }
+          }
+        }
       } catch (err) {
         if (!canceled) setError(err instanceof Error ? err.message : 'Failed to initialize approvals');
       } finally {

@@ -25,7 +25,7 @@ function formatCurrencyEur(amount: number) {
 
 function buildRequestEmailHtml(request: RequestRecord): string {
   const appUrl = process.env.NEXTAUTH_URL ?? 'https://opex.oakberry.ie';
-  const approvalUrl = `${appUrl}/approval`;
+  const approvalUrl = `${appUrl.replace(/\/$/, '')}/approval?request=${encodeURIComponent(request.id)}`;
   const submittedAt = new Date(request.createdAt).toLocaleString('en-IE', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
