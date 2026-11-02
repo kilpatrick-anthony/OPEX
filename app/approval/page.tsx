@@ -47,8 +47,7 @@ export default function ApprovalPage() {
   const [queryReason, setQueryReason] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [viewRequest, setViewRequest] = useState<ApprovalRequest | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ request: ApprovalRequest; action: 'approved' | 'rejected' } | null>(null);
-  const [confirmReimbursable, setConfirmReimbursable] = useState(false);
+  const [detailReimbursable, setDetailReimbursable] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +120,7 @@ export default function ApprovalPage() {
 
   async function openRequest(req: ApprovalRequest) {
     setViewRequest(req);
+    setDetailReimbursable(false);
     try {
       const res = await fetch(`/api/requests/${req.id}`, { cache: 'no-store' });
       if (res.ok) {
@@ -181,15 +181,14 @@ export default function ApprovalPage() {
 
   async function handleAction(id: number, action: 'approved' | 'rejected', reimbursable = false) {
     setError('');
-    setConfirmAction(null);
     setViewRequest(null);
     try {
       await performAction(id, action);
-      if (action === 'approved' && !reimbursable) {
+      if (action === 'approved') {
         await fetch(`/api/requests/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reimbursable: false }),
+          body: JSON.stringify({ reimbursable }),
         });
       }
       await loadRequests();
@@ -457,51 +456,6 @@ export default function ApprovalPage() {
         </div>
       </main>
 
-      <Dialog
-        open={!!confirmAction}
-        title={confirmAction?.action === 'approved' ? 'Confirm approval' : 'Confirm rejection'}
-        description={confirmAction ? `${confirmAction.action === 'approved' ? 'Approve' : 'Reject'} the ${confirmAction.request.category} request of ${formatCurrency(confirmAction.request.amount)} from ${confirmAction.request.storeName}?` : ''}
-        onClose={() => setConfirmAction(null)}
-      >
-        {confirmAction && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 space-y-1">
-              <p><span className="font-medium">Store:</span> {confirmAction.request.storeName}</p>
-              <p><span className="font-medium">Requester:</span> {confirmAction.request.requesterName}</p>
-              <p><span className="font-medium">Category:</span> {confirmAction.request.category}</p>
-              <p><span className="font-medium">Amount:</span> {formatCurrency(confirmAction.request.amount)}</p>
-            </div>
-            {confirmAction.action === 'approved' && (
-              <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Include in payroll reimbursement</p>
-                  <p className="text-xs text-slate-500">Uncheck if paid via fuel card or another method.</p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={confirmReimbursable}
-                  onClick={() => setConfirmReimbursable((v) => !v)}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${confirmReimbursable ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                >
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${confirmReimbursable ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" type="button" onClick={() => setConfirmAction(null)}>Cancel</Button>
-              <Button
-                type="button"
-                onClick={() => handleAction(confirmAction.request.id, confirmAction.action, confirmReimbursable)}
-                className={confirmAction.action === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}
-              >
-                {confirmAction.action === 'approved' ? 'Yes, approve' : 'Yes, reject'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-
       <Dialog open={!!viewRequest} title="Request details" description="Full information for this expenditure request." onClose={() => { setViewRequest(null); setEditingAmount(false); setEditAmount(''); }}>
         {viewRequest && (
           <div className="space-y-4 text-sm">
@@ -551,10 +505,6 @@ export default function ApprovalPage() {
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Date on Receipt</p>
                 <p className="mt-0.5 text-slate-800">{viewRequest.dateOnReceipt ? new Date(`${viewRequest.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Remaining store budget</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(viewRequest.storeRemainingBudget)}</p>
               </div>
               {(viewRequest.status === 'approved' || viewRequest.status === 'rejected') && viewRequest.actionedByName ? (
                 <div className="col-span-2">
@@ -655,6 +605,24 @@ export default function ApprovalPage() {
                 <p className="mt-1 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sky-800">{viewRequest.queryComment}</p>
               </div>
             ) : null}
+            {(viewRequest.status === 'pending' || viewRequest.status === 'queried') ? (
+              <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Include in payroll reimbursement</p>
+                  <p className="text-xs text-slate-500">Uncheck if paid via fuel card or another method.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="Include in payroll reimbursement"
+                  aria-checked={detailReimbursable}
+                  onClick={() => setDetailReimbursable((value) => !value)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${detailReimbursable ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${detailReimbursable ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            ) : null}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
               {(viewRequest.status === 'pending' || viewRequest.status === 'queried') ? (
                 <>
@@ -668,17 +636,14 @@ export default function ApprovalPage() {
                   <Button
                     type="button"
                     className="bg-rose-600 hover:bg-rose-700"
-                    onClick={() => setConfirmAction({ request: viewRequest, action: 'rejected' })}
+                    onClick={() => handleAction(viewRequest.id, 'rejected')}
                   >
                     Reject
                   </Button>
                   <Button
                     type="button"
                     className="bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => {
-                      setConfirmReimbursable(false);
-                      setConfirmAction({ request: viewRequest, action: 'approved' });
-                    }}
+                    onClick={() => handleAction(viewRequest.id, 'approved', detailReimbursable)}
                   >
                     Approve
                   </Button>
