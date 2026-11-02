@@ -251,7 +251,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="mt-6">
           <Card className="space-y-4">
             <div>
               <p className="text-sm uppercase tracking-widest text-slate-500">Spend by store</p>
@@ -269,7 +269,7 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          <Card className="space-y-4">
+          <Card className="mt-6 space-y-4">
             <div>
               <p className="text-sm uppercase tracking-widest text-slate-500">Spend by category</p>
             </div>
