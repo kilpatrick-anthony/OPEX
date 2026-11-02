@@ -182,6 +182,7 @@ export default function ApprovalPage() {
   async function handleAction(id: number, action: 'approved' | 'rejected', reimbursable = false) {
     setError('');
     setConfirmAction(null);
+    setViewRequest(null);
     try {
       await performAction(id, action);
       if (action === 'approved' && !reimbursable) {
@@ -215,6 +216,7 @@ export default function ApprovalPage() {
   }
 
   function openQuery(id: number) {
+    setViewRequest(null);
     setQueryId(id);
     setQueryReason('');
     setModalOpen(true);
@@ -410,11 +412,6 @@ export default function ApprovalPage() {
                           <TableCell className="py-3">
                             {isActionable ? (
                               <div className="flex flex-col gap-1.5">
-                                <button type="button" onClick={() => { setConfirmReimbursable(false); setConfirmAction({ request, action: 'approved' }); }} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
-                                <button type="button" onClick={() => { setConfirmReimbursable(false); setConfirmAction({ request, action: 'rejected' }); }} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
-                                {request.status === 'pending' ? (
-                                  <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
-                                ) : null}
                                 <button type="button" onClick={() => openRequest(request)} className="w-24 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100">View</button>
                               </div>
                             ) : (
@@ -658,7 +655,35 @@ export default function ApprovalPage() {
                 <p className="mt-1 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sky-800">{viewRequest.queryComment}</p>
               </div>
             ) : null}
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
+              {(viewRequest.status === 'pending' || viewRequest.status === 'queried') ? (
+                <>
+                  <Button
+                    type="button"
+                    className="bg-sky-600 hover:bg-sky-700"
+                    onClick={() => openQuery(viewRequest.id)}
+                  >
+                    Query
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-rose-600 hover:bg-rose-700"
+                    onClick={() => setConfirmAction({ request: viewRequest, action: 'rejected' })}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => {
+                      setConfirmReimbursable(false);
+                      setConfirmAction({ request: viewRequest, action: 'approved' });
+                    }}
+                  >
+                    Approve
+                  </Button>
+                </>
+              ) : null}
               <Button variant="secondary" type="button" onClick={() => setViewRequest(null)}>Close</Button>
             </div>
           </div>
