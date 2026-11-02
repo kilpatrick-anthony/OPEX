@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCurrentUser } from '@/lib/userContext';
@@ -12,9 +12,33 @@ export function Navbar() {
   const { user, logout } = useCurrentUser();
   const [unreadCount, setUnreadCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopMoreOpen, setDesktopMoreOpen] = useState(false);
+  const desktopMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Close menu on route change
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    setMenuOpen(false);
+    setDesktopMoreOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (!desktopMoreRef.current?.contains(event.target as Node)) {
+        setDesktopMoreOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setDesktopMoreOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +90,9 @@ export function Navbar() {
     ...(user && canAccess(user.role, 'admin') ? [{ href: '/admin', label: 'Admin', show: true }] : []),
   ];
   const navItems = allNavItems.filter((i) => i.show);
+  const primaryLabels = ['Dashboard', 'Approvals', 'Requests', 'Reports'];
+  const primaryNavItems = navItems.filter((item) => primaryLabels.includes(item.label));
+  const moreNavItems = navItems.filter((item) => !primaryLabels.includes(item.label));
 
   return (
     <header className="sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #4a1f60 0%, #6d2f8e 50%, #3a1750 100%)' }}>
@@ -78,7 +105,7 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex flex-wrap items-center gap-1 text-sm">
-          {navItems.map((item) => {
+          {primaryNavItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link key={item.href} href={item.href}
@@ -95,6 +122,49 @@ export function Navbar() {
               </Link>
             );
           })}
+
+          {moreNavItems.length > 0 ? (
+            <div ref={desktopMoreRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setDesktopMoreOpen((open) => !open)}
+                className={`flex items-center gap-1 rounded-full px-4 py-1.5 font-medium transition-all ${desktopMoreOpen ? 'bg-white text-[#4a1f60]' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                aria-expanded={desktopMoreOpen}
+                aria-haspopup="menu"
+              >
+                More
+                {unreadCount > 0 && moreNavItems.some((item) => item.href === '/account') ? (
+                  <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-[#5c256f]" aria-label={`${unreadCount} unread notifications`} />
+                ) : null}
+                <svg className={`h-3.5 w-3.5 transition-transform ${desktopMoreOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+
+              {desktopMoreOpen ? (
+                <div role="menu" className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  {moreNavItems.map((item) => {
+                    const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        role="menuitem"
+                        className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? 'bg-sky-50 text-sky-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {item.label}
+                        {item.href === '/account' && unreadCount > 0 ? (
+                          <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
+                            {Math.min(unreadCount, 99)}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </nav>
 
         {/* Desktop user pill + sign out */}

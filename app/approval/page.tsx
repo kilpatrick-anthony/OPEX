@@ -48,7 +48,7 @@ export default function ApprovalPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [viewRequest, setViewRequest] = useState<ApprovalRequest | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ request: ApprovalRequest; action: 'approved' | 'rejected' } | null>(null);
-  const [confirmReimbursable, setConfirmReimbursable] = useState(true);
+  const [confirmReimbursable, setConfirmReimbursable] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<'approved' | 'rejected' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,7 +179,7 @@ export default function ApprovalPage() {
     if (!response.ok) throw new Error(getApiErrorMessage(response, payload, 'Failed to apply action'));
   }
 
-  async function handleAction(id: number, action: 'approved' | 'rejected', reimbursable = true) {
+  async function handleAction(id: number, action: 'approved' | 'rejected', reimbursable = false) {
     setError('');
     setConfirmAction(null);
     try {
@@ -410,8 +410,8 @@ export default function ApprovalPage() {
                           <TableCell className="py-3">
                             {isActionable ? (
                               <div className="flex flex-col gap-1.5">
-                                <button type="button" onClick={() => { setConfirmReimbursable(true); setConfirmAction({ request, action: 'approved' }); }} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
-                                <button type="button" onClick={() => { setConfirmReimbursable(true); setConfirmAction({ request, action: 'rejected' }); }} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
+                                <button type="button" onClick={() => { setConfirmReimbursable(false); setConfirmAction({ request, action: 'approved' }); }} className="w-24 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700">Approve</button>
+                                <button type="button" onClick={() => { setConfirmReimbursable(false); setConfirmAction({ request, action: 'rejected' }); }} className="w-24 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700">Reject</button>
                                 {request.status === 'pending' ? (
                                   <button type="button" onClick={() => openQuery(request.id)} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50">Query</button>
                                 ) : null}
