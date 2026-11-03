@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, type PortalKey } from '@/lib/portalAccess';
+import { OPEX_SESSION_VERSION } from '@/lib/sessionVersion';
 
 const OPEX_PREFIXES = ['/dashboard', '/requests', '/approval', '/reports', '/audit', '/forecast'];
 
@@ -29,6 +30,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
     const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (token.sessionVersion !== OPEX_SESSION_VERSION) {
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('forceLogout', '1');
     return NextResponse.redirect(loginUrl);
   }
 

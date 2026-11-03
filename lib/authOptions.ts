@@ -1,6 +1,7 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getStoreByName, getUserByEmail, updateUserStoreAssignment } from '@/lib/db';
 import { verifyPassword } from '@/lib/password';
+import { OPEX_SESSION_VERSION } from '@/lib/sessionVersion';
 
 const resolvedAuthSecret =
   process.env.NEXTAUTH_SECRET ||
@@ -54,6 +55,11 @@ export const authOptions = {
         token.storeId = (user as any).storeId ?? null;
         token.portalAccess = (user as any).portalAccess ?? ['opex', 'oaker'];
         token.canManageOakerQuestions = Boolean((user as any).canManageOakerQuestions);
+        token.sessionVersion = OPEX_SESSION_VERSION;
+      }
+
+      if (!user && token.sessionVersion !== OPEX_SESSION_VERSION) {
+        return {};
       }
 
       // Keep session token aligned with database user state (role/title/store assignment).
