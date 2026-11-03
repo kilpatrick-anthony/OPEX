@@ -16,7 +16,8 @@ import { useCurrentUser } from '@/lib/userContext';
 type DashboardPeriod = 'month' | 'week' | 'custom';
 
 function StoreNameTick({ x, y, payload }: { x: number; y: number; payload: { value: string } }) {
-  const words = payload.value.split(' ');
+  const displayValue = payload.value === 'Dun Laoghaire' ? 'Dun\nLaoghaire' : payload.value;
+  const words = displayValue.includes('\n') ? displayValue.split('\n') : displayValue.split(' ');
   const lines = words.reduce<string[]>((result, word) => {
     const current = result[result.length - 1];
     if (!current || `${current} ${word}`.length > 14) result.push(word);
