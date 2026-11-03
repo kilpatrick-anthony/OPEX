@@ -263,11 +263,11 @@ export default function DashboardPage() {
               <p className="mt-1 text-xs text-slate-400 sm:hidden">Swipe sideways to see all stores</p>
             </div>
             <div className="-mx-2 overflow-x-auto px-2 pb-2 sm:mx-0 sm:px-0">
-              <div className="h-80 w-[720px] sm:w-full">
+              <div className="h-[350px] w-[960px] sm:w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dashboard.byStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" interval={0} height={72} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
+                    <XAxis dataKey="name" interval={0} height={84} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
                     <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
                       formatter={(value: number, name: string) => [
