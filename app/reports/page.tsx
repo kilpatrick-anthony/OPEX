@@ -110,7 +110,7 @@ function printPayrollReport(groups: PayrollGroup[], dateFrom: Date, dateTo: Date
         </tbody>
       </table>` : ''}
     </div>`).join('');
-  w.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${dateLabel}</title>
+  w.document.write(`<!DOCTYPE html><html><head><title>OPEX Report — ${dateLabel}</title>
     <style>*{box-sizing:border-box}body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px;max-width:860px;margin:0 auto}h1{font-size:22px;margin:0}@media print{body{padding:20px}}</style>
     </head><body>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;border-bottom:1px solid #e2e8f0;padding-bottom:20px">

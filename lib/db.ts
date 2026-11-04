@@ -535,6 +535,35 @@ export async function queryRequests(filters: { storeId?: number; status?: string
   return result as RequestRecord[];
 }
 
+export async function queryApprovedRequestsBetween(from: Date, to: Date): Promise<RequestRecord[]> {
+  await ensureSchemaOnce();
+  const sql = getSql();
+  const result = await sql.query(
+    `SELECT r.id, r.storeId, s.name AS "storeName", r.userId, u.name AS "requesterName",
+      u.role AS "requesterRole", u.title AS "requesterTitle", r.category, r.amount, r.description,
+      r.receipt, r.status, r.queryComment, r.actionComment, au.name AS "actionedByName",
+      COALESCE(r.submitterName, u.name) AS "submitterName",
+      COALESCE(r.submitterJobRole, u.title) AS "submitterJobRole",
+      r.dateOnReceipt, COALESCE(r.reimbursable, true) AS reimbursable,
+      r.updatedAt, r.createdAt
+    FROM requests r
+    JOIN stores s ON r.storeId = s.id
+    JOIN users u ON r.userId = u.id
+    LEFT JOIN LATERAL (
+      SELECT ap.userId FROM approvals ap
+      WHERE ap.requestId = r.id AND ap.action IN ('approved', 'rejected')
+      ORDER BY ap.createdAt DESC LIMIT 1
+    ) latest_ap ON true
+    LEFT JOIN users au ON au.id = latest_ap.userId
+    WHERE r.status = 'approved'
+      AND r.createdAt >= $1
+      AND r.createdAt < $2
+    ORDER BY s.name, u.name, r.createdAt`,
+    [from.toISOString(), to.toISOString()],
+  );
+  return result as RequestRecord[];
+}
+
 export async function getStoreBudgets() {
   await ensureSchemaOnce();
   const sql = getSql();
