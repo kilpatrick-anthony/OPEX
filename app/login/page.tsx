@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 
 export default function LoginPage() {
   const { status } = useSession();
@@ -13,10 +13,33 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [forceLogoutPending, setForceLogoutPending] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/portal');
-  }, [status, router]);
+    if (
+      status === 'authenticated' &&
+      !forceLogoutPending &&
+      !new URLSearchParams(window.location.search).has('forceLogout')
+    ) {
+      router.replace('/portal');
+    }
+  }, [status, router, forceLogoutPending]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('forceLogout')) return;
+
+    setForceLogoutPending(true);
+    params.delete('forceLogout');
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`,
+    );
+
+    signOut({ redirect: false }).finally(() => setForceLogoutPending(false));
+  }, []);
 
   if (status === 'authenticated') return null;
 

@@ -39,7 +39,10 @@ export async function middleware(request: NextRequest) {
     }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('forceLogout', '1');
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.set('next-auth.session-token', '', { path: '/', expires: new Date(0) });
+    response.cookies.set('__Secure-next-auth.session-token', '', { path: '/', expires: new Date(0) });
+    return response;
   }
 
   if (token.role === 'super_admin') return NextResponse.next();

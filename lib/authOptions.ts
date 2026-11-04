@@ -59,7 +59,7 @@ export const authOptions = {
       }
 
       if (!user && token.sessionVersion !== OPEX_SESSION_VERSION) {
-        return {};
+        return null;
       }
 
       // Keep session token aligned with database user state (role/title/store assignment).
