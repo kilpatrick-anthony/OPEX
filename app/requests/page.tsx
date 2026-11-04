@@ -66,7 +66,7 @@ export default function RequestsPage() {
     submitterName: '',
     submitterJobRole: '',
     dateOnReceipt: '',
-    reimbursable: '',
+    reimbursable: 'already-paid',
   });
 
   const [receiptDataUrls, setReceiptDataUrls] = useState<string[]>([]);
@@ -369,7 +369,7 @@ export default function RequestsPage() {
         submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
         submitterJobRole: '',
         dateOnReceipt: '',
-        reimbursable: '',
+        reimbursable: 'already-paid',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
       if (isStoreStaff) {
