@@ -283,21 +283,6 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Important notice */}
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4">
-            <div className="flex gap-3">
-              <span className="mt-0.5 text-lg">⚠️</span>
-              <div>
-                <p className="text-sm font-semibold text-amber-800">Important — Field Team: Enter your name only</p>
-                <p className="mt-1 text-sm text-amber-700">
-                  When submitting an expense request, please enter <strong>only your name</strong> in the name field.
-                  Do <strong>not</strong> add your store location or area alongside your name (e.g. don&apos;t write &quot;Emma Barrett – Cork&quot;).
-                  Location is captured separately via the store selector and entering it in the name field can cause duplicate or incorrect entries to appear in the payroll report.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <Card className="divide-y divide-slate-100 overflow-hidden">
 
             {/* Step 1 — Date range */}
