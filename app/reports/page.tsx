@@ -333,60 +333,8 @@ export default function ReportsPage() {
                     <p className="text-sm font-semibold text-slate-900">Select stores and/or team members</p>
                     <p className="text-xs text-slate-500">
                       Click each store or team member you want included. You can select multiple.
-                      Use the quick-select dropdowns or click the buttons below.
                     </p>
                   </div>
-                </div>
-
-                {/* Quick filter dropdowns */}
-                <div className="mb-5 flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick select</span>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) return;
-                      setSelectedEntityKeys([val]);
-                    }}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    <option value="">Jump to a location…</option>
-                    {stores.map((s) => (
-                      <option key={s.id} value={`store:${s.id}`}>{s.name}</option>
-                    ))}
-                  </select>
-                  {fieldUsers.length > 0 && (
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) return;
-                        setSelectedEntityKeys([val]);
-                      }}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      <option value="">Jump to a team member…</option>
-                      {fieldUsers.map((u) => (
-                        <option key={u.id} value={`employee:${u.id}`}>{u.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEntityKeys([
-                      ...stores.map((s) => `store:${s.id}`),
-                      ...fieldUsers.map((u) => `employee:${u.id}`),
-                    ])}
-                    className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
-                  >
-                    Select all
-                  </button>
-                  {selectedEntityKeys.length > 0 && (
-                    <button type="button" onClick={() => setSelectedEntityKeys([])}
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      Clear selection ({selectedEntityKeys.length})
-                    </button>
-                  )}
                 </div>
 
                 {stores.length > 0 && (
