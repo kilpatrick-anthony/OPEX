@@ -12,12 +12,24 @@ export function getPreviousWeekRange(now = new Date()) {
 }
 
 export function formatReportDate(date: Date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'Unknown date';
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
   }).format(date);
+}
+
+function parseReportDate(value: unknown): Date {
+  if (value instanceof Date) return new Date(value.getTime());
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:[ T].*)?$/.test(value)) {
+    const normalized = `${value.replace(' ', 'T')}Z`.replace(/ZZ$/, 'Z');
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  const parsed = new Date(String(value));
+  return parsed;
 }
 
 export async function createPayrollReportPdf(
@@ -48,7 +60,7 @@ export async function createPayrollReportPdf(
     doc.moveDown(0.5);
     for (const request of reimbursable) {
       doc.fontSize(10).fillColor('#0f172a').text(
-        `${formatReportDate(new Date(request.createdAt))} | ${request.storeName} | ${request.requesterName} | ${request.category}`,
+        `${formatReportDate(parseReportDate(request.createdAt))} | ${request.storeName} | ${request.requesterName} | ${request.category}`,
       );
       doc.fontSize(10).fillColor('#475569').text(`${request.description} - EUR ${Number(request.amount).toFixed(2)}`);
       doc.moveDown(0.5);
@@ -63,7 +75,7 @@ export async function createPayrollReportPdf(
       doc.moveDown(0.5);
       for (const request of excluded) {
         doc.fontSize(10).fillColor('#475569').text(
-          `${formatReportDate(new Date(request.createdAt))} | ${request.storeName} | ${request.requesterName} | ${request.category} | ${request.description} - EUR ${Number(request.amount).toFixed(2)}`,
+          `${formatReportDate(parseReportDate(request.createdAt))} | ${request.storeName} | ${request.requesterName} | ${request.category} | ${request.description} - EUR ${Number(request.amount).toFixed(2)}`,
         );
       }
     }
