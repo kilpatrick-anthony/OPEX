@@ -3,7 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import { DEFAULT_PORTAL_ACCESS, normalizePortalAccess, type PortalKey } from '@/lib/portalAccess';
 import { OPEX_SESSION_VERSION } from '@/lib/sessionVersion';
 
-const OPEX_PREFIXES = ['/dashboard', '/requests', '/approval', '/reports', '/audit', '/forecast'];
+const OPEX_PREFIXES = ['/dashboard', '/requests', '/approval', '/reports', '/audit'];
 
 function requiredPortalForPath(pathname: string): PortalKey | null {
   if (pathname === '/api/oaker' || pathname.startsWith('/api/oaker/')) return 'oaker';
@@ -62,7 +62,6 @@ export const config = {
     '/approval/:path*',
     '/reports/:path*',
     '/audit/:path*',
-    '/forecast/:path*',
     '/oaker/:path*',
     '/api/dashboard',
     '/api/audit',

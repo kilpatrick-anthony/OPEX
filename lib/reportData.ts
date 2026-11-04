@@ -158,16 +158,6 @@ export const APPROVAL_VELOCITY = [
   { category: 'Professional Services', avgDays: 3.5 },
 ];
 
-// ─── Budget forecast helper ───────────────────────────────────────────────────
-
-/** Returns projected year-end spend based on a monthly average run-rate. */
-export function projectYearEnd(monthlyAvgSpend: number, annualBudget: number) {
-  const projected = monthlyAvgSpend * 12;
-  const variance  = projected - annualBudget;
-  const pct       = annualBudget > 0 ? (projected / annualBudget) * 100 : 0;
-  return { projected, variance, pct };
-}
-
 // ─── Status breakdown helper ──────────────────────────────────────────────────
 
 export function getStatusBreakdown(requests: RequestItem[]) {
@@ -178,14 +168,6 @@ export function getStatusBreakdown(requests: RequestItem[]) {
     amounts[req.status] = (amounts[req.status] ?? 0) + req.amount;
   }
   return { counts, amounts };
-}
-
-// ─── Budget health colour ─────────────────────────────────────────────────────
-
-export function budgetHealthColor(pct: number): string {
-  if (pct >= 90) return '#ef4444';
-  if (pct >= 75) return '#f59e0b';
-  return '#10b981';
 }
 
 // ─── Period label map ─────────────────────────────────────────────────────────
