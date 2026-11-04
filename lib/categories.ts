@@ -1,5 +1,6 @@
 export const REQUEST_CATEGORIES = [
   'Supplies',
+  'Fruit',
   'Marketing',
   'Maintenance',
   'Travel',
