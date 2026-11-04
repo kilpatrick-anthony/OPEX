@@ -641,59 +641,7 @@ export default function RequestsPage() {
           </div>
         </div>
 
-        {!isStoreStaff ? (
-          <section className="mt-8">
-            <Card title="Request history" description="All requests you can access." className="space-y-4">
-              {loadingData ? <p className="text-sm text-slate-500">Loading requests…</p> : null}
-              
-                <Table>
-                  <TableHeader>
-                    <tr>
-                      <th className="px-4 py-3 text-left">Store</th>
-                      <th className="px-4 py-3 text-left">Requester</th>
-                      <th className="px-4 py-3 text-left">Category</th>
-                      <th className="px-4 py-3 text-left">Amount</th>
-                      <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3 text-left">Submitted</th>
-                      <th className="px-4 py-3 text-left">Receipt Date</th>
-                      <th className="px-4 py-3 text-left"></th>
-                    </tr>
-                  </TableHeader>
-                  <tbody>
-                    {requests.map((request) => (
-                      <TableRow key={request.id}>
-                        <TableCell className="font-medium text-slate-800">{request.storeName}</TableCell>
-                        <TableCell>{request.requesterName}</TableCell>
-                        <TableCell>
-                          <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">{request.category}</span>
-                        </TableCell>
-                        <TableCell className="font-semibold text-slate-900">{formatCurrency(request.amount)}</TableCell>
-                        <TableCell>
-                          <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_STYLES[request.status]}`}>{request.status}</span>
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-500">
-                          {new Date(request.createdAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-500">
-                          {request.dateOnReceipt ? new Date(`${request.dateOnReceipt.slice(0, 10)}T00:00:00`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <button
-                            type="button"
-                            onClick={() => openRequest(request)}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition-colors"
-                          >
-                            View
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </tbody>
-                </Table>
-                {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No requests match the current filters.</p> : null}
-            </Card>
-          </section>
-        ) : (
+        {isStoreStaff ? (
           <section className="mt-8">
             <Card title="Queried requests" description="Requests needing updates before resubmission." className="space-y-4">
               {loadingData ? <p className="text-sm text-slate-500">Loading queried requests…</p> : null}
@@ -733,7 +681,7 @@ export default function RequestsPage() {
                 {!loadingData && requests.length === 0 ? <p className="pt-6 text-sm text-slate-500">No queried requests right now.</p> : null}
             </Card>
           </section>
-        )}
+        ) : null}
       </main>
 
       {selectedRequest ? (
