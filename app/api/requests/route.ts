@@ -98,9 +98,14 @@ export async function POST(request: Request) {
   const submitterName = body.submitterName?.trim() || null;
   const submitterJobRole = body.submitterJobRole?.trim() || null;
   const dateOnReceipt = typeof body.dateOnReceipt === 'string' ? body.dateOnReceipt.trim() : '';
+  const reimbursable = typeof body.reimbursable === 'boolean' ? body.reimbursable : undefined;
 
   if (!storeId || !category || !amount || amount <= 0 || !description || !dateOnReceipt) {
     return NextResponse.json({ error: 'storeId, category, amount, description and dateOnReceipt are required.' }, { status: 400 });
+  }
+
+  if (reimbursable === undefined) {
+    return NextResponse.json({ error: 'Please select how the expense was paid.' }, { status: 400 });
   }
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnReceipt)) {
@@ -126,6 +131,7 @@ export async function POST(request: Request) {
     submitterName: submitterName || undefined,
     submitterJobRole: submitterJobRole || undefined,
     dateOnReceipt,
+    reimbursable,
   });
 
   // Fire-and-forget email to all directors/super_admins — never blocks the response

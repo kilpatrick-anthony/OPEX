@@ -34,6 +34,7 @@ type RequestRecord = {
   submitterName?: string | null;
   submitterJobRole?: string | null;
   dateOnReceipt?: string | null;
+  reimbursable?: boolean;
   createdAt: string;
   storeRemainingBudget: number;
 };
@@ -65,6 +66,7 @@ export default function RequestsPage() {
     submitterName: '',
     submitterJobRole: '',
     dateOnReceipt: '',
+    reimbursable: '',
   });
 
   const [receiptDataUrls, setReceiptDataUrls] = useState<string[]>([]);
@@ -320,6 +322,10 @@ export default function RequestsPage() {
       setError('Please enter the date on the receipt.');
       return;
     }
+    if (!form.reimbursable) {
+      setError('Please select how the expense was paid.');
+      return;
+    }
     if (!form.amount || Number(form.amount) <= 0) {
       setError('Please enter a valid amount.');
       return;
@@ -343,6 +349,7 @@ export default function RequestsPage() {
           submitterName: isStoreLevelUser ? form.submitterName.trim() : undefined,
           submitterJobRole: isStoreLevelUser ? form.submitterJobRole : undefined,
           dateOnReceipt: form.dateOnReceipt,
+          reimbursable: form.reimbursable === 'payroll',
         }),
       });
 
@@ -362,6 +369,7 @@ export default function RequestsPage() {
         submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
         submitterJobRole: '',
         dateOnReceipt: '',
+        reimbursable: '',
         storeId: hideStoreSelector ? prev.storeId : '',
       }));
       if (isStoreStaff) {
@@ -388,6 +396,7 @@ export default function RequestsPage() {
       submitterName: user?.role === 'field_team' ? (user.name ?? '') : '',
       submitterJobRole: '',
       dateOnReceipt: request.dateOnReceipt ?? '',
+      reimbursable: request.reimbursable === false ? 'already-paid' : request.reimbursable === true ? 'payroll' : '',
     }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -539,6 +548,30 @@ export default function RequestsPage() {
                   required
                 />
               </label>
+
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-sm font-medium text-slate-700">How was this expense paid?</legend>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <button
+                    type="button"
+                    aria-pressed={form.reimbursable === 'payroll'}
+                    onClick={() => setForm({ ...form, reimbursable: 'payroll' })}
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors ${form.reimbursable === 'payroll' ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'}`}
+                  >
+                    Payroll reimbursement
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">This expense needs to be reimbursed through payroll.</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={form.reimbursable === 'already-paid'}
+                    onClick={() => setForm({ ...form, reimbursable: 'already-paid' })}
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors ${form.reimbursable === 'already-paid' ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'}`}
+                  >
+                    Already paid another way
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">Cash from the till, fuel card, company card, or another payment method.</span>
+                  </button>
+                </div>
+              </fieldset>
 
               <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
                 Receipt

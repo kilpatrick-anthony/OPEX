@@ -480,10 +480,11 @@ export async function insertRequest(data: {
   submitterName?: string;
   submitterJobRole?: string;
   dateOnReceipt?: string;
+  reimbursable: boolean;
 }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, 'pending') RETURNING *`;
+  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, reimbursable, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, ${data.reimbursable}, 'pending') RETURNING *`;
   return getRequestById(result[0].id);
 }
 

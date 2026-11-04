@@ -90,7 +90,7 @@ export default function ApprovalPage() {
             const request = (payload as { request?: ApprovalRequest })?.request;
             if (request) {
               setViewRequest(request);
-              setDetailReimbursable(false);
+              setDetailReimbursable(request.reimbursable !== false);
             }
           }
         }
@@ -132,12 +132,15 @@ export default function ApprovalPage() {
 
   async function openRequest(req: ApprovalRequest) {
     setViewRequest(req);
-    setDetailReimbursable(false);
+    setDetailReimbursable(req.reimbursable !== false);
     try {
       const res = await fetch(`/api/requests/${req.id}`, { cache: 'no-store' });
       if (res.ok) {
         const data = (await readJsonSafely(res)) as { request?: ApprovalRequest } | null;
-        if (data?.request) setViewRequest(data.request);
+        if (data?.request) {
+          setViewRequest(data.request);
+          setDetailReimbursable(data.request.reimbursable !== false);
+        }
       }
     } catch {
       // Non-critical: dialog is already open with list data
