@@ -273,27 +273,13 @@ export default function ReportsPage() {
         <div className="mt-12">
           {/* Section header */}
           <div className="mb-6 rounded-2xl bg-gradient-to-r from-sky-600 to-sky-500 px-8 py-6 text-white shadow-md">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-sky-200">Step-by-step</p>
-                <h2 className="mt-1 text-2xl font-bold">Payroll Report Builder</h2>
-                <p className="mt-2 text-sm text-sky-100 max-w-xl">
-                  Use this section to build the approved-expense summary used for payroll reimbursements.
-                  Follow the steps below carefully — <strong className="text-white">select stores and team members separately</strong>.
-                </p>
-              </div>
-              {hasPayroll && (
-                <Button
-                  type="button"
-                  onClick={() => printPayrollReport(payrollGroups, effectiveFrom, effectiveTo)}
-                  className="gap-2 bg-white text-sky-700 hover:bg-sky-50 shrink-0"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
-                  </svg>
-                  Print / Save Report
-                </Button>
-              )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-sky-200">Step-by-step</p>
+              <h2 className="mt-1 text-2xl font-bold">Payroll Report Builder</h2>
+              <p className="mt-2 max-w-xl text-sm text-sky-100">
+                Use this section to build the approved-expense summary used for payroll reimbursements.
+                Follow the steps below carefully — <strong className="text-white">select stores and team members separately</strong>.
+              </p>
             </div>
           </div>
 
@@ -451,7 +437,7 @@ export default function ReportsPage() {
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white shrink-0">3</span>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Review and print</p>
-                  <p className="text-xs text-slate-500">Check the breakdown below, then use the &quot;Print / Save Report&quot; button above to export.</p>
+                  <p className="text-xs text-slate-500">Check the breakdown below, then print or save it at the bottom of this section.</p>
                 </div>
               </div>
 
@@ -542,6 +528,20 @@ export default function ReportsPage() {
                 )}
               </div>
             ))}
+              </div>
+            )}
+            {hasPayroll && (
+              <div className="mt-6 flex justify-end border-t border-slate-100 pt-6">
+                <Button
+                  type="button"
+                  onClick={() => printPayrollReport(payrollGroups, effectiveFrom, effectiveTo)}
+                  className="gap-2 bg-sky-600 text-white hover:bg-sky-700"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
+                  </svg>
+                  Print / Save Report
+                </Button>
               </div>
             )}
             </div>
