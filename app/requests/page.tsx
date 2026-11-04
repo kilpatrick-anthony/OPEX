@@ -483,7 +483,7 @@ export default function RequestsPage() {
                     >
                       <option value="">Choose a location</option>
                       {stores.map((store) => (
-                        <option key={store.id} value={store.id}>{store.name === 'Field' ? 'Field Based Team' : store.name}</option>
+                        <option key={store.id} value={store.id}>{store.name}</option>
                       ))}
                     </select>
                   </label>
@@ -576,7 +576,7 @@ export default function RequestsPage() {
                     >
                       <option value="">All locations</option>
                       {stores.map((store) => (
-                        <option key={store.id} value={store.id}>{store.name === 'Field' ? 'Field Based Team' : store.name}</option>
+                        <option key={store.id} value={store.id}>{store.name}</option>
                       ))}
                     </select>
                   </label>

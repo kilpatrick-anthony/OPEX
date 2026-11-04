@@ -11,7 +11,6 @@ const stores = [
   'South Anne Street',
   'Arnotts',
   'Blackrock',
-  'Field',
   'Cork',
   'Dun Laoghaire',
   'Dundalk',
@@ -95,15 +94,37 @@ async function main() {
 
   // Ensure budget column on users table exists
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS budget REAL NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE stores ADD COLUMN IF NOT EXISTS isActive BOOLEAN NOT NULL DEFAULT true`;
 
-  const fieldStore = await sql`SELECT id FROM stores WHERE name = 'Field' LIMIT 1`;
-  if (fieldStore[0]?.id) {
-    await sql`
-      UPDATE requests
-      SET storeId = ${fieldStore[0].id}
-      WHERE userId IN (SELECT id FROM users WHERE role = 'employee')
-    `;
-  }
+  await sql`
+    UPDATE requests r
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE r.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE oaker_inspections i
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE i.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE users u
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE u.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE stores
+    SET isActive = false
+    WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+  `;
 
   for (const user of directors) {
     const hash = await bcrypt.hash(user.password, 12);

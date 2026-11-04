@@ -203,7 +203,41 @@ export async function ensureSchema() {
     sql`CREATE UNIQUE INDEX IF NOT EXISTS oaker_inspections_importkey_idx ON oaker_inspections (importKey)`,
     sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`,
   ]);
+  await consolidateFieldLocations(sql);
   await seedOakerQuestions(sql);
+}
+
+async function consolidateFieldLocations(sql: ReturnType<typeof getSql>) {
+  await sql`INSERT INTO stores (name, budget) VALUES ('Warehouse', 10000) ON CONFLICT (name) DO NOTHING`;
+  await sql`
+    UPDATE requests r
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE r.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE oaker_inspections i
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE i.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE users u
+    SET storeId = (SELECT w.id FROM stores w WHERE LOWER(BTRIM(w.name)) = 'warehouse' LIMIT 1)
+    WHERE u.storeId IN (
+      SELECT id FROM stores
+      WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+    )
+  `;
+  await sql`
+    UPDATE stores
+    SET isActive = false
+    WHERE LOWER(BTRIM(name)) IN ('field', 'field based', 'field based team', 'field team')
+  `;
 }
 
 async function ensureSchemaOnce() {
@@ -243,6 +277,7 @@ async function ensureRequiredMigrationsOnce() {
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS sortOrder INTEGER NOT NULL DEFAULT 0`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
       await sql`ALTER TABLE oaker_questions ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+      await consolidateFieldLocations(sql);
       await seedOakerQuestions(sql);
     })().catch((err) => {
       requiredMigrationsReady = null;
@@ -734,7 +769,12 @@ export async function canUserManageOakerQuestions(userId: number, role?: string 
 export async function createStore(name: string, budget: number): Promise<Store> {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO stores (name, budget) VALUES (${name.trim()}, ${budget}) RETURNING *`;
+  const normalizedName = name.trim();
+  const locationAliases = ['field', 'field based', 'field based team', 'field team'];
+  if (locationAliases.includes(normalizedName.toLowerCase())) {
+    throw new Error('Warehouse is the location used for field-based work.');
+  }
+  const result = await sql`INSERT INTO stores (name, budget) VALUES (${normalizedName}, ${budget}) RETURNING *`;
   return result[0] as Store;
 }
 

@@ -48,6 +48,10 @@ export async function POST(request: Request) {
   if (!name) {
     return NextResponse.json({ error: 'Store name is required.' }, { status: 400 });
   }
+  const locationAliases = ['field', 'field based', 'field based team', 'field team'];
+  if (locationAliases.includes(name.toLowerCase())) {
+    return NextResponse.json({ error: 'Warehouse is the location used for field-based work.' }, { status: 400 });
+  }
   if (isNaN(budget) || budget < 0) {
     return NextResponse.json({ error: 'Budget must be a non-negative number.' }, { status: 400 });
   }
