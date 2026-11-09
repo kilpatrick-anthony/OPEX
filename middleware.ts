@@ -19,6 +19,13 @@ function requiredPortalForPath(pathname: string): PortalKey | null {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (pathname === '/training' || pathname.startsWith('/training/')) {
+    const trainingUrl = request.nextUrl.clone();
+    trainingUrl.pathname = `/Training${pathname.slice('/training'.length)}`;
+    return NextResponse.redirect(trainingUrl);
+  }
+
   const requiredPortal = requiredPortalForPath(request.nextUrl.pathname);
   if (!requiredPortal) return NextResponse.next();
 
@@ -60,6 +67,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/training/:path*',
     '/dashboard/:path*',
     '/requests/:path*',
     '/approval/:path*',
