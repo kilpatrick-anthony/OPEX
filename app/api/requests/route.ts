@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { insertRequest, queryRequests, getStoreRemainingBudget, getStores, getDirectorEmails, getAllStoreRemainingBudgets } from '@/lib/db';
+import { createNotification, getDirectorEmails, getAllStoreRemainingBudgets, getStores, getUserById, insertRequest, queryRequests } from '@/lib/db';
 import { REQUEST_CATEGORIES } from '@/lib/categories';
 import { sendNewRequestEmail } from '@/lib/email';
-import { serializeReceiptList } from '@/lib/receipts';
+import { parseReceiptList, serializeReceiptList } from '@/lib/receipts';
+import { sendReceiptToAccountant, sendRequestDecisionEmail } from '@/lib/notificationEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
     );
   }
 
+  const autoApprove = !reimbursable && amount > 20;
   const requestRecord = await insertRequest({
     storeId,
     userId: session.user.id,
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
     submitterJobRole: submitterJobRole || undefined,
     dateOnReceipt,
     reimbursable,
+    autoApprove,
   });
 
   // Fire-and-forget email to all directors/super_admins — never blocks the response
@@ -139,6 +142,45 @@ export async function POST(request: Request) {
     getDirectorEmails()
       .then((directors) => sendNewRequestEmail(requestRecord, directors))
       .catch((err) => console.error('Failed to send director notification email:', err));
+
+    if (autoApprove) {
+      (async () => {
+        const message = 'Automatically approved: already paid and no payroll reimbursement required.';
+        await createNotification({
+          userId: Number(requestRecord.userId),
+          requestId: requestRecord.id,
+          type: 'approved',
+          title: `Request #${requestRecord.id} Approved`,
+          message,
+        });
+
+        const recipient = await getUserById(Number(requestRecord.userId));
+        if (recipient?.email) {
+          await sendRequestDecisionEmail({
+            toEmail: recipient.email,
+            toName: recipient.name,
+            action: 'approved',
+            requestId: requestRecord.id,
+            storeName: requestRecord.storeName,
+            category: requestRecord.category,
+            amount: Number(requestRecord.amount),
+          });
+        }
+
+        const receipts = parseReceiptList(requestRecord.receipt);
+        if (receipts.length > 0) {
+          await sendReceiptToAccountant({
+            requestId: requestRecord.id,
+            storeName: requestRecord.storeName,
+            category: requestRecord.category,
+            amount: Number(requestRecord.amount),
+            requesterName: requestRecord.requesterName ?? requestRecord.submitterName ?? 'Unknown',
+            approvedAt: new Date().toISOString(),
+            receiptDataUrls: receipts,
+          });
+        }
+      })().catch((err) => console.error('Failed to send auto-approval notifications:', err));
+    }
   }
 
   return NextResponse.json({ request: requestRecord });

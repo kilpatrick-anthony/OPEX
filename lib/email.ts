@@ -26,6 +26,7 @@ function formatCurrencyEur(amount: number) {
 function buildRequestEmailHtml(request: RequestRecord): string {
   const appUrl = process.env.NEXTAUTH_URL ?? 'https://opex.oakberry.ie';
   const approvalUrl = `${appUrl.replace(/\/$/, '')}/approval?request=${encodeURIComponent(request.id)}`;
+  const isAutoApproved = request.status === 'approved';
   const submittedAt = new Date(request.createdAt).toLocaleString('en-IE', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
@@ -48,7 +49,7 @@ function buildRequestEmailHtml(request: RequestRecord): string {
           <tr>
             <td style="background:#6d2f8e;padding:28px 36px;">
               <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">OAKBERRY Ireland</p>
-              <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">New OPEX Request</h1>
+              <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">${isAutoApproved ? 'OPEX Request Auto-Approved' : 'New OPEX Request'}</h1>
             </td>
           </tr>
 
@@ -56,7 +57,9 @@ function buildRequestEmailHtml(request: RequestRecord): string {
           <tr>
             <td style="padding:32px 36px;">
               <p style="margin:0 0 24px;color:#475569;font-size:15px;">
-                A new expense request has been submitted and is awaiting your approval.
+                ${isAutoApproved
+                  ? 'This expense request was automatically approved because it was already paid and does not require payroll reimbursement.'
+                  : 'A new expense request has been submitted and is awaiting your approval.'}
               </p>
 
               <!-- Amount highlight -->
@@ -93,7 +96,7 @@ function buildRequestEmailHtml(request: RequestRecord): string {
                   <td align="center">
                     <a href="${approvalUrl}"
                        style="display:inline-block;background:#6d2f8e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:8px;">
-                      Review &amp; Approve →
+                      ${isAutoApproved ? 'View Request' : 'Review &amp; Approve →'}
                     </a>
                   </td>
                 </tr>
@@ -127,7 +130,9 @@ export async function sendNewRequestEmail(
 
   const transport = getTransport();
   const from = process.env.SMTP_FROM ?? `OAKBERRY OPEX <${process.env.SMTP_USER}>`;
-  const subject = `New OPEX Request — ${request.category} · ${formatCurrencyEur(request.amount)} · ${request.storeName}`;
+  const subject = request.status === 'approved'
+    ? `OPEX Request Auto-Approved — ${request.category} · ${formatCurrencyEur(request.amount)} · ${request.storeName}`
+    : `New OPEX Request — ${request.category} · ${formatCurrencyEur(request.amount)} · ${request.storeName}`;
   const html = buildRequestEmailHtml(request);
 
   await transport.sendMail({

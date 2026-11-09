@@ -358,7 +358,12 @@ export default function RequestsPage() {
         throw new Error(getApiErrorMessage(response, payload, 'Failed to submit request'));
       }
 
-      setSuccess('Request submitted successfully and is pending approval.');
+      const createdRequest = (payload as { request?: { status?: string } } | null)?.request;
+      setSuccess(
+        createdRequest?.status === 'approved'
+          ? 'Request submitted successfully and automatically approved.'
+          : 'Request submitted successfully and is pending approval.',
+      );
       setReceiptDataUrls([]);
       setFileInputKey((k) => k + 1);
       setForm((prev) => ({

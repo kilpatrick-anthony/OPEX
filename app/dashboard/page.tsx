@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const { user, isLoading: userLoading } = useCurrentUser();
   const [period, setPeriod] = useState<DashboardPeriod>('month');
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [includeWarehouse, setIncludeWarehouse] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingPipeline, setPendingPipeline] = useState(0);
@@ -129,6 +130,9 @@ export default function DashboardPage() {
 
   const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
   const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
+  const spendByStore = dashboard?.byStore.filter((store) => (
+    includeWarehouse || store.name.trim().toLowerCase() !== 'warehouse'
+  )) ?? [];
 
   if (userLoading || (user && user.role === 'store_staff')) {
     return (
@@ -141,7 +145,7 @@ export default function DashboardPage() {
 
   function exportCsv() {
     if (!dashboard) return;
-    const rows = [['Store', 'Approved Amount', 'Awaiting Approval'], ...dashboard.byStore.map((item) => [
+    const rows = [['Store', 'Approved Amount', 'Awaiting Approval'], ...spendByStore.map((item) => [
       item.name,
       item.total.toFixed(2),
       item.pending.toFixed(2),
@@ -258,14 +262,29 @@ export default function DashboardPage() {
 
         <div className="mt-6">
           <Card className="space-y-4">
-            <div>
-              <p className="text-sm uppercase tracking-widest text-slate-500">Spend by store</p>
-              <p className="mt-1 text-xs text-slate-400 sm:hidden">Swipe sideways to see all stores</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase tracking-widest text-slate-500">Spend by store</p>
+                <p className="mt-1 text-xs text-slate-400 sm:hidden">Swipe sideways to see all stores</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-600">Include warehouse</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={includeWarehouse}
+                  aria-label="Include warehouse in spend by store"
+                  onClick={() => setIncludeWarehouse((included) => !included)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${includeWarehouse ? 'bg-sky-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${includeWarehouse ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
             </div>
             <div className="-mx-2 overflow-x-auto px-2 pb-2 sm:mx-0 sm:px-0">
               <div className="h-[350px] w-[960px] sm:w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dashboard.byStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
+                  <BarChart data={spendByStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" interval={0} height={84} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
                     <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />

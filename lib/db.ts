@@ -481,10 +481,15 @@ export async function insertRequest(data: {
   submitterJobRole?: string;
   dateOnReceipt?: string;
   reimbursable: boolean;
+  autoApprove?: boolean;
 }) {
   await ensureSchemaOnce();
   const sql = getSql();
-  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, reimbursable, status) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, ${data.reimbursable}, 'pending') RETURNING *`;
+  const actionComment = data.autoApprove
+    ? 'Automatically approved: already paid and no payroll reimbursement required.'
+    : null;
+  const status = data.autoApprove ? 'approved' : 'pending';
+  const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, reimbursable, status, actionComment) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, ${data.reimbursable}, ${status}, ${actionComment}) RETURNING *`;
   return getRequestById(result[0].id);
 }
 
@@ -1243,6 +1248,7 @@ export async function getDashboardData(from: string, to: string) {
      WHERE r.status = 'approved'
        AND r.createdat >= $1::date
        AND r.createdat < $2::date
+       AND LOWER(BTRIM(s.name)) <> 'kildare village'
      ORDER BY r.amount DESC
      LIMIT 5`,
     [from, to],

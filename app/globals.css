@@ -11,10 +11,12 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   min-height: 100vh;
+  overflow-x: clip;
   margin: 0;
   background: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 30%), #f8fafc;
 }
@@ -35,6 +37,7 @@ textarea {
 }
 
 .container {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem;
