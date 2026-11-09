@@ -1220,7 +1220,7 @@ export async function getDashboardData(from: string, to: string) {
       AND createdAt < ${to}::date
   `;
   const byStore = await sql`
-    SELECT s.name,
+    SELECT s.name, s.budget,
       COALESCE(SUM(CASE WHEN r.status = 'approved' THEN r.amount ELSE 0 END), 0) AS total,
       COALESCE(SUM(CASE WHEN r.status IN ('pending', 'queried') THEN r.amount ELSE 0 END), 0) AS pending
     FROM stores s
@@ -1263,6 +1263,7 @@ export async function getDashboardData(from: string, to: string) {
     remainingBudget: Math.max(budgetTotal - spentTotal, 0),
     byStore: byStore.map((item) => ({
       name: String(item.name),
+      budget: Number(item.budget),
       total: Number(item.total),
       pending: Number(item.pending),
     })),

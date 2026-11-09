@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
@@ -38,7 +38,7 @@ type DashboardResponse = {
   totalBudget: number;
   totalSpent: number;
   remainingBudget: number;
-  byStore: Array<{ name: string; total: number; pending: number }>;
+  byStore: Array<{ name: string; budget: number; total: number; pending: number }>;
   byCategory: Array<{ category: string; total: number }>;
   topExpenses: Array<{
     id: number;
@@ -64,8 +64,7 @@ export default function DashboardPage() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
   const [includeWarehouse, setIncludeWarehouse] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [pendingPipeline, setPendingPipeline] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState<Array<{ amount: number; storeName: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -99,9 +98,10 @@ export default function DashboardPage() {
       }
 
       setDashboard(dashboardPayload as DashboardResponse);
-      const pendingRequests: Array<{ amount: number }> = Array.isArray((pendingPayload as any)?.requests) ? (pendingPayload as any).requests : [];
-      setPendingCount(pendingRequests.length);
-      setPendingPipeline(pendingRequests.reduce((sum, r) => sum + r.amount, 0));
+      const loadedPendingRequests: Array<{ amount: number; storeName: string }> = Array.isArray((pendingPayload as any)?.requests)
+        ? (pendingPayload as any).requests
+        : [];
+      setPendingRequests(loadedPendingRequests);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -123,16 +123,20 @@ export default function DashboardPage() {
     loadDashboard();
   }, [period, customRange, user, userLoading, router]);
 
-  const gaugeValue = useMemo(() => {
-    if (!dashboard || dashboard.totalBudget <= 0) return 0;
-    return Math.min((dashboard.totalSpent / dashboard.totalBudget) * 100, 100);
-  }, [dashboard]);
-
-  const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
-  const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
   const spendByStore = dashboard?.byStore.filter((store) => (
     includeWarehouse || store.name.trim().toLowerCase() !== 'warehouse'
   )) ?? [];
+  const totalBudget = spendByStore.reduce((sum, store) => sum + store.budget, 0);
+  const totalSpent = spendByStore.reduce((sum, store) => sum + store.total, 0);
+  const visiblePendingRequests = pendingRequests.filter((request) => (
+    includeWarehouse || request.storeName.trim().toLowerCase() !== 'warehouse'
+  ));
+  const pendingCount = pendingRequests.length;
+  const pendingSpendCount = visiblePendingRequests.length;
+  const pendingPipeline = visiblePendingRequests.reduce((sum, request) => sum + request.amount, 0);
+  const gaugeValue = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
+  const gaugeColor = gaugeValue >= 90 ? '#ef4444' : gaugeValue >= 75 ? '#f59e0b' : '#0ea5e9';
+  const canOpenApprovals = user?.role === 'director' || user?.role === 'super_admin';
 
   if (userLoading || (user && user.role === 'store_staff')) {
     return (
@@ -220,8 +224,8 @@ export default function DashboardPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Total spend</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent)}</p>
-            <p className="mt-2 text-sm text-slate-500">of {formatCurrency(dashboard.totalBudget)} budget</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent)}</p>
+            <p className="mt-2 text-sm text-slate-500">of {formatCurrency(totalBudget)} budget</p>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full transition-all" style={{ width: `${gaugeValue}%`, backgroundColor: gaugeColor }} />
             </div>
@@ -248,12 +252,12 @@ export default function DashboardPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Pending pipeline</p>
             <p className="mt-3 text-2xl sm:text-4xl font-semibold text-amber-600">{formatCurrency(pendingPipeline)}</p>
-            <p className="mt-2 text-sm text-slate-500">{pendingCount} request{pendingCount !== 1 ? 's' : ''} awaiting approval</p>
+            <p className="mt-2 text-sm text-slate-500">{pendingSpendCount} request{pendingSpendCount !== 1 ? 's' : ''} awaiting approval</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
             <p className="text-xs uppercase tracking-widest text-slate-500">Projected period end</p>
-            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(dashboard.totalSpent + pendingPipeline)}</p>
+            <p className="mt-3 text-2xl sm:text-4xl font-semibold text-slate-900">{formatCurrency(totalSpent + pendingPipeline)}</p>
             <p className="mt-2 text-sm text-slate-500">
               {period === 'month' ? 'If all pending approved this month' : period === 'week' ? 'If all pending approved this week' : 'If all pending approved in this date range'}
             </p>
