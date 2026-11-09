@@ -486,7 +486,7 @@ export async function insertRequest(data: {
   await ensureSchemaOnce();
   const sql = getSql();
   const actionComment = data.autoApprove
-    ? 'Automatically approved: already paid and no payroll reimbursement required.'
+    ? 'Automatically approved: no payroll reimbursement required.'
     : null;
   const status = data.autoApprove ? 'approved' : 'pending';
   const result = await sql`INSERT INTO requests (storeId, userId, category, amount, description, receipt, submitterName, submitterJobRole, dateOnReceipt, reimbursable, status, actionComment) VALUES (${data.storeId}, ${data.userId}, ${data.category}, ${data.amount}, ${data.description}, ${data.receipt || null}, ${data.submitterName || null}, ${data.submitterJobRole || null}, ${data.dateOnReceipt || null}, ${data.reimbursable}, ${status}, ${actionComment}) RETURNING *`;

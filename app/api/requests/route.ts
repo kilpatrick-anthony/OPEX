@@ -122,7 +122,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const autoApprove = !reimbursable && amount > 20;
+  const isWarehouseOrFieldBased = session.user.role === 'field_team'
+    || (await getStores())
+      .find((store) => store.id === storeId)
+      ?.name.trim().toLowerCase() === 'warehouse';
+  const autoApprove = !reimbursable && (isWarehouseOrFieldBased || amount < 20);
   const requestRecord = await insertRequest({
     storeId,
     userId: session.user.id,
@@ -145,7 +149,7 @@ export async function POST(request: Request) {
 
     if (autoApprove) {
       (async () => {
-        const message = 'Automatically approved: already paid and no payroll reimbursement required.';
+        const message = 'Automatically approved: no payroll reimbursement required.';
         await createNotification({
           userId: Number(requestRecord.userId),
           requestId: requestRecord.id,

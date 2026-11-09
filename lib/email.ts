@@ -58,7 +58,7 @@ function buildRequestEmailHtml(request: RequestRecord): string {
             <td style="padding:32px 36px;">
               <p style="margin:0 0 24px;color:#475569;font-size:15px;">
                 ${isAutoApproved
-                  ? 'This expense request was automatically approved because it was already paid and does not require payroll reimbursement.'
+                  ? 'This expense request was automatically approved because it does not require payroll reimbursement.'
                   : 'A new expense request has been submitted and is awaiting your approval.'}
               </p>
 
