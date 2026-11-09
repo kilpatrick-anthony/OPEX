@@ -126,6 +126,9 @@ export default function DashboardPage() {
   const spendByStore = dashboard?.byStore.filter((store) => (
     includeWarehouse || store.name.trim().toLowerCase() !== 'warehouse'
   )) ?? [];
+  const chartSpendByStore = spendByStore.filter((store) => (
+    store.name.replace(/\s+/g, '').toLowerCase() !== 'kildarevillage'
+  ));
   const totalBudget = spendByStore.reduce((sum, store) => sum + store.budget, 0);
   const totalSpent = spendByStore.reduce((sum, store) => sum + store.total, 0);
   const visiblePendingRequests = pendingRequests.filter((request) => (
@@ -288,7 +291,7 @@ export default function DashboardPage() {
             <div className="-mx-2 overflow-x-auto px-2 pb-2 sm:mx-0 sm:px-0">
               <div className="h-[350px] w-[960px] sm:w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={spendByStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
+                  <BarChart data={chartSpendByStore} margin={{ top: 0, right: 10, left: 0, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" interval={0} height={84} tickLine={false} tick={<StoreNameTick x={0} y={0} payload={{ value: '' }} />} />
                     <YAxis tick={{ fill: '#475569', fontSize: 12 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
